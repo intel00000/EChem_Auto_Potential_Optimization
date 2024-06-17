@@ -17,9 +17,12 @@ def ZIPLEDOutput():
     nop()                   .side(0)    [4]
     wrap()
 
+# define onboard led
+onboard_led = machine.Pin("LED", machine.Pin.OUT)
+
 numLEDs = 5 # Set the number of ZIP LEDs (5 on a ZIP Stick)
 # Create a state machine with the PIO program, outputting on GPIO 0
-sm = StateMachine(0, ZIPLEDOutput, freq=8000000, sideset_base=machine.Pin(0))
+sm = StateMachine(0, ZIPLEDOutput, freq=8000000, sideset_base=machine.Pin(16))
 # Start the state machine, it will wait for data on its FIFO
 sm.active(1)
 # Create a bytearray to store the LED data
@@ -267,6 +270,8 @@ def chase_rainbow_effect(time_ms=100, led_data=None, led_selected=None, max_inte
         # Increment the hue for the next frame to create a moving rainbow effect
         hue = (hue + 0.01) % 1.0
 
+        onboard_led.toggle()
+
 # run the function
 def run():
     off()
@@ -291,7 +296,7 @@ def run():
     # sparkle_effect(led_data=led_data, led_selected=led_selected, probability=0.1, max_intensity=0.1)
 
     # Combined Chase and Rainbow Effect
-    chase_rainbow_effect(led_data=led_data, led_selected=led_selected, max_intensity=0.1)
+    chase_rainbow_effect(led_data=led_data, led_selected=led_selected, max_intensity=0.05, time_ms=500)
 
 if __name__ == "__main__":
     run()
