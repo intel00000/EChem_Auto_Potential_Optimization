@@ -1,5 +1,3 @@
-# windows_script.py
-
 import serial
 import json
 import time
