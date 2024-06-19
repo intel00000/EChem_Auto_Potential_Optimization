@@ -1,0 +1,24 @@
+2024-06-19 11:58:47,331 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 11:58:47,332 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 11:58:48,345 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 11:58:49,361 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
+2024-06-19 12:00:40,434 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 12:00:40,434 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 12:00:40,436 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 12:00:40,436 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 12:00:41,442 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 12:00:41,442 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 12:00:42,459 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
+2024-06-19 12:00:42,459 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
+2024-06-19 12:00:53,999 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 12:00:54,003 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 12:00:55,017 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 12:00:56,025 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
+2024-06-19 12:01:08,592 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 12:01:08,592 [INFO] pycomm3.cip_driver.CIPDriver.discover(): Discovering devices...
+2024-06-19 12:01:08,593 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 12:01:08,593 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): Broadcasting discover for IP: 192.168.1.100
+2024-06-19 12:01:09,595 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 12:01:09,595 [DEBUG] pycomm3.cip_driver.CIPDriver.discover(): No devices found so far, attempting broadcast without binding to an IP.
+2024-06-19 12:01:10,603 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
+2024-06-19 12:01:10,603 [INFO] pycomm3.cip_driver.CIPDriver.discover(): No Ethernet/IP devices discovered
