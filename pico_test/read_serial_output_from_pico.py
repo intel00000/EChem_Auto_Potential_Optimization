@@ -22,6 +22,7 @@ def read_serial(ser, log_file):
     while True:
         line = ser.readline().decode('utf-8').strip()
         if line.startswith('read_u16()'):
+            print(line)
             data = {}
             for item in line.split(','):
                 if item.startswith('read_u16()'):
@@ -35,6 +36,7 @@ def read_serial(ser, log_file):
 
             # read the second line
             line = ser.readline().decode('utf-8').strip()
+            print(line)
             if line.startswith('Pico local time'):
                 data["host_machine_timestamp"] = time.strftime('%Y-%m-%d %H:%M:%S')
                 data["pico_timestamp"] = line.split('Pico local time: ')[1]
@@ -104,7 +106,7 @@ def main():
 
         plt.tight_layout()
 
-    ani = FuncAnimation(fig, update_plot, interval=1000)
+    ani = FuncAnimation(fig, update_plot, interval=200)
     plt.show()
 
 if __name__ == "__main__":
