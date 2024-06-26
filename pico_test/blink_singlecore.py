@@ -4,47 +4,25 @@ import time
 # Define the onboard LED pin
 led = Pin('LED', Pin.OUT)
 
-# Define internal temperature sensor
-temp_sensor = ADC(4)
-conversion_factor = 3.3 / (65535)
+Power = Pin(0, Pin.OUT, Pin.PULL_DOWN)
 
-def read_temp_celcius() -> float:
-    # Read the temperature sensor value
-    raw_temp = temp_sensor.read_u16() * conversion_factor
-
-    # Convert the raw temperature value to Celsius
-    temperature = 27 - (raw_temp - 0.706) / 0.001721
-
-    return temperature
-
-def convert_celcius_to_fahrenheit(celcius: float) -> float:
-    return (celcius * 9/5) + 32
-
-count = 1
-
-# Combined task for blinking LED and reading temperature
-def combined_task(timer) -> None:
-    global count
-    # Blink the LED
-    led.toggle()
-    print(f"Count: {count}")
+direction = Pin(1, Pin.OUT, Pin.PULL_DOWN)
     
-    # Read and print temperature
-    temperature_celsius = read_temp_celcius()
-    temperature_fahrenheit = convert_celcius_to_fahrenheit(temperature_celsius)
-    print(f"RP2040 Temperature in Celsius: {temperature_celsius:.2f} C")
-    print(f"RP2040 Temperature in Fahrenheit: {temperature_fahrenheit:.2f} F")
-    print(f"Device time: {time.time()}")
-    
-    count += 1
-
 def start_tasks():
-    # Create a timer object using Timer class
-    timer = Timer()
-
-    time_interval = 1000 #1000ms
-
-    print(f"Starting blink.py")
-    print(f"Executing combined task every {time_interval}ms")
-    # Call the combined_task function every 1000ms
-    timer.init(period=time_interval, mode=Timer.PERIODIC, callback=combined_task)
+    # toggle the direction pin every 5 seconds
+    # toggle the power pin every 2.5 seconds
+    # toggle the led pin every 2.5 seconds
+    while True:
+        Power.toggle()
+        direction.toggle()
+        led.toggle()
+        time.sleep(2.5)
+        Power.toggle()
+        led.toggle()
+        time.sleep(2.5)
+        Power.toggle()
+        direction.toggle()
+        led.toggle()
+        
+if __name__ == "__main__":
+    start_tasks()
