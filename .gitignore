@@ -1,3 +1,5 @@
 # ignore all file in folder Source Code
 Source Code/*
 pylogix/*
+build/*
+dist/*

@@ -4,7 +4,7 @@ import time
 ADC1_value = 0  # This variable will count up to 65k
 s7sAddress = 0x71  # I2C address of the Sparkfun Serial 7 Segment
 
-i2c = I2C(1, scl=Pin(19), sda=Pin(18), freq=400000)
+i2c = I2C(1, scl=Pin(5), sda=Pin(4), freq=400000)
 time.sleep_ms(100)
 
 s7sAddress  = i2c.scan()[0]

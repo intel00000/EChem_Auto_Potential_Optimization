@@ -110,7 +110,6 @@ class PicoController:
             self.master.after(500, self.schedule_status_update)  # Resume regular status update after 0.5 seconds
 
     def update_status(self):
-        print("called update_status")
         if self.serial_port:
             self.serial_port.write(b'status\n')
             print("Sent: status request")
@@ -127,7 +126,6 @@ class PicoController:
             self.status_update_job = None
 
     def poll_status(self):
-        print("called poll_status")
         if self.serial_port and self.serial_port.in_waiting > 0:
             response = self.serial_port.readline().decode('utf-8').strip()
             print(f"Received: {response}")
