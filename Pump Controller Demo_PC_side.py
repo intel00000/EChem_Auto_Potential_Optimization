@@ -2,6 +2,7 @@ import serial
 import serial.tools.list_ports
 import tkinter as tk
 from tkinter import ttk, messagebox
+import time
 
 class PicoController:
     def __init__(self, master):
@@ -10,7 +11,7 @@ class PicoController:
         
         self.serial_port = None
         self.current_port = None
-        self.poll_rate = 500  # Default poll rate in milliseconds
+        self.poll_rate = 1000  # Default poll rate in milliseconds
         self.status_update_job = None  # Job reference for status updates
         
         # Create and place widgets
@@ -96,18 +97,18 @@ class PicoController:
     def toggle_power(self):
         if self.serial_port:
             self.pause_status_update()
-            self.master.after(500, lambda: self.send_toggle_command('power'))
+            self.master.after(self.poll_rate, lambda: self.send_toggle_command('power'))
 
     def toggle_direction(self):
         if self.serial_port:
             self.pause_status_update()
-            self.master.after(500, lambda: self.send_toggle_command('direction'))
+            self.master.after(self.poll_rate, lambda: self.send_toggle_command('direction'))
 
     def send_toggle_command(self, command):
         if self.serial_port:
             self.serial_port.write(f'{command}\n'.encode())
             print(f"Sent: {command}")
-            self.master.after(500, self.schedule_status_update)  # Resume regular status update after 0.5 seconds
+            self.master.after(self.poll_rate, self.schedule_status_update)  # Resume regular status update after 0.5 seconds
 
     def update_status(self):
         if self.serial_port:
@@ -126,15 +127,23 @@ class PicoController:
             self.status_update_job = None
 
     def poll_status(self):
-        if self.serial_port and self.serial_port.in_waiting > 0:
-            response = self.serial_port.readline().decode('utf-8').strip()
-            print(f"Received: {response}")
-            if "Power:" in response and "Direction:" in response:
-                parts = response.split(", ")
-                power_status = parts[0].split(": ")[1]
-                direction_status = parts[1].split(": ")[1]
-                self.power_label.config(text=f"Power Status: {power_status}")
-                self.direction_label.config(text=f"Direction Status: {direction_status}")
+        try:
+            if self.serial_port and self.serial_port.in_waiting > 0:
+                response = self.serial_port.readline().decode('utf-8').strip()
+                # add a time stamp to the response, format time + response
+                print(f"{time.strftime('%H:%M:%S')}: {response}")
+                if "Power:" in response and "Direction:" in response:
+                    parts = response.split(", ")
+                    power_status = parts[0].split(": ")[1]
+                    direction_status = parts[1].split(": ")[1]
+                    self.power_label.config(text=f"Power Status: {power_status}")
+                    self.direction_label.config(text=f"Direction Status: {direction_status}")
+        except serial.SerialException:
+            self.disconnect_pico(show_message=False)
+            messagebox.showerror("Connection Error", "Connection to Pico lost. Please reconnect to continue.")
+            print("Connection to Pico lost. Please reconnect to continue.")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
 
     def set_poll_rate(self):
         try:

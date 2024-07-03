@@ -2,8 +2,8 @@ import bluesky
 from bluesky import plans as bsp
 from bluesky.callbacks.best_effort import BestEffortCallback
 from ophyd.status import Status
+from bluesky.utils import ProgressBarManager
 import time
-
 
 class Settable(object):
     def __init__(self, name: str):
@@ -45,12 +45,17 @@ class MyProcessor(object):
         pass
 
     def __call__(self, name, document):
-        print(name, document)
+        print(f"Name: {name}, Document: {document}")
 
 
 RE = bluesky.RunEngine()
 
 mp = MyProcessor()
-RE.subscribe(mp)
+# RE.subscribe(mp)
+bec = BestEffortCallback()
+RE.subscribe(bec)
+# RE.waiting_hook = ProgressBarManager()
 
-RE(bsp.scan([voltage], w1, -1, 1, 50))
+# RE(bsp.scan([voltage], w1, -1, 1, 50))
+
+RE(bluesky.plans.count([w1, voltage], num=5, delay=1))

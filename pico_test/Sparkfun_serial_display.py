@@ -1,14 +1,13 @@
 from machine import Pin, I2C, ADC
 import time
 
-ADC1_value = 0  # This variable will count up to 65k
+ADC1_value = 0
 s7sAddress = 0x71  # I2C address of the Sparkfun Serial 7 Segment
 
-i2c = I2C(1, scl=Pin(5), sda=Pin(4), freq=400000)
+i2c = I2C(0, scl=Pin(21), sda=Pin(20), freq=400000)
 time.sleep_ms(100)
 
 s7sAddress  = i2c.scan()[0]
-print(f"Found device at address: {s7sAddress}")
 
 led = Pin('LED', Pin.OUT)
 ADC0 = ADC(Pin(26))
@@ -30,7 +29,7 @@ def set_brightness_i2c(value):
 def set_decimals_i2c(decimals):
     i2c.writeto(s7sAddress, b'\x77' + bytes([decimals]))
 
-def setup():
+def serial_display_setup():
     clear_display_i2c()
     s7s_send_string_i2c("-HI-")
     set_decimals_i2c(0b00111111)  # Turn on all decimals, colon, apos
@@ -44,7 +43,7 @@ def setup():
 
     clear_display_i2c()
 
-def loop():
+def serial_display_loop():
     global ADC1_value
     ADC1_value = ADC1.read_u16()
     # scale between 0 and 9999
@@ -63,10 +62,10 @@ def loop():
     ADC1_value += 1
     time.sleep_us(1)  # This will make the display update at 10Hz
     
-def run():
-    setup()
+def run_serial_display():
+    serial_display_setup()
     while True:
-        loop()
+        serial_display_loop()
     
 if __name__ == "__main__":
-    run()
+    run_serial_display()
