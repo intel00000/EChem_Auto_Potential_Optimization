@@ -1,7 +1,6 @@
-from machine import Pin, I2C, ADC, WDT
+from machine import Pin, WDT
 import sys
 import select
-import time
 import _thread
 
 # Initialize GPIO pins, the led on by default
@@ -52,15 +51,14 @@ commands = {
     'pw': 'toggle_power',
     'di': 'toggle_direction',
     'st': 'status',
-    'allst': 'send_all_status'
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
 poll_obj = select.poll()
 poll_obj.register(sys.stdin, select.POLLIN)
 
-# Initialize Watchdog Timer with a timeout of 5000ms
-wdt = WDT(timeout=2000)
+# Initialize Watchdog Timer with a timeout of 1000ms
+wdt = WDT(timeout=1000)
 
 def main():
     while True:
@@ -112,5 +110,6 @@ def main():
             else:
                 _thread.start_new_thread(write_message, (f"Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys())),))
 
+# Run the main loop
 if __name__ == '__main__':
     main()

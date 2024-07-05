@@ -3,6 +3,7 @@ import serial.tools.list_ports
 import tkinter as tk
 from tkinter import ttk, messagebox
 import time
+from datetime import datetime
 
 class PicoController:
     def __init__(self, master):
@@ -13,7 +14,8 @@ class PicoController:
         self.current_port = None
         self.poll_rate = 1000  # Default poll rate in milliseconds
         self.status_update_job = None  # Job reference for status updates
-        
+        self.start_time = time.perf_counter()
+
         # Create and place widgets
         self.port_label = ttk.Label(master, text="Select COM Port:")
         self.port_label.grid(row=0, column=0, padx=10, pady=10)
@@ -28,32 +30,37 @@ class PicoController:
         self.disconnect_button = ttk.Button(master, text="Disconnect", command=self.disconnect_pico)
         self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
         
+        self.pump_label = ttk.Label(master, text="Select Pump:")
+        self.pump_label.grid(row=1, column=0, padx=10, pady=10)
+        
+        self.pump_combobox = ttk.Combobox(master, values=['1', '2', '3'])
+        self.pump_combobox.grid(row=1, column=1, padx=10, pady=10)
+        self.pump_combobox.current(0)  # Default to the first pump
+        
         self.status_label = ttk.Label(master, text="Status: Not connected")
-        self.status_label.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+        self.status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
         
         self.power_label = ttk.Label(master, text="Power Status: Unknown")
-        self.power_label.grid(row=2, column=0, padx=10, pady=10)
+        self.power_label.grid(row=3, column=0, padx=10, pady=10)
         
         self.direction_label = ttk.Label(master, text="Direction Status: Unknown")
-        self.direction_label.grid(row=3, column=0, padx=10, pady=10)
+        self.direction_label.grid(row=4, column=0, padx=10, pady=10)
         
         self.power_button = ttk.Button(master, text="Toggle Power", command=self.toggle_power)
-        self.power_button.grid(row=2, column=1, padx=10, pady=10)
+        self.power_button.grid(row=3, column=1, padx=10, pady=10)
         
         self.direction_button = ttk.Button(master, text="Toggle Direction", command=self.toggle_direction)
-        self.direction_button.grid(row=3, column=1, padx=10, pady=10)
+        self.direction_button.grid(row=4, column=1, padx=10, pady=10)
 
         self.poll_rate_label = ttk.Label(master, text="Set Poll Rate (ms):")
-        self.poll_rate_label.grid(row=4, column=0, padx=10, pady=10)
+        self.poll_rate_label.grid(row=5, column=0, padx=10, pady=10)
         
         self.poll_rate_entry = ttk.Entry(master)
-        self.poll_rate_entry.grid(row=4, column=1, padx=10, pady=10)
+        self.poll_rate_entry.grid(row=5, column=1, padx=10, pady=10)
         self.poll_rate_entry.insert(0, str(self.poll_rate))
         
         self.set_poll_rate_button = ttk.Button(master, text="Set Poll Rate", command=self.set_poll_rate)
-        self.set_poll_rate_button.grid(row=4, column=2, padx=10, pady=10)
-        
-        self.schedule_status_update()
+        self.set_poll_rate_button.grid(row=5, column=2, padx=10, pady=10)
 
     def refresh_ports(self):
         ports = [port.device for port in serial.tools.list_ports.comports()]
@@ -96,30 +103,37 @@ class PicoController:
 
     def toggle_power(self):
         if self.serial_port:
+            # pause status updates
             self.pause_status_update()
-            self.master.after(self.poll_rate, lambda: self.send_toggle_command('power'))
+            selected_pump = self.pump_combobox.get()
+            self.master.after(self.poll_rate, lambda: self.send_command(f'{selected_pump}:pw'))
+            # resume status updates
+            self.master.after(self.poll_rate, self.update_status)
 
+    # same thing as toggle_power but with different command, could combine into one function
     def toggle_direction(self):
         if self.serial_port:
+            # pause status updates
             self.pause_status_update()
-            self.master.after(self.poll_rate, lambda: self.send_toggle_command('direction'))
+            selected_pump = self.pump_combobox.get()
+            self.master.after(self.poll_rate, lambda: self.send_command(f'{selected_pump}:di'))
+            # resume status updates
+            self.master.after(self.poll_rate, self.update_status)
 
-    def send_toggle_command(self, command):
+    # actually send the command to the Pico
+    def send_command(self, command):
         if self.serial_port:
             self.serial_port.write(f'{command}\n'.encode())
             print(f"Sent: {command}")
-            self.master.after(self.poll_rate, self.schedule_status_update)  # Resume regular status update after 0.5 seconds
 
     def update_status(self):
         if self.serial_port:
-            self.serial_port.write(b'status\n')
+            selected_pump = self.pump_combobox.get()
+            self.serial_port.write(f'{selected_pump}:st\n'.encode())
             print("Sent: status request")
             self.poll_status()
-
-        self.schedule_status_update()  # Schedule next status update
-
-    def schedule_status_update(self):
-        self.status_update_job = self.master.after(self.poll_rate, self.update_status)  # automatically poll status based on poll rate
+        # automatically poll status based on poll rate
+        self.master.after(self.poll_rate, self.update_status)
 
     def pause_status_update(self):
         if self.status_update_job:
@@ -131,11 +145,12 @@ class PicoController:
             if self.serial_port and self.serial_port.in_waiting > 0:
                 response = self.serial_port.readline().decode('utf-8').strip()
                 # add a time stamp to the response, format time + response
-                print(f"{time.strftime('%H:%M:%S')}: {response}")
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') + f".{int((time.perf_counter() - self.start_time) * 1000) % 1000:03d}"
+                print(f"{timestamp}: received: {response}")
                 if "Power:" in response and "Direction:" in response:
                     parts = response.split(", ")
-                    power_status = parts[0].split(": ")[1]
-                    direction_status = parts[1].split(": ")[1]
+                    power_status = parts[0].split(": ")[2].strip().upper()
+                    direction_status = parts[1].split(": ")[1].strip().upper()
                     self.power_label.config(text=f"Power Status: {power_status}")
                     self.direction_label.config(text=f"Direction Status: {direction_status}")
         except serial.SerialException:
