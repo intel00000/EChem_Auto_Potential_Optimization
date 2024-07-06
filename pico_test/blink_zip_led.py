@@ -326,7 +326,7 @@ def run(interval_sec=10):
         time.sleep_ms(10)
         onboard_led.toggle()
         
-def run_chase_rainbow_effect(time_ms=1000):
+def run_chase_rainbow_effect(time_ms=500):
     led_data = array.array("I", [0 for _ in range(numLEDs)])
     led_selected = list(range(numLEDs))
     hue = 0
@@ -334,7 +334,7 @@ def run_chase_rainbow_effect(time_ms=1000):
     off()
     while True:
         hue, chase_index = chase_rainbow_effect(time_ms=time_ms, led_data=led_data, led_selected=led_selected, max_intensity=0.05, hue=hue, index=chase_index)
-        print(f"running chase_rainbow_effect with index: {chase_index}, hue: {hue}")
+        # print(f"running chase_rainbow_effect with index: {chase_index}, hue: {hue}")
         onboard_led.toggle()
         
 if __name__ == "__main__":
