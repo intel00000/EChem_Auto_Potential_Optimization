@@ -58,7 +58,7 @@ poll_obj = select.poll()
 poll_obj.register(sys.stdin, select.POLLIN)
 
 # Initialize Watchdog Timer with a timeout of 1000ms
-wdt = WDT(timeout=1000)
+wdt = WDT(timeout=2000)
 
 def main():
     while True:

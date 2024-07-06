@@ -151,9 +151,7 @@ class PicoController:
         try:
             if self.serial_port and self.serial_port.in_waiting > 0:
                 response = self.serial_port.readline().decode('utf-8').strip()
-                # add a time stamp to the response, format time + response
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') + f".{int((time.perf_counter() - self.start_time) * 1000) % 1000:03d}"
-                logging.info(f"{timestamp}: Status request received: {response}")
+                logging.info(f"Status request received: {response}")
                 if "Power:" in response and "Direction:" in response:
                     parts = response.split(", ")
                     power_status = parts[0].split(": ")[2].strip().upper()
