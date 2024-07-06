@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import time
 from datetime import datetime
+import logging
 
 class PicoController:
     def __init__(self, master):
@@ -12,10 +13,15 @@ class PicoController:
         
         self.serial_port = None
         self.current_port = None
-        self.poll_rate = 1000  # Default poll rate in milliseconds
+        self.poll_rate = 100  # Default poll rate in milliseconds
         self.status_update_job = None  # Job reference for status updates
         self.start_time = time.perf_counter()
-
+        
+        # Set up logging
+        runtime = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_filename = f'pico_controller_log_{runtime}.log'
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', handlers=[logging.FileHandler(log_filename), logging.StreamHandler()])
+        
         # Create and place widgets
         self.port_label = ttk.Label(master, text="Select COM Port:")
         self.port_label.grid(row=0, column=0, padx=10, pady=10)
@@ -23,6 +29,8 @@ class PicoController:
         self.port_combobox = ttk.Combobox(master)
         self.port_combobox.grid(row=0, column=1, padx=10, pady=10)
         self.refresh_ports()
+        if len(self.port_combobox['values']) > 0:
+            self.port_combobox.current(0)  # Default to the first port
         
         self.connect_button = ttk.Button(master, text="Connect", command=self.connect_to_pico)
         self.connect_button.grid(row=0, column=2, padx=10, pady=10)
@@ -82,12 +90,12 @@ class PicoController:
                 self.current_port = selected_port
                 self.status_label.config(text=f"Status: Connected to {selected_port}")
                 messagebox.showinfo("Connection Status", f"Successfully connected to {selected_port}")
-                print(f"Connected to {selected_port}")
+                logging.info(f"Connected to {selected_port}")
                 self.update_status()  # Call update_status immediately after connecting
             except serial.SerialException:
                 self.status_label.config(text="Status: Not connected")
                 messagebox.showerror("Connection Status", f"Failed to connect to {selected_port}")
-                print(f"Failed to connect to {selected_port}")
+                logging.error(f"Failed to connect to {selected_port}")
 
     def disconnect_pico(self, show_message=True):
         if self.serial_port:
@@ -99,7 +107,7 @@ class PicoController:
             self.direction_label.config(text="Direction Status: Unknown")  # Reset direction status to unknown
             if show_message:
                 messagebox.showinfo("Disconnection Status", f"Successfully disconnected from {self.current_port}")
-            print("Disconnected")
+            logging.info("Disconnected")
 
     def toggle_power(self):
         if self.serial_port:
@@ -124,13 +132,12 @@ class PicoController:
     def send_command(self, command):
         if self.serial_port:
             self.serial_port.write(f'{command}\n'.encode())
-            print(f"Sent: {command}")
+            logging.info(f"Sent: {command}")
 
     def update_status(self):
         if self.serial_port:
             selected_pump = self.pump_combobox.get()
             self.serial_port.write(f'{selected_pump}:st\n'.encode())
-            print("Sent: status request")
             self.poll_status()
         # automatically poll status based on poll rate
         self.master.after(self.poll_rate, self.update_status)
@@ -146,7 +153,7 @@ class PicoController:
                 response = self.serial_port.readline().decode('utf-8').strip()
                 # add a time stamp to the response, format time + response
                 timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S') + f".{int((time.perf_counter() - self.start_time) * 1000) % 1000:03d}"
-                print(f"{timestamp}: received: {response}")
+                logging.info(f"{timestamp}: Status request received: {response}")
                 if "Power:" in response and "Direction:" in response:
                     parts = response.split(", ")
                     power_status = parts[0].split(": ")[2].strip().upper()
@@ -156,21 +163,22 @@ class PicoController:
         except serial.SerialException:
             self.disconnect_pico(show_message=False)
             messagebox.showerror("Connection Error", "Connection to Pico lost. Please reconnect to continue.")
-            print("Connection to Pico lost. Please reconnect to continue.")
+            logging.error("Connection to Pico lost.")
         except Exception as e:
             messagebox.showerror("Error", f"An error occurred: {e}")
+            logging.error(f"An error occurred: {e}")
 
     def set_poll_rate(self):
         try:
             new_rate = int(self.poll_rate_entry.get())
-            if new_rate < 100:
+            if new_rate < 1:
                 raise ValueError("Poll rate too low")
             self.poll_rate = new_rate
             messagebox.showinfo("Poll Rate", f"Poll rate set to {new_rate} ms")
-            print(f"Poll rate set to {new_rate} ms")
+            logging.info(f"Poll rate set to {new_rate} ms")
         except ValueError as e:
             messagebox.showerror("Invalid Input", "Please enter a valid poll rate in milliseconds (minimum 100 ms)")
-            print(f"Invalid poll rate: {e}")
+            logging.error(f"Invalid poll rate: {e}")
 
 root = tk.Tk()
 app = PicoController(root)

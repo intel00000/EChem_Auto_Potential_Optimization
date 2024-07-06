@@ -1,8 +1,6 @@
-import array
 from machine import Pin, I2C, ADC
 import time
 import gc
-import micropython
 
 # for optimization, follow https://docs.micropython.org/en/v1.9.3/pyboard/reference/speed_python.html
 # Use the micropython decorator to emit native code for the function
@@ -29,8 +27,7 @@ count = 0
 s7sAddress = 0x71
 i2c = I2C(0, scl=Pin(21), sda=Pin(20))
 
-# ADC definition
-led = Pin('LED', Pin.OUT)
+# ADC definitions
 ADC0 = ADC(0)
 ADC1 = ADC(1)
 ADC2 = ADC(2)
@@ -131,9 +128,6 @@ def serial_display_loop():
             print(f"elapsed time: {elapsed_time} s, cpu ticks: {time.ticks_cpu()}", end=", ")
             # print the number of bytes of heap memory available for debugging
             print(f"Free heap: {gc.mem_free()} bytes, Allocated heap: {gc.mem_alloc()} bytes")
-            
-            # micropython.mem_info()
-            # micropython.qstr_info()
             
 def run_serial_display():
     global i2c, s7sAddress
