@@ -13,8 +13,8 @@ class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Controller via Pico Demo")
-        self.port_refresh_rate = 500  # Refresh rate for COM ports when not connected
-        self.poll_rate = 100  # Default poll rate in milliseconds
+        self.port_refresh_rate = 5000  # Refresh rate for COM ports when not connected
+        self.poll_rate = 1000  # Default poll rate in milliseconds
         self.timeout = 1  # Serial port timeout in seconds
 
         self.serial_port = None
@@ -279,9 +279,11 @@ class PicoController:
         if self.ongoing_read_serial:  # Ensure serial reading continues only if connected
             self.master.after(self.poll_rate, self.read_serial)
 
+    # Below are the functions for the recipe execution
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
-            filetypes=[("Excel files", "*.xlsx *.xls"), ("CSV files", "*.csv"), ("All files", "*.*")])
+            # allow both csv and excel files
+            filetypes=[("Excel/CSV files", "*.xlsx;*.xls;*.csv")])
         if file_path:
             try:
                 if file_path.endswith('.csv'):
@@ -289,9 +291,9 @@ class PicoController:
                 else:
                     self.recipe_df = pd.read_excel(file_path)
                 self.display_recipe()
-                logging.info("Recipe file loaded successfully.")
                 messagebox.showinfo(
                     "File Load", "Recipe file loaded successfully.")
+                logging.info("Recipe file loaded successfully.")
             except Exception as e:
                 messagebox.showerror(
                     "File Load Error", f"Failed to load recipe file: {e}")
@@ -301,7 +303,7 @@ class PicoController:
         for widget in self.recipe_frame.winfo_children():
             widget.destroy()
 
-        columns = list(self.recipe_df.columns)
+        columns = list(self.recipe_df.columns) + ['Progress', 'Remaining Time']
         self.recipe_table = ttk.Treeview(
             self.recipe_frame, columns=columns, show='headings')
         for col in columns:
@@ -309,7 +311,7 @@ class PicoController:
             self.recipe_table.column(col, width=100, anchor='center')
 
         for index, row in self.recipe_df.iterrows():
-            self.recipe_table.insert('', 'end', values=list(row))
+            self.recipe_table.insert('', 'end', values=list(row) + ['', ''])
 
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
 
@@ -329,24 +331,39 @@ class PicoController:
 
         row = self.recipe_df.iloc[index]
         time_delay = int(row['Time (min)']) * 60 * 1000
-        pump1_action = row['Pump 1']
-        pump2_action = row['Pump 2']
-        valve_action = row['Valve']
+        pump_actions = {f'Pump {i + 1}': row[f'Pump {i + 1}'] for i in range(3)}
+        print(pump_actions)
+        valve_actions = {f'Valve {i + 1}': row[f'Valve {i + 1}'] for i in range(3)}
+        print(valve_actions)
 
-        if pump1_action == 'Flow':
-            self.toggle_power(1)
-        elif pump1_action == 'Stop':
-            self.toggle_power(1)
+        for pump, action in pump_actions.items():
+            if action == 'On':
+                self.toggle_power(int(pump.split()[1]))
+            elif action == 'Off':
+                self.toggle_power(int(pump.split()[1]))
 
-        if pump2_action == 'Flow':
-            self.toggle_power(2)
-        elif pump2_action == 'Stop':
-            self.toggle_power(2)
+        # Add valve action handling
+        for valve, action in valve_actions.items():
+            if action == 1:
+                self.toggle_direction(int(valve.split()[1]))
+            elif action == 2:
+                self.toggle_direction(int(valve.split()[1]))
 
-        # Add valve action handling if needed
+        self.update_progress(index)
 
         self.master.after(
             time_delay, lambda: self.execute_procedure(index + 1))
+
+    def update_progress(self, index):
+        progress = (index + 1) / len(self.recipe_df) * 100
+        for i in range(len(self.recipe_df)):
+            if i == index:
+                remaining_time = self.recipe_df.iloc[i]['Time (min)'] * 60
+                self.recipe_table.set(self.recipe_table.get_children()[i], 'Progress', f'{progress:.2f}%')
+                self.recipe_table.set(self.recipe_table.get_children()[i], 'Remaining Time', f'{remaining_time:.0f}s')
+            else:
+                self.recipe_table.set(self.recipe_table.get_children()[i], 'Progress', f'{progress:.2f}%')
+                self.recipe_table.set(self.recipe_table.get_children()[i], 'Remaining Time', '')
 
 
 root = tk.Tk()
