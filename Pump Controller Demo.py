@@ -27,7 +27,7 @@ class PicoController:
         # Set up logging
         runtime = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_filename = f'pico_controller_log_{runtime}.log'
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s', handlers=[
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s [%(funcName)s]', handlers=[
                             logging.FileHandler(log_filename), logging.StreamHandler()])
 
         # Create and place widgets
@@ -281,7 +281,7 @@ class PicoController:
 
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
-            filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx *.xls")])
+            filetypes=[("Excel files", "*.xlsx *.xls"), ("CSV files", "*.csv"), ("All files", "*.*")])
         if file_path:
             try:
                 if file_path.endswith('.csv'):
@@ -289,9 +289,9 @@ class PicoController:
                 else:
                     self.recipe_df = pd.read_excel(file_path)
                 self.display_recipe()
+                logging.info("Recipe file loaded successfully.")
                 messagebox.showinfo(
                     "File Load", "Recipe file loaded successfully.")
-                logging.info("Recipe file loaded successfully.")
             except Exception as e:
                 messagebox.showerror(
                     "File Load Error", f"Failed to load recipe file: {e}")
