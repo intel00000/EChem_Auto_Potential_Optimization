@@ -7,10 +7,15 @@ led = Pin("LED", Pin.OUT, value=1)
 
 # Each pump class will have a power and direction pin, defined at initialization
 class Pump:
-    def __init__(self, power_pin, direction_pin, initial_power_pin_value = 0, initial_direction_pin_value = 0):
+    def __init__(self, power_pin_id, direction_pin_id, initial_power_pin_value = 0, initial_direction_pin_value = 0):
         # both pins are set to low to prevent current flow
-        self.power_pin = Pin(power_pin, Pin.OUT, value = initial_power_pin_value)
-        self.direction_pin = Pin(direction_pin, Pin.OUT, value = initial_direction_pin_value)
+        self.power_pin_id = power_pin_id
+        self.direction_pin_id = direction_pin_id
+        self.initial_power_pin_value = initial_power_pin_value
+        self.initial_direction_pin_value = initial_direction_pin_value
+        
+        self.power_pin = Pin(power_pin_id, Pin.OUT, value = initial_power_pin_value)
+        self.direction_pin = Pin(direction_pin_id, Pin.OUT, value = initial_direction_pin_value)
         self.power_status = False
         self.direction_status = False
     
@@ -24,26 +29,21 @@ class Pump:
         self.direction_status = not self.direction_status
 
     def get_status(self):
-        power_status_str = 'ON' if self.power_status else 'OFF'
-        direction_status_str = 'CW' if self.direction_status else 'CCW'
-        return f"Power: {power_status_str}, Direction: {direction_status_str}"
+        return f"Power: {'ON' if self.power_status else 'OFF'}, Direction: {'CW' if self.direction_status else 'CCW'}"
     
     def get_info(self):
-        return f"Power Pin: {self.power_pin}, Direction Pin: {self.direction_pin}, Initial Power Status: {'ON' if self.power_status else 'OFF'}, Initial Direction Status: {'CW' if self.direction_status else 'CCW'}"
-
-def send_status_all():
-    status = ", ".join([f"Pump{i} {pump.get_status()}" for i, pump in pumps.items()])
-    sys.stdout.write(f"{status}\n")
+        return f"Power Pin ID: {self.power_pin_id}, Direction Pin ID: {self.direction_pin_id}, Initial Power Status: {'ON' if self.power_status else 'OFF'}, Initial Direction Status: {'CW' if self.direction_status else 'CCW'}"
 
 def send_status(pump_name):
     if pump_name == 0:
-        send_status()
+        status = ", ".join([f"Pump{i} Status: {pump.get_status()}" for i, pump in pumps.items()])
+        sys.stdout.write(f"{status}\n")
     elif pump_name in pumps:
         sys.stdout.write(f"Pump{pump_name} Status: {pumps[pump_name].get_status()}\n")
 
 def send_info(pump_name):
     if pump_name == 0:
-        info = ", ".join([f"Pump{i} {pump.get_info()}" for i, pump in pumps.items()])
+        info = ", ".join([f"Pump{i} Info: {pump.get_info()}" for i, pump in pumps.items()])
         sys.stdout.write(f"{info}\n")
     elif pump_name in pumps:
         sys.stdout.write(f"Pump{pump_name} Info: {pumps[pump_name].get_info()}\n")
@@ -53,9 +53,9 @@ def write_message(message):
 
 # Create pump instances
 pumps = {
-    1: Pump(power_pin=15, direction_pin=14, initial_power_pin_value=0, initial_direction_pin_value=0),
-    2: Pump(power_pin=13, direction_pin=18, initial_power_pin_value=0, initial_direction_pin_value=0),
-    3: Pump(power_pin=17, direction_pin=16, initial_power_pin_value=1, initial_direction_pin_value=1),
+    1: Pump(power_pin_id=15, direction_pin_id=14, initial_power_pin_value=0, initial_direction_pin_value=0),
+    2: Pump(power_pin_id=13, direction_pin_id=18, initial_power_pin_value=0, initial_direction_pin_value=0),
+    3: Pump(power_pin_id=17, direction_pin_id=16, initial_power_pin_value=1, initial_direction_pin_value=1),
 }
 
 # Define a dictionary for the commands
@@ -72,7 +72,7 @@ poll_obj.register(sys.stdin, select.POLLIN)
 
 def main():
     while True:
-        # Wait for input on stdin, timeout is set to 100ms
+        # Wait for input on stdin
         poll_results = poll_obj.poll()
         
         if poll_results:
@@ -94,7 +94,7 @@ def main():
             # check the input and call the appropriate function
             if pump_num == 0:
                 if command == 'st':
-                    send_status_all()
+                    send_status(0)
                 elif command == 'info':
                     send_info(0)
                 elif command in commands:
@@ -102,6 +102,8 @@ def main():
                         method = getattr(pump, commands[command], None)
                         if method:
                             method()
+                else:
+                    write_message(f"Invalid command for pump 0 '{command}', available commands are: 'st', 'info', 'pw', 'di'")
             elif pump_num in pumps:
                 # get the pump instance
                 pump = pumps[pump_num]
@@ -117,7 +119,7 @@ def main():
                         if method:
                             method()
                 else:
-                    write_message(f"Invalid command: Use 'pw', 'di', 'st' or 'info'")
+                    write_message(f"Invalid command: '{command}', available commands are: 'pw', 'di', 'st', 'info'")
             else:
                 write_message(f"Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys())))
 
