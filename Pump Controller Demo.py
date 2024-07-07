@@ -5,17 +5,20 @@ from tkinter import ttk, messagebox
 import time
 from datetime import datetime
 import logging
+import re
 
 class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Controller via Pico Demo")
+        self.style = ttk.Style(master)
+        self.style.theme_use("vista")
         
         self.serial_port = None
         self.current_port = None
         self.poll_rate = 100  # Default poll rate in milliseconds
-        self.status_update_job = None  # Job reference for status updates
-        self.start_time = time.perf_counter()
+        self.onging_status_update = False
+        self.pumps = {}  # Dictionary to store pump information and widgets
         
         # Set up logging
         runtime = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -38,37 +41,21 @@ class PicoController:
         self.disconnect_button = ttk.Button(master, text="Disconnect", command=self.disconnect_pico)
         self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
         
-        self.pump_label = ttk.Label(master, text="Select Pump:")
-        self.pump_label.grid(row=1, column=0, padx=10, pady=10)
-        
-        self.pump_combobox = ttk.Combobox(master, values=['1', '2', '3'])
-        self.pump_combobox.grid(row=1, column=1, padx=10, pady=10)
-        self.pump_combobox.current(0)  # Default to the first pump
-        
         self.status_label = ttk.Label(master, text="Status: Not connected")
-        self.status_label.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+        self.status_label.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
         
-        self.power_label = ttk.Label(master, text="Power Status: Unknown")
-        self.power_label.grid(row=3, column=0, padx=10, pady=10)
-        
-        self.direction_label = ttk.Label(master, text="Direction Status: Unknown")
-        self.direction_label.grid(row=4, column=0, padx=10, pady=10)
-        
-        self.power_button = ttk.Button(master, text="Toggle Power", command=self.toggle_power)
-        self.power_button.grid(row=3, column=1, padx=10, pady=10)
-        
-        self.direction_button = ttk.Button(master, text="Toggle Direction", command=self.toggle_direction)
-        self.direction_button.grid(row=4, column=1, padx=10, pady=10)
-
         self.poll_rate_label = ttk.Label(master, text="Set Poll Rate (ms):")
-        self.poll_rate_label.grid(row=5, column=0, padx=10, pady=10)
+        self.poll_rate_label.grid(row=2, column=0, padx=10, pady=10)
         
         self.poll_rate_entry = ttk.Entry(master)
-        self.poll_rate_entry.grid(row=5, column=1, padx=10, pady=10)
+        self.poll_rate_entry.grid(row=2, column=1, padx=10, pady=10)
         self.poll_rate_entry.insert(0, str(self.poll_rate))
         
         self.set_poll_rate_button = ttk.Button(master, text="Set Poll Rate", command=self.set_poll_rate)
-        self.set_poll_rate_button.grid(row=5, column=2, padx=10, pady=10)
+        self.set_poll_rate_button.grid(row=2, column=2, padx=10, pady=10)
+
+        self.pumps_frame = ttk.Frame(master)
+        self.pumps_frame.grid(row=3, column=0, columnspan=4, padx=10, pady=10)
 
     def refresh_ports(self):
         ports = [port.device for port in serial.tools.list_ports.comports()]
@@ -91,7 +78,11 @@ class PicoController:
                 self.status_label.config(text=f"Status: Connected to {selected_port}")
                 messagebox.showinfo("Connection Status", f"Successfully connected to {selected_port}")
                 logging.info(f"Connected to {selected_port}")
-                self.update_status()  # Call update_status immediately after connecting
+                self.query_pump_info()
+                # Prevent multiple status polling after reconnection
+                if not self.onging_status_update:
+                    self.onging_status_update = True
+                    self.update_status()
             except serial.SerialException:
                 self.status_label.config(text="Status: Not connected")
                 messagebox.showerror("Connection Status", f"Failed to connect to {selected_port}")
@@ -103,32 +94,25 @@ class PicoController:
             self.serial_port = None
             self.current_port = None
             self.status_label.config(text="Status: Not connected")
-            self.power_label.config(text="Power Status: Unknown")  # Reset power status to unknown
-            self.direction_label.config(text="Direction Status: Unknown")  # Reset direction status to unknown
+            self.pumps_frame.destroy()
+            self.pumps_frame = ttk.Frame(self.master)
+            self.pumps_frame.grid(row=3, column=0, columnspan=4, padx=10, pady=10)
             if show_message:
                 messagebox.showinfo("Disconnection Status", f"Successfully disconnected from {self.current_port}")
             logging.info("Disconnected")
 
-    def toggle_power(self):
+    def query_pump_info(self):
         if self.serial_port:
-            # pause status updates
-            self.pause_status_update()
-            selected_pump = self.pump_combobox.get()
-            self.master.after(self.poll_rate, lambda: self.send_command(f'{selected_pump}:pw'))
-            # resume status updates
-            self.master.after(self.poll_rate, self.update_status)
+            self.send_command('0:info')
 
-    # same thing as toggle_power but with different command, could combine into one function
-    def toggle_direction(self):
+    def toggle_power(self, pump_id):
         if self.serial_port:
-            # pause status updates
-            self.pause_status_update()
-            selected_pump = self.pump_combobox.get()
-            self.master.after(self.poll_rate, lambda: self.send_command(f'{selected_pump}:di'))
-            # resume status updates
-            self.master.after(self.poll_rate, self.update_status)
+            self.send_command(f'{pump_id}:pw')
 
-    # actually send the command to the Pico
+    def toggle_direction(self, pump_id):
+        if self.serial_port:
+            self.send_command(f'{pump_id}:di')
+
     def send_command(self, command):
         if self.serial_port:
             self.serial_port.write(f'{command}\n'.encode())
@@ -136,35 +120,8 @@ class PicoController:
 
     def update_status(self):
         if self.serial_port:
-            selected_pump = self.pump_combobox.get()
-            self.serial_port.write(f'{selected_pump}:st\n'.encode())
-            self.poll_status()
-        # automatically poll status based on poll rate
-        self.master.after(self.poll_rate, self.update_status)
-
-    def pause_status_update(self):
-        if self.status_update_job:
-            self.master.after_cancel(self.status_update_job)
-            self.status_update_job = None
-
-    def poll_status(self):
-        try:
-            if self.serial_port and self.serial_port.in_waiting > 0:
-                response = self.serial_port.readline().decode('utf-8').strip()
-                logging.info(f"Status request received: {response}")
-                if "Power:" in response and "Direction:" in response:
-                    parts = response.split(", ")
-                    power_status = parts[0].split(": ")[2].strip().upper()
-                    direction_status = parts[1].split(": ")[1].strip().upper()
-                    self.power_label.config(text=f"Power Status: {power_status}")
-                    self.direction_label.config(text=f"Direction Status: {direction_status}")
-        except serial.SerialException:
-            self.disconnect_pico(show_message=False)
-            messagebox.showerror("Connection Error", "Connection to Pico lost. Please reconnect to continue.")
-            logging.error("Connection to Pico lost.")
-        except Exception as e:
-            messagebox.showerror("Error", f"An error occurred: {e}")
-            logging.error(f"An error occurred: {e}")
+            self.send_command('0:st')
+            self.master.after(self.poll_rate, self.update_status)
 
     def set_poll_rate(self):
         try:
@@ -178,6 +135,80 @@ class PicoController:
             messagebox.showerror("Invalid Input", "Please enter a valid poll rate in milliseconds (minimum 100 ms)")
             logging.error(f"Invalid poll rate: {e}")
 
+    def process_response(self, response):
+        if "Info" in response:
+            self.create_pump_widgets(response)
+        elif "Status" in response:
+            self.update_pump_status(response)
+
+    def create_pump_widgets(self, response):
+        # Clear existing widgets
+        for widget in self.pumps_frame.winfo_children():
+            widget.destroy()
+        
+        self.pumps = {}
+        info_pattern = re.compile(r'Pump(\d+) Info: Power Pin ID: (\d+), Direction Pin ID: (\d+), Initial Power Status: (ON|OFF), Initial Direction Status: (CW|CCW)')
+        matches = info_pattern.findall(response)
+
+        for match in matches:
+            pump_id, power_pin, direction_pin, initial_power, initial_direction = match
+            pump_id = int(pump_id)
+            self.pumps[pump_id] = {
+                "power_pin": power_pin,
+                "direction_pin": direction_pin,
+                "power_status": initial_power,
+                "direction_status": initial_direction,
+            }
+
+            row = pump_id * 3
+
+            pump_label = ttk.Label(self.pumps_frame, text=f"Pump {pump_id}")
+            pump_label.grid(row=row, column=0, padx=10, pady=10)
+
+            power_label = ttk.Label(self.pumps_frame, text=f"Power Status: {initial_power}")
+            power_label.grid(row=row + 1, column=0, padx=10, pady=10)
+            self.pumps[pump_id]['power_label'] = power_label
+
+            direction_label = ttk.Label(self.pumps_frame, text=f"Direction Status: {initial_direction}")
+            direction_label.grid(row=row + 1, column=1, padx=10, pady=10)
+            self.pumps[pump_id]['direction_label'] = direction_label
+
+            power_button = ttk.Button(self.pumps_frame, text="Toggle Power", command=lambda pid=pump_id: self.toggle_power(pid))
+            power_button.grid(row=row + 2, column=0, padx=10, pady=10)
+
+            direction_button = ttk.Button(self.pumps_frame, text="Toggle Direction", command=lambda pid=pump_id: self.toggle_direction(pid))
+            direction_button.grid(row=row + 2, column=1, padx=10, pady=10)
+
+    def update_pump_status(self, response):
+        status_pattern = re.compile(r'Pump(\d+) Status: Power: (ON|OFF), Direction: (CW|CCW)')
+        matches = status_pattern.findall(response)
+
+        for match in matches:
+            pump_id, power_status, direction_status = match
+            pump_id = int(pump_id)
+            if pump_id in self.pumps:
+                self.pumps[pump_id]['power_status'] = power_status
+                self.pumps[pump_id]['direction_status'] = direction_status
+                self.pumps[pump_id]['power_label'].config(text=f"Power Status: {power_status}")
+                self.pumps[pump_id]['direction_label'].config(text=f"Direction Status: {direction_status}")
+
+    def read_serial(self):
+        if self.serial_port:
+            try:
+                while self.serial_port.in_waiting > 0:
+                    response = self.serial_port.readline().decode('utf-8').strip()
+                    logging.info(f"Received: {response}")
+                    self.process_response(response)
+            except serial.SerialException as e:
+                self.disconnect_pico(show_message=False)
+                messagebox.showerror("Connection Error", "Connection to Pico lost. Please reconnect to continue.")
+                logging.error(f"Connection to Pico lost: {e}")
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred: {e}")
+                logging.error(f"An error occurred: {e}")
+        self.master.after(self.poll_rate, self.read_serial)
+
 root = tk.Tk()
 app = PicoController(root)
+root.after(100, app.read_serial)
 root.mainloop()
