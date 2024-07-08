@@ -33,7 +33,7 @@ class PicoController:
         self.recipe_rows = []
 
         # time stamp for the start of the procedure
-        self.start_time = 1
+        self.start_time = -1
         self.total_procedure_time = -1
 
         # Set up logging
