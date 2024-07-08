@@ -1,13 +1,21 @@
+# pyserial imports
 import serial
+
+# weird that I have to import serial again here, wtf
 import serial.tools.list_ports
+
+# gui imports
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
-import time
-from datetime import datetime
-import logging
-import pandas as pd
+
+# other library
 import re
+import time
+import logging
+from datetime import datetime
 from queue import Queue
+import pandas as pd
+
 
 class PicoController:
     def __init__(self, master):
