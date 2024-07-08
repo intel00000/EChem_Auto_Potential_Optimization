@@ -1,5 +1,10 @@
 # ignore all file in folder Source Code
 Source Code/*
-pylogix/*
 build/*
 dist/*
+logs/*
+
+# exclude by extension
+*.pyc
+*.pyo
+*.log

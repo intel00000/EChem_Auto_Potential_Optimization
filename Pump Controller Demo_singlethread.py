@@ -9,7 +9,6 @@ import pandas as pd
 import re
 from queue import Queue
 
-
 class PicoController:
     def __init__(self, master):
         self.master = master
@@ -40,6 +39,8 @@ class PicoController:
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_filename = f"pico_controller_log_{runtime}.log"
         logging.basicConfig(
+            # store the log in a subfolder called logs, with the specified filename
+            filename=f"logs/{log_filename}",
             level=logging.INFO,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
@@ -428,14 +429,15 @@ class PicoController:
         # record high precision start time
         self.start_time = time.time()
         self.execute_procedure()
-        
 
     def execute_procedure(self, index=0):
         if index >= len(self.recipe_df):
             self.start_time = -1
             self.total_procedure_time = -1
             logging.info("Procedure completed.")
-            messagebox.showinfo("Procedure Complete", "The procedure has been completed.")
+            messagebox.showinfo(
+                "Procedure Complete", "The procedure has been completed."
+            )
             return
 
         row = self.recipe_df.iloc[index]
@@ -443,7 +445,7 @@ class PicoController:
 
         elapsed_time = time.time() - self.start_time
         # calculate the remaining time for the current step
-        current_step_remaining_time = (target_time - elapsed_time)
+        current_step_remaining_time = target_time - elapsed_time
         intended_sleep_time = max(100, int(current_step_remaining_time * 1000 / 2))
         if elapsed_time < target_time:
             self.master.after(intended_sleep_time, self.execute_procedure, index)
@@ -452,12 +454,8 @@ class PicoController:
         logging.info(f"executing step at index {index}")
 
         # Parse pump and valve actions dynamically
-        pump_actions = {
-            col: row[col] for col in row.index if col.startswith("Pump")
-        }
-        valve_actions = {
-            col: row[col] for col in row.index if col.startswith("Valve")
-        }
+        pump_actions = {col: row[col] for col in row.index if col.startswith("Pump")}
+        valve_actions = {col: row[col] for col in row.index if col.startswith("Valve")}
 
         # issue a one-time status update
         self.update_status()
@@ -496,7 +494,11 @@ class PicoController:
 
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):
-        if self.total_procedure_time == -1 or self.recipe_df is None or self.recipe_df.empty:
+        if (
+            self.total_procedure_time == -1
+            or self.recipe_df is None
+            or self.recipe_df.empty
+        ):
             return
         elapsed_time = time.time() - self.start_time
         total_progress = int((elapsed_time / self.total_procedure_time) * 100)
@@ -516,17 +518,16 @@ class PicoController:
                     next_row = self.recipe_df.iloc[i + 1]
                     next_time_stamp = float(next_row["Time point (min)"]) * 60
                     time_interval = next_time_stamp - time_stamp
-                    row_progress = min(100, int(
-                        ((elapsed_time - time_stamp) / time_interval) * 100
-                    ))
+                    row_progress = min(
+                        100, int(((elapsed_time - time_stamp) / time_interval) * 100)
+                    )
                     remaining_time_row = max(0, int(next_time_stamp - elapsed_time))
                 else:
                     row_progress = 100
                     remaining_time_row = 0
                 self.recipe_table.item(
                     child,
-                    values=list(row)
-                    + [f"{row_progress}%", f"{remaining_time_row}s"],
+                    values=list(row) + [f"{row_progress}%", f"{remaining_time_row}s"],
                 )
 
 
