@@ -373,9 +373,9 @@ class PicoController:
         if file_path:
             try:
                 if file_path.endswith(".csv"):
-                    self.recipe_df = pd.read_csv(file_path, keep_default_na=False)
+                    self.recipe_df = pd.read_csv(file_path, keep_default_na=False, engine="python")
                 elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
-                    self.recipe_df = pd.read_excel(file_path, keep_default_na=False)
+                    self.recipe_df = pd.read_excel(file_path, keep_default_na=False, engine="openpyxl")
                 else:
                     raise ValueError("Invalid file format.")
 

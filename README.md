@@ -22,7 +22,7 @@ Ensure you have the following software and libraries installed:
 ### Python Libraries
 Install the required Python libraries using the following command:
 ```sh
-pip install pyserial tkinter pandas
+pip install pyserial tkinter pandas openpyxl
 ```
 
 ## Setup
