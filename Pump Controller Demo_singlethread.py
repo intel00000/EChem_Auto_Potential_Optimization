@@ -17,6 +17,7 @@ class PicoController:
         # self.master.geometry("800x600")
         self.port_refresh_rate = 10000  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
+        self.main_loop_interval = 100  # Main loop interval in milliseconds
 
         # instance fields for the serial port and queue
         self.serial_port = None
@@ -32,7 +33,7 @@ class PicoController:
         self.recipe_rows = []
 
         # time stamp for the start of the procedure
-        self.start_time = time.time()
+        self.start_time = 1
         self.total_procedure_time = -1
 
         # Set up logging
@@ -133,19 +134,14 @@ class PicoController:
         self.remaining_time_value = ttk.Label(self.progress_frame, text="")
         self.remaining_time_value.grid(row=1, column=1, padx=10, pady=10, sticky="W")
 
-        self.master.after(100, self.main_loop)
+        self.master.after(self.main_loop_interval, self.main_loop)
 
     def main_loop(self):
-        logging.info("Main loop running...")
-        logging.info(f"running refresh_ports...")
         self.refresh_ports()
-        logging.info(f"running read_serial...")
         self.read_serial()
-        logging.info(f"running send_command...")
         self.send_command()
-        logging.info(f"running update_progress...")
         self.update_progress()
-        self.master.after(100, self.main_loop)
+        self.master.after(self.main_loop_interval, self.main_loop)
 
     def refresh_ports(self):
         if not self.serial_port:
@@ -269,7 +265,10 @@ class PicoController:
             if self.serial_port and self.serial_port.in_waiting:
                 response = self.serial_port.readline().decode("utf-8").strip()
                 logging.info(f"Pico -> PC: {response}")
-                self.process_response(response)
+                if "Info" in response:
+                    self.create_pump_widgets(response)
+                elif "Status" in response:
+                    self.update_pump_status(response)
         except serial.SerialException as e:
             self.disconnect_pico(False)
             logging.error(f"Connection to Pico lost: {e}")
@@ -280,12 +279,6 @@ class PicoController:
         except Exception as e:
             messagebox.showerror("Error", f"Read_serial: An error occurred: {e}")
             logging.error(f"Read_serial: An error occurred: {e}")
-
-    def process_response(self, response):
-        if "Info" in response:
-            self.create_pump_widgets(response)
-        elif "Status" in response:
-            self.update_pump_status(response)
 
     def create_pump_widgets(self, response):
         # clear existing widgets
@@ -428,12 +421,19 @@ class PicoController:
         # calculate the total procedure time
         self.total_procedure_time = self.recipe_df["Time point (min)"].max() * 60
 
+        # clear the recipe table progress and remaining time
+        for i, child in self.recipe_rows:
+            self.recipe_table.item(child, values=list(self.recipe_df.iloc[i]))
+
         # record high precision start time
         self.start_time = time.time()
-        self.master.after(100, self.execute_procedure)
+        self.execute_procedure()
+        
 
     def execute_procedure(self, index=0):
         if index >= len(self.recipe_df):
+            self.start_time = -1
+            self.total_procedure_time = -1
             logging.info("Procedure completed.")
             messagebox.showinfo("Procedure Complete", "The procedure has been completed.")
             return
@@ -442,8 +442,11 @@ class PicoController:
         target_time = float(row["Time point (min)"]) * 60
 
         elapsed_time = time.time() - self.start_time
+        # calculate the remaining time for the current step
+        current_step_remaining_time = (target_time - elapsed_time)
+        intended_sleep_time = max(100, int(current_step_remaining_time * 1000 / 2))
         if elapsed_time < target_time:
-            self.master.after(100, self.execute_procedure, index)
+            self.master.after(intended_sleep_time, self.execute_procedure, index)
             return
 
         logging.info(f"executing step at index {index}")
@@ -458,7 +461,7 @@ class PicoController:
 
         # issue a one-time status update
         self.update_status()
-        self.master.after(100, self.execute_actions, index, pump_actions, valve_actions)
+        self.execute_actions(index, pump_actions, valve_actions)
 
     def execute_actions(self, index, pump_actions, valve_actions):
         for pump, action in pump_actions.items():
@@ -489,7 +492,7 @@ class PicoController:
 
         # issue a one-time status update
         self.update_status()
-        self.master.after(100, self.execute_procedure, index + 1)
+        self.execute_procedure(index + 1)
 
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):
@@ -513,9 +516,9 @@ class PicoController:
                     next_row = self.recipe_df.iloc[i + 1]
                     next_time_stamp = float(next_row["Time point (min)"]) * 60
                     time_interval = next_time_stamp - time_stamp
-                    row_progress = int(
+                    row_progress = min(100, int(
                         ((elapsed_time - time_stamp) / time_interval) * 100
-                    )
+                    ))
                     remaining_time_row = max(0, int(next_time_stamp - elapsed_time))
                 else:
                     row_progress = 100
