@@ -7,84 +7,87 @@ from datetime import datetime
 import logging
 import pandas as pd
 import re
+import threading
 
 
 class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Controller via Pico Demo")
-        self.port_refresh_rate = 5000  # Refresh rate for COM ports when not connected
-        self.poll_rate = 1000  # Default poll rate in milliseconds
+        # self.master.geometry("800x600")
+        self.port_refresh_rate = 10000  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
 
         self.serial_port = None
         self.current_port = None
-        self.ongoing_status_update = False
-        self.ongoing_read_serial = False
+        self.read_thread = None
+        self.stop_read_thread = threading.Event()
         self.pumps = {}  # Dictionary to store pump information and widgets
+
         self.recipe_df = None
+        self.recipe_rows = []
+        self.start_time = None
 
         # Set up logging
         runtime = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_filename = f'pico_controller_log_{runtime}.log'
-        logging.basicConfig(level=logging.INFO, format='%(asctime)s: %(message)s [%(funcName)s]', handlers=[
+        logging.basicConfig(level=logging.DEBUG, format='%(asctime)s: %(message)s [%(funcName)s]', handlers=[
                             logging.FileHandler(log_filename), logging.StreamHandler()])
 
         # Create and place widgets
-        self.port_label = ttk.Label(master, text="Select COM Port:")
-        self.port_label.grid(row=0, column=0, padx=10, pady=10)
+        # first row is for selecting COM port and connecting/disconnecting
+        self.select_port_frame = ttk.Frame(master)
+        self.select_port_frame.grid(
+            row=0, column=0, columnspan=4, rowspan=2, padx=10, pady=10, sticky='NSEW')
 
-        self.port_combobox = ttk.Combobox(master)
+        self.port_label = ttk.Label(
+            self.select_port_frame, text="Select COM Port:")
+        self.port_label.grid(row=0, column=0, padx=10, pady=10)
+        self.port_combobox = ttk.Combobox(
+            self.select_port_frame, state='readonly')
         self.port_combobox.grid(row=0, column=1, padx=10, pady=10)
         self.refresh_ports()
         if len(self.port_combobox['values']) > 0:
             self.port_combobox.current(0)  # Default to the first port
-
         self.connect_button = ttk.Button(
-            master, text="Connect", command=self.connect_to_pico)
+            self.select_port_frame, text="Connect", command=self.connect_to_pico)
         self.connect_button.grid(row=0, column=2, padx=10, pady=10)
-
         self.disconnect_button = ttk.Button(
-            master, text="Disconnect", command=self.disconnect_pico)
+            self.select_port_frame, text="Disconnect", command=self.disconnect_pico)
         self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
 
-        self.status_label = ttk.Label(master, text="Status: Not connected")
-        self.status_label.grid(row=1, column=0, columnspan=4, padx=10, pady=10)
-
-        self.poll_rate_label = ttk.Label(master, text="Set Poll Rate (ms):")
-        self.poll_rate_label.grid(row=2, column=0, padx=10, pady=10)
-
-        self.poll_rate_entry = ttk.Entry(master)
-        self.poll_rate_entry.grid(row=2, column=1, padx=10, pady=10)
-        self.poll_rate_entry.insert(0, str(self.poll_rate))
-
-        self.set_poll_rate_button = ttk.Button(
-            master, text="Set Poll Rate", command=self.set_poll_rate)
-        self.set_poll_rate_button.grid(row=2, column=2, padx=10, pady=10)
-
+        # second row is for loading recipe and starting the procedure
+        # still inside the select_port_frame
+        self.status_label = ttk.Label(
+            self.select_port_frame, text="Status: Not connected")
+        self.status_label.grid(row=1, column=0, padx=10,
+                               pady=10, columnspan=2, sticky='W')
         self.load_recipe_button = ttk.Button(
-            master, text="Load Recipe", command=self.load_recipe)
-        self.load_recipe_button.grid(row=2, column=3, padx=10, pady=10)
-
+            self.select_port_frame, text="Load Recipe", command=self.load_recipe)
+        self.load_recipe_button.grid(row=1, column=2, padx=10, pady=10)
         self.start_button = ttk.Button(
-            master, text="Start", command=self.start_procedure)
-        self.start_button.grid(row=2, column=4, padx=10, pady=10)
+            self.select_port_frame, text="Start", command=self.start_procedure)
+        self.start_button.grid(row=1, column=3, padx=10, pady=10)
 
         # Manual control title with box
         self.manual_control_frame = ttk.Labelframe(
             master, text="Manual Control", padding=(10, 10, 10, 10))
         self.manual_control_frame.grid(
-            row=3, column=0, columnspan=4, padx=10, pady=10, sticky='ew')
-
+            row=2, column=0, columnspan=4, padx=10, pady=10, sticky='NSEW')
         # Moved inside the manual control frame
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
-        self.pumps_frame.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
+        self.pumps_frame.grid(row=0, column=0, columnspan=4,
+                              padx=10, pady=10, sticky='NSEW')
 
-        self.recipe_frame = ttk.Frame(master)
-        self.recipe_frame.grid(row=3, column=4, padx=10, pady=10, sticky='n')
+        # recipe frame
+        self.recipe_frame = ttk.Labelframe(
+            master, text="Recipe", padding=(10, 10, 10, 10))
+        self.recipe_frame.grid(row=3, column=0, columnspan=4, padx=10,
+                               pady=10, sticky='NSEW')
 
-        self.recipe_table = ttk.Treeview(self.recipe_frame)
-        self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
+        self.recipe_table = ttk.Frame(self.recipe_frame)
+        self.recipe_table.grid(row=0, column=0, columnspan=4,
+                               padx=10, pady=10, sticky='NSEW')
 
     def refresh_ports(self):
         ports = [port.device for port in serial.tools.list_ports.comports()]
@@ -113,16 +116,15 @@ class PicoController:
                 messagebox.showinfo(
                     "Connection Status", f"Successfully connected to {selected_port}")
 
-                # Start reading serial data
-                if not self.ongoing_read_serial:
-                    self.ongoing_read_serial = True
-                    self.read_serial()
+                # Start reading serial data in a separate thread
+                self.stop_read_thread.clear()
+                self.read_thread = threading.Thread(target=self.read_serial)
+                self.read_thread.start()
+
                 # issue a pump info query
                 self.query_pump_info()
-                # issue a status update command
-                if not self.ongoing_status_update:
-                    self.ongoing_status_update = True
-                    self.update_status()
+                # issue a status update
+                self.update_status()
 
             except serial.SerialException:
                 self.status_label.config(text="Status: Not connected")
@@ -132,15 +134,17 @@ class PicoController:
 
     def disconnect_pico(self, show_message=True):
         if self.serial_port:
-            # First stop both polling and reading serial data
-            self.ongoing_status_update = False
-            self.ongoing_read_serial = False
+            # Stop the read thread
+            self.stop_read_thread.set()
+            if self.read_thread:
+                self.read_thread.join()
 
             self.serial_port.close()
             self.serial_port = None
+            self.current_port = None
+
             # Refresh the COM ports list once disconnected
             self.refresh_ports()
-            self.current_port = None
 
             # update UI
             self.status_label.config(text="Status: Not connected")
@@ -150,10 +154,10 @@ class PicoController:
             self.pumps_frame.grid(
                 row=0, column=0, columnspan=4, padx=10, pady=10)
 
-            logging.info(f"Disconnected from {self.current_port}")
+            logging.info("Disconnected from Pico")
             if show_message:
                 messagebox.showinfo(
-                    "Disconnection Status", f"Successfully disconnected from {self.current_port}")
+                    "Disconnection Status", "Successfully disconnected from Pico")
 
     def query_pump_info(self):
         if self.serial_port:
@@ -162,38 +166,38 @@ class PicoController:
     def toggle_power(self, pump_id):
         if self.serial_port:
             self.send_command(f'{pump_id}:pw')
+            self.update_status()
 
     def toggle_direction(self, pump_id):
         if self.serial_port:
             self.send_command(f'{pump_id}:di')
+            self.update_status()
 
     def send_command(self, command):
         if self.serial_port:
             self.serial_port.write(f'{command}\n'.encode())
-            logging.info(f"PC -> Pico: {command}")
+            logging.debug(f"PC -> Pico: {command}")
 
-    # Once called, this function will keep updating the status of the pumps until disconnected
     def update_status(self):
         if self.serial_port:
             self.send_command('0:st')
-            if self.ongoing_status_update:
-                self.master.after(self.poll_rate, self.update_status)
 
-    def set_poll_rate(self):
-        try:
-            new_rate = int(self.poll_rate_entry.get())
-            if new_rate < 1:
-                raise ValueError("Poll rate too low")
-            self.poll_rate = new_rate
-            messagebox.showinfo("Poll Rate", f"Poll rate set to {new_rate} ms")
-            logging.info(f"Poll rate set to {new_rate} ms")
-        except ValueError as e:
-            logging.error(f"Invalid poll rate: {e}")
-            messagebox.showerror(
-                "Invalid Input", "Please enter a valid poll rate in milliseconds (minimum 1 ms)")
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            messagebox.showerror("Error", f"An error occurred: {e}")
+    def read_serial(self):
+        while not self.stop_read_thread.is_set():
+            try:
+                if self.serial_port.in_waiting:
+                    response = self.serial_port.readline().decode('utf-8').strip()
+                    logging.info(f"Received: {response}")
+                    self.master.after(0, self.process_response, response)
+            except serial.SerialException as e:
+                self.master.after(0, self.disconnect_pico, False)
+                messagebox.showerror(
+                    "Connection Error", "Connection to Pico lost. Please reconnect to continue.")
+                logging.error(f"Connection to Pico lost: {e}")
+            except Exception as e:
+                messagebox.showerror(
+                    "Error", f"Read_serial: An error occurred: {e}")
+                logging.error(f"Read_serial: An error occurred: {e}")
 
     def process_response(self, response):
         if "Info" in response:
@@ -211,7 +215,11 @@ class PicoController:
             r'Pump(\d+) Info: Power Pin ID: (\d+), Direction Pin ID: (\d+), Initial Power Status: (ON|OFF), Initial Direction Status: (CW|CCW)')
         matches = info_pattern.findall(response)
 
+        # sort the matches by pump_id
+        matches = sorted(matches, key=lambda x: int(x[0]), reverse=True)
+
         for match in matches:
+            print(match)
             pump_id, power_pin, direction_pin, initial_power, initial_direction = match
             pump_id = int(pump_id)
             self.pumps[pump_id] = {
@@ -221,28 +229,34 @@ class PicoController:
                 "direction_status": initial_direction,
             }
 
-            row = pump_id * 3
+            pump_frame = ttk.Labelframe(
+                self.pumps_frame, text=f"Pump {pump_id}")
+            pump_frame.grid(row=0, column=pump_id-1,
+                            padx=10, pady=10, sticky='NS')
 
-            pump_label = ttk.Label(self.pumps_frame, text=f"Pump {pump_id}")
-            pump_label.grid(row=row, column=0, padx=10, pady=10)
+            pump_label = ttk.Label(
+                pump_frame, text=f"Pump {pump_id}, power pin: {power_pin}, direction pin: {direction_pin}")
+            pump_label.grid(row=0, column=0, padx=10, pady=10, sticky='NS')
 
             power_label = ttk.Label(
-                self.pumps_frame, text=f"Power Status: {initial_power}")
-            power_label.grid(row=row + 1, column=0, padx=10, pady=10)
+                pump_frame, text=f"Power Status: {initial_power}")
+            power_label.grid(row=1, column=0, padx=10, pady=10, sticky='NS')
             self.pumps[pump_id]['power_label'] = power_label
 
             direction_label = ttk.Label(
-                self.pumps_frame, text=f"Direction Status: {initial_direction}")
-            direction_label.grid(row=row + 1, column=1, padx=10, pady=10)
+                pump_frame, text=f"Direction Status: {initial_direction}")
+            direction_label.grid(row=1, column=1, padx=10,
+                                 pady=10, sticky='NS')
             self.pumps[pump_id]['direction_label'] = direction_label
 
             power_button = ttk.Button(
-                self.pumps_frame, text="Toggle Power", command=lambda pid=pump_id: self.toggle_power(pid))
-            power_button.grid(row=row + 2, column=0, padx=10, pady=10)
+                pump_frame, text="Toggle Power", command=lambda pid=pump_id: self.toggle_power(pid))
+            power_button.grid(row=2, column=0, padx=10, pady=10, sticky='NS')
 
             direction_button = ttk.Button(
-                self.pumps_frame, text="Toggle Direction", command=lambda pid=pump_id: self.toggle_direction(pid))
-            direction_button.grid(row=row + 2, column=1, padx=10, pady=10)
+                pump_frame, text="Toggle Direction", command=lambda pid=pump_id: self.toggle_direction(pid))
+            direction_button.grid(
+                row=2, column=1, padx=10, pady=10, sticky='NS')
 
     def update_pump_status(self, response):
         status_pattern = re.compile(
@@ -260,29 +274,8 @@ class PicoController:
                 self.pumps[pump_id]['direction_label'].config(
                     text=f"Direction Status: {direction_status}")
 
-    def read_serial(self):
-        if self.serial_port:
-            try:
-                while self.serial_port.in_waiting:
-                    response = self.serial_port.readline().decode('utf-8').strip()
-                    logging.info(f"Received: {response}")
-                    self.process_response(response)
-            except serial.SerialException as e:
-                self.disconnect_pico(show_message=False)
-                messagebox.showerror(
-                    "Connection Error", "Connection to Pico lost. Please reconnect to continue.")
-                logging.error(f"Connection to Pico lost: {e}")
-            except Exception as e:
-                messagebox.showerror(
-                    "Error", f"Read_serial: An error occurred: {e}")
-                logging.error(f"Read_serial: An error occurred: {e}")
-        if self.ongoing_read_serial:  # Ensure serial reading continues only if connected
-            self.master.after(self.poll_rate, self.read_serial)
-
-    # Below are the functions for the recipe execution
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
-            # allow both csv and excel files
             filetypes=[("Excel/CSV files", "*.xlsx;*.xls;*.csv")])
         if file_path:
             try:
@@ -303,7 +296,8 @@ class PicoController:
         for widget in self.recipe_frame.winfo_children():
             widget.destroy()
 
-        columns = list(self.recipe_df.columns) + ['Progress', 'Remaining Time']
+        columns = list(self.recipe_df.columns) + \
+            ["Progress Bar", "Remaining Time"]
         self.recipe_table = ttk.Treeview(
             self.recipe_frame, columns=columns, show='headings')
         for col in columns:
@@ -311,7 +305,10 @@ class PicoController:
             self.recipe_table.column(col, width=100, anchor='center')
 
         for index, row in self.recipe_df.iterrows():
-            self.recipe_table.insert('', 'end', values=list(row) + ['', ''])
+            values = list(row) + [float('nan'), float('nan')]
+            self.recipe_table.insert('', 'end', values=values)
+            self.recipe_rows.append(
+                (index, self.recipe_table.get_children()[-1]))
 
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
 
@@ -319,6 +316,14 @@ class PicoController:
         if self.recipe_df is None:
             messagebox.showerror("Error", "No recipe file loaded.")
             return
+
+        if not self.serial_port:
+            messagebox.showerror("Error", "Not connected to Pico.")
+            return
+
+        logging.info("Starting procedure...")
+
+        self.start_time = time.time()  # Record the start time of the procedure
 
         self.execute_procedure(0)
 
@@ -330,40 +335,62 @@ class PicoController:
             return
 
         row = self.recipe_df.iloc[index]
-        time_delay = int(row['Time (min)']) * 60 * 1000
-        pump_actions = {f'Pump {i + 1}': row[f'Pump {i + 1}'] for i in range(3)}
-        print(pump_actions)
-        valve_actions = {f'Valve {i + 1}': row[f'Valve {i + 1}'] for i in range(3)}
-        print(valve_actions)
+        time_delay = int(float(row['Time (min)']) * 60 * 1000)
+        remaining_time = int(float(row['Time (min)']) * 60)
+
+        for i, child in self.recipe_rows:
+            if i == index:
+                self.recipe_table.item(child, values=list(
+                    row) + ["0%", f"{remaining_time}s"])
+
+        # Parse pump and valve actions dynamically
+        pump_actions = {col: row[col]
+                        for col in row.index if col.startswith('Pump')}
+        valve_actions = {col: row[col]
+                         for col in row.index if col.startswith('Valve')}
+
+        # issue a one-time status update
+        self.update_status()
+        # issue a one-time read serial
+        self.read_serial()
 
         for pump, action in pump_actions.items():
-            if action == 'On':
-                self.toggle_power(int(pump.split()[1]))
-            elif action == 'Off':
-                self.toggle_power(int(pump.split()[1]))
+            pump_id = int(re.search(r'\d+', pump).group())
+            if pump_id in self.pumps:
+                logging.debug(
+                    f"pump_id: {pump_id}, intended status: {action}, current status: {self.pumps[pump_id]['power_status']}")
+                if action == 'On' and self.pumps[pump_id]['power_status'] == 'OFF':
+                    self.toggle_power(pump_id)
+                elif action == 'Off' and self.pumps[pump_id]['power_status'] == 'ON':
+                    self.toggle_power(pump_id)
 
-        # Add valve action handling
         for valve, action in valve_actions.items():
-            if action == 1:
-                self.toggle_direction(int(valve.split()[1]))
-            elif action == 2:
-                self.toggle_direction(int(valve.split()[1]))
+            valve_id = int(re.search(r'\d+', valve).group())
+            if valve_id in self.pumps:
+                logging.debug(
+                    f"valve_id: {valve_id}, intended status: {action}")
+                if action == 'CW' and self.pumps[valve_id]['direction_status'] == 'CCW':
+                    self.toggle_direction(valve_id)
+                elif action == 'CCW' and self.pumps[valve_id]['direction_status'] == 'CW':
+                    self.toggle_direction(valve_id)
 
-        self.update_progress(index)
+        def update_progress_bar():
+            try:
+                elapsed_time = time.time() - self.start_time
+                step_time = float(row['Time (min)']) * 60
+                remaining = max(0, step_time - elapsed_time)
+                progress = 100 * \
+                    (elapsed_time / step_time) if step_time > 0 else 100
+                self.recipe_table.item(self.recipe_rows[index][1], values=list(
+                    row) + [f"{progress:.1f}%", f"{remaining:.1f}s"])
+                if remaining > 0:
+                    self.master.after(1000, update_progress_bar)
+            except Exception as e:
+                logging.error(f"An error occurred in update_progress_bar: {e}")
 
+        update_progress_bar()
         self.master.after(
             time_delay, lambda: self.execute_procedure(index + 1))
-
-    def update_progress(self, index):
-        progress = (index + 1) / len(self.recipe_df) * 100
-        for i in range(len(self.recipe_df)):
-            if i == index:
-                remaining_time = self.recipe_df.iloc[i]['Time (min)'] * 60
-                self.recipe_table.set(self.recipe_table.get_children()[i], 'Progress', f'{progress:.2f}%')
-                self.recipe_table.set(self.recipe_table.get_children()[i], 'Remaining Time', f'{remaining_time:.0f}s')
-            else:
-                self.recipe_table.set(self.recipe_table.get_children()[i], 'Progress', f'{progress:.2f}%')
-                self.recipe_table.set(self.recipe_table.get_children()[i], 'Remaining Time', '')
 
 
 root = tk.Tk()
