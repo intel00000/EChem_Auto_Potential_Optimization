@@ -48,7 +48,6 @@ class PicoController:
         log_filename = f"pico_controller_log_{runtime}.log"
         logging.basicConfig(
             # store the log in a subfolder called logs, with the specified filename
-            filename=f"logs/{log_filename}",
             level=logging.INFO,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
@@ -367,9 +366,7 @@ class PicoController:
                 )
 
     def load_recipe(self):
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Excel/CSV files", "*.xlsx;*.xls;*.csv")]
-        )
+        file_path = filedialog.askopenfilename()
         if file_path:
             try:
                 if file_path.endswith(".csv"):
