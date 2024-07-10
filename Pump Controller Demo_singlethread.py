@@ -371,9 +371,7 @@ class PicoController:
                 )
 
     def load_recipe(self):
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Excel/CSV files", "*.xlsx;*.xls;*.csv")]
-        )
+        file_path = filedialog.askopenfilename()
         if file_path:
             try:
                 if file_path.endswith(".csv"):
