@@ -8,7 +8,7 @@ import gc
 # define the number of test samples for max poll rate test
 TEST_SAMPLES = const(100_000)
 # Number of samples to average, for boxcar filtering
-NUM_SAMPLES = const(1_00)
+NUM_SAMPLES = const(1_000)
 
 # Accumulators for boxcar filtering
 adc0_sum = 0
@@ -87,7 +87,6 @@ def serial_display_setup():
 
     clear_display_i2c()
 
-@micropython.native
 def serial_display_loop():
     global adc0_sum, adc1_sum, adc2_sum, temp_sum, adc0_avg, adc1_avg, adc2_avg, temp_avg, count, start_time
     

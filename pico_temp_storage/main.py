@@ -1,10 +1,10 @@
 # main.py
 
+import blink_zip_led
 import pump_control_pico
 
-@micropython.native
 def main():
-    pump_control_pico.main()
+    blink_zip_led.run_chase_rainbow_effect()
 
 if __name__ == "__main__":
     main()

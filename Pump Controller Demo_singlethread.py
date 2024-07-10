@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 
 # other library
+import os
 import re
 import time
 import logging
@@ -45,10 +46,13 @@ class PicoController:
 
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_filename = f"pico_controller_log_{runtime}.log"
+        # check if there is a log subfolder, if not, create it
+        try:
+            os.mkdir("log")
+        except FileExistsError:
+            pass
+        log_filename = os.path.join("log", f"pico_controller_run_{runtime}.log")
         logging.basicConfig(
-            # store the log in a subfolder called logs, with the specified filename
-            filename=f"logs/{log_filename}",
             level=logging.INFO,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],

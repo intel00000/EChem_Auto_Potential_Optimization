@@ -54,8 +54,8 @@ def write_message(message):
 # Create pump instances
 pumps = {
     1: Pump(power_pin_id=15, direction_pin_id=14, initial_power_pin_value=0, initial_direction_pin_value=0),
-    2: Pump(power_pin_id=13, direction_pin_id=17, initial_power_pin_value=0, initial_direction_pin_value=1),
-    3: Pump(power_pin_id=18, direction_pin_id=16, initial_power_pin_value=0, initial_direction_pin_value=0),
+    2: Pump(power_pin_id=13, direction_pin_id=18, initial_power_pin_value=0, initial_direction_pin_value=0),
+    3: Pump(power_pin_id=17, direction_pin_id=16, initial_power_pin_value=0, initial_direction_pin_value=0),
 }
 
 # Define a dictionary for the commands
