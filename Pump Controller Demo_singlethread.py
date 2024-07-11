@@ -194,7 +194,7 @@ class PicoController:
 
             # Attempt to connect to the selected port
             try:
-                self.serial_port = serial.Serial(selected_port, timeout=self.timeout)
+                self.serial_port = serial.Serial(selected_port.split("(")[0], timeout=self.timeout)
                 self.current_port = selected_port
                 self.status_label.config(text=f"Status: Connected to {selected_port}")
 
