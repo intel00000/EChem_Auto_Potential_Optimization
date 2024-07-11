@@ -17,6 +17,8 @@ from datetime import datetime
 from queue import Queue
 import pandas as pd
 
+# define pi pico vender id
+pico_vid = 0x2E8A
 
 class PicoController:
     def __init__(self, master):
@@ -43,6 +45,10 @@ class PicoController:
         # time stamp for the start of the procedure
         self.start_time = -1
         self.total_procedure_time = -1
+        
+        # port refresh timer
+        self.last_port_refresh = -1
+        self.port_refersh_interval = 5
 
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -158,8 +164,17 @@ class PicoController:
 
     def refresh_ports(self):
         if not self.serial_port:
-            ports = [port.device for port in serial.tools.list_ports.comports()]
+            if time.time() - self.last_port_refresh < self.port_refersh_interval:
+                return
+            # filter by vendor id
+            ports = [ port.device + "(" + str(port.serial_number) + ")" for port in serial.tools.list_ports.comports() if port.vid == pico_vid]
+            # print detail information of the ports to the console
+            for port in serial.tools.list_ports.comports():
+                # put these into one line
+                logging.info(f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}")
+
             self.port_combobox["values"] = ports
+            self.last_port_refresh = time.time()
 
     def connect_to_pico(self):
         selected_port = self.port_combobox.get()
