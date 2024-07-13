@@ -73,7 +73,7 @@ class PicoController:
 
         self.port_label = ttk.Label(self.select_port_frame, text="Select COM Port:")
         self.port_label.grid(row=0, column=0, padx=10, pady=10)
-        self.port_combobox = ttk.Combobox(self.select_port_frame, state="readonly")
+        self.port_combobox = ttk.Combobox(self.select_port_frame, state="readonly", width=50)
         self.port_combobox.grid(row=0, column=1, padx=10, pady=10)
         self.refresh_ports()
         if len(self.port_combobox["values"]) > 0:
@@ -103,6 +103,9 @@ class PicoController:
             self.select_port_frame, text="Start", command=self.start_procedure
         )
         self.start_button.grid(row=1, column=3, padx=10, pady=10)
+        
+        self.stop_button = ttk.Button(self.select_port_frame, text="Stop")
+        self.stop_button.grid(row=1, column=4, padx=10, pady=10)
 
         # Manual control title with box
         self.manual_control_frame = ttk.Labelframe(
@@ -167,7 +170,7 @@ class PicoController:
             if time.time() - self.last_port_refresh < self.port_refersh_interval:
                 return
             # filter by vendor id
-            ports = [ port.device + "(" + str(port.serial_number) + ")" for port in serial.tools.list_ports.comports() if port.vid == pico_vid]
+            ports = [ port.device + " (" + str(port.serial_number) + ")" for port in serial.tools.list_ports.comports() if port.vid == pico_vid]
             # print detail information of the ports to the console
             for port in serial.tools.list_ports.comports():
                 # put these into one line
