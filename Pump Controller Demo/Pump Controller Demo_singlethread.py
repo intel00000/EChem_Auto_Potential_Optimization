@@ -49,6 +49,9 @@ class PicoController:
         self.current_index = -1
         self.pause_timepoint = -1
 
+        # reference to scheduled `execute_procedure` call
+        self.scheduled_task = None
+
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
         try:
@@ -106,6 +109,12 @@ class PicoController:
 
         self.stop_button = ttk.Button(self.select_port_frame, text="Stop", command=self.stop_procedure)
         self.stop_button.grid(row=1, column=4, padx=10, pady=10)
+
+        self.pause_button = ttk.Button(self.select_port_frame, text="Pause", command=self.pause_procedure)
+        self.pause_button.grid(row=1, column=5, padx=10, pady=10)
+
+        self.continue_button = ttk.Button(self.select_port_frame, text="Continue", command=self.continue_procedure)
+        self.continue_button.grid(row=1, column=6, padx=10, pady=10)
 
         # Manual control title with box
         self.manual_control_frame = ttk.Labelframe(
@@ -280,13 +289,44 @@ class PicoController:
     def stop_procedure(self):
         if self.start_time == -1:
             logging.error("No procedure running.")
-            
+            return
+        
         self.start_time = -1
         self.total_procedure_time = -1
         logging.info("Procedure stopped.")
         messagebox.showinfo(
             "Procedure Stopped", "The procedure has been stopped."
         )
+        if self.scheduled_task is not None:
+            self.master.after_cancel(self.scheduled_task)
+            self.scheduled_task = None
+
+    def pause_procedure(self):
+        if self.start_time == -1:
+            logging.error("No procedure running.")
+            return
+
+        self.pause_timepoint = time.time()
+        logging.info("Procedure paused.")
+        messagebox.showinfo(
+            "Procedure Paused", "The procedure has been paused."
+        )
+        if self.scheduled_task is not None:
+            self.master.after_cancel(self.scheduled_task)
+            self.scheduled_task = None
+
+    def continue_procedure(self):
+        if self.pause_timepoint == -1:
+            logging.error("No procedure to continue.")
+            return
+
+        elapsed_pause_time = time.time() - self.pause_timepoint
+        self.start_time += elapsed_pause_time
+        logging.info("Procedure continued.")
+        messagebox.showinfo(
+            "Procedure Continued", "The procedure has been continued."
+        )
+        self.execute_procedure(self.current_index)
 
     # this send_command will run in a loop, removing the first item from the queue and sending it, each sending will be a sleep of 0.1s
     def send_command(self):
@@ -564,7 +604,7 @@ class PicoController:
         current_step_remaining_time = target_time - elapsed_time
         intended_sleep_time = max(100, int(current_step_remaining_time * 1000 / 2))
         if elapsed_time < target_time:
-            self.master.after(intended_sleep_time, self.execute_procedure, index)
+            self.scheduled_task = self.master.after(intended_sleep_time, self.execute_procedure, index)
             return
 
         logging.info(f"executing step at index {index}")
@@ -576,6 +616,7 @@ class PicoController:
         # issue a one-time status update
         self.update_status()
         self.execute_actions(index, pump_actions, valve_actions)
+        self.current_index = index
 
     def execute_actions(self, index, pump_actions, valve_actions):
         for pump, action in pump_actions.items():
@@ -606,7 +647,7 @@ class PicoController:
 
         # issue a one-time status update
         self.update_status()
-        self.execute_procedure(index + 1)
+        self.scheduled_task = self.master.after(100, self.execute_procedure, index + 1)
 
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):
