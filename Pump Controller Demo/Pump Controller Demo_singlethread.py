@@ -28,7 +28,7 @@ class PicoController:
         self.last_port_refresh = -1
         self.port_refersh_interval = 5  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
-        self.main_loop_interval = 10  # Main loop interval in milliseconds
+        self.main_loop_interval = 50  # Main loop interval in milliseconds
 
         # instance fields for the serial port and queue
         self.serial_port = None
@@ -68,11 +68,13 @@ class PicoController:
         self.master.after(self.main_loop_interval, self.main_loop)
 
     def create_widgets(self):
+        # First frame for selecting the port
         self.select_port_frame = ttk.Labelframe(self.master, text="Select Port", padding=(10, 10, 10, 10))
         self.select_port_frame.grid(
             row=0, column=0, columnspan=4, rowspan=2, padx=10, pady=10, sticky="NSEW"
         )
 
+        # first row is for select_port_frame
         self.port_label = ttk.Label(self.select_port_frame, text="Select COM Port:")
         self.port_label.grid(row=0, column=0, padx=10, pady=10)
         self.port_combobox = ttk.Combobox(self.select_port_frame, state="readonly", width=50)
@@ -89,58 +91,36 @@ class PicoController:
         )
         self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
 
-        # second row is for loading recipe and starting the procedure
-        # still inside the select_port_frame
+        # second row for select_port_frame
         self.status_label = ttk.Label(
             self.select_port_frame, text="Status: Not connected"
         )
         self.status_label.grid(
             row=1, column=0, padx=10, pady=10, columnspan=2, sticky="W"
         )
-        self.load_recipe_button = ttk.Button(
-            self.select_port_frame, text="Load Recipe", command=self.load_recipe
-        )
-        self.load_recipe_button.grid(row=1, column=2, padx=10, pady=10)
-        self.start_button = ttk.Button(
-            self.select_port_frame, text="Start", command=self.start_procedure
-        )
-        self.start_button.grid(row=1, column=3, padx=10, pady=10)
-        self.start_button.config(state=tk.DISABLED)
 
-        self.stop_button = ttk.Button(self.select_port_frame, text="Stop", command=self.stop_procedure)
-        self.stop_button.grid(row=1, column=4, padx=10, pady=10)
-        self.stop_button.config(state=tk.DISABLED)
-        
-        self.pause_button = ttk.Button(self.select_port_frame, text="Pause", command=self.pause_procedure)
-        self.pause_button.grid(row=1, column=5, padx=10, pady=10)
-        self.pause_button.config(state=tk.DISABLED)
-        
-        self.continue_button = ttk.Button(self.select_port_frame, text="Continue", command=self.continue_procedure)
-        self.continue_button.grid(row=1, column=6, padx=10, pady=10)
-        self.continue_button.config(state=tk.DISABLED)
-
-        # Manual control title with box
+        # Second frame for manual control
         self.manual_control_frame = ttk.Labelframe(
             self.master, text="Manual Control", padding=(10, 10, 10, 10)
         )
         self.manual_control_frame.grid(
             row=2, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
-        # Moved inside the manual control frame
-        self.pumps_frame = ttk.Frame(self.manual_control_frame)
-        self.pumps_frame.grid(
-            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
-        )
         self.add_pump_button = ttk.Button(
             self.manual_control_frame, text="Add Pump", command=self.add_pump
         )
-        self.add_pump_button.grid(row=1, column=0, padx=10, pady=10)
+        self.add_pump_button.grid(row=0, column=0, padx=10, pady=10, sticky="W")
         self.clear_pumps_button = ttk.Button(
             self.manual_control_frame, text="Clear All Pumps", command=self.clear_pumps
         )
-        self.clear_pumps_button.grid(row=1, column=1, padx=10, pady=10)
+        self.clear_pumps_button.grid(row=0, column=1, padx=10, pady=10, sticky="W")
+        # Moved inside the manual control frame
+        self.pumps_frame = ttk.Frame(self.manual_control_frame)
+        self.pumps_frame.grid(
+            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+        )
 
-        # recipe frame
+        # Third frame for the recipe and procedure execution
         self.recipe_frame = ttk.Labelframe(
             self.master, text="Recipe", padding=(10, 10, 10, 10)
         )
@@ -148,19 +128,42 @@ class PicoController:
             row=3, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
 
-        self.recipe_table = ttk.Frame(self.recipe_frame)
-        self.recipe_table.grid(
+        # create a frame for the buttons
+        self.recipe_frame_buttons = ttk.Frame(self.recipe_frame)
+        self.recipe_frame_buttons.grid(
             row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
+        self.load_recipe_button = ttk.Button(
+            self.recipe_frame_buttons, text="Load Recipe", command=self.load_recipe
+        )
+        self.load_recipe_button.grid(row=0, column=0, padx=10, pady=10)
+        self.start_button = ttk.Button(
+            self.recipe_frame_buttons, text="Start", command=self.start_procedure
+        )
+        self.start_button.grid(row=0, column=1, padx=10, pady=10)
+        self.start_button.config(state=tk.DISABLED)
+        self.stop_button = ttk.Button(self.recipe_frame_buttons, text="Stop", command=self.stop_procedure)
+        self.stop_button.grid(row=0, column=2, padx=10, pady=10)
+        self.stop_button.config(state=tk.DISABLED)
+        self.pause_button = ttk.Button(self.recipe_frame_buttons, text="Pause", command=self.pause_procedure)
+        self.pause_button.grid(row=0, column=3, padx=10, pady=10)
+        self.pause_button.config(state=tk.DISABLED)
+        self.continue_button = ttk.Button(self.recipe_frame_buttons, text="Continue", command=self.continue_procedure)
+        self.continue_button.grid(row=0, column=4, padx=10, pady=10)
+        self.continue_button.config(state=tk.DISABLED)
+        # frame for the recipe table
+        self.recipe_table = ttk.Frame(self.recipe_frame)
+        self.recipe_table.grid(
+            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+        )
 
-        # add a total progress bar and remaining time label below the recipe table
+        # Fourth frame for total progress bar and remaining time label
         self.progress_frame = ttk.Labelframe(
             self.master, text="Progress", padding=(10, 10, 10, 10)
         )
         self.progress_frame.grid(
             row=4, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
-
         self.total_progress_label = ttk.Label(
             self.progress_frame, text="Total Progress:"
         )
@@ -243,7 +246,7 @@ class PicoController:
 
             # update UI
             self.status_label.config(text="Status: Not connected")
-            
+
             # clear the pumps widgets
             self.clear_pumps_widgets()
             # clear the recipe table
@@ -458,7 +461,7 @@ class PicoController:
                     "initial_direction_pin_value": initial_direction_pin_value,
                     "power_status": power_status,
                     "direction_status": direction_status,
-                    
+
                     "frame": pump_frame,
                     "pump_label": pump_label,
                     "power_label": power_label,
@@ -466,7 +469,7 @@ class PicoController:
                     "power_button": power_button,
                     "direction_button": direction_button,
                 }
-                
+
     # a function to clear all pumps
     def clear_pumps_widgets(self):
         for widget in self.pumps_frame.winfo_children():
@@ -511,10 +514,10 @@ class PicoController:
                     raise ValueError("Invalid file format.")
 
                 self.display_recipe()
-                
+
                 # enable the start button
                 self.start_button.config(state=tk.NORMAL)
-                
+
                 logging.info(f"Recipe file loaded successfully: {file_path}")
                 messagebox.showinfo(
                     "File Load", f"Recipe file loaded successfully: {file_path}"
@@ -526,8 +529,8 @@ class PicoController:
                 logging.error(f"Failed to load recipe file {file_path}: {e}")
 
     def display_recipe(self):
-        for widget in self.recipe_frame.winfo_children():
-            widget.destroy()
+        # clear the recipe table
+        self.clear_recipe()
 
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to display.")
@@ -548,25 +551,24 @@ class PicoController:
 
         # double width for the notes column
         self.recipe_table.column("Notes", width=200)
-
-        self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
+        self.recipe_table.grid(row=1, column=0, padx=10, pady=10)
 
     # a function to clear the recipe table
     def clear_recipe(self):
         # clear the recipe table
         self.recipe_df = None
         self.recipe_rows = []
-        for widget in self.recipe_frame.winfo_children():
-            widget.destroy()
+        if self.recipe_table:
+            self.recipe_table.destroy()
         # recreate the recipe table
         self.recipe_table = ttk.Frame(self.recipe_frame)
         self.recipe_table.grid(
-            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
         # clear the progress bar
         self.total_progress_bar["value"] = 0
         self.remaining_time_value.config(text="")
-        
+
         # disable all procedure buttons
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.DISABLED)
@@ -586,13 +588,16 @@ class PicoController:
             return
 
         logging.info("Starting procedure...")
-        
+
         # enable the stop button
         self.stop_button.config(state=tk.NORMAL)
         # enable the pause button
         self.pause_button.config(state=tk.NORMAL)
         # disable the continue button
         self.continue_button.config(state=tk.DISABLED)
+
+        # clear the stop time and pause time
+        self.pause_timepoint = -1
 
         # calculate the total procedure time
         self.total_procedure_time = self.recipe_df["Time point (min)"].max() * 60
@@ -630,7 +635,7 @@ class PicoController:
         row = self.recipe_df.iloc[index]
         target_time = float(row["Time point (min)"]) * 60
 
-        elapsed_time = time.time() - self.start_time
+        elapsed_time = time.time() - self.start_time - self.pause_duration
         # calculate the remaining time for the current step
         current_step_remaining_time = target_time - elapsed_time
         intended_sleep_time = max(100, int(current_step_remaining_time * 1000 / 2))
@@ -687,6 +692,8 @@ class PicoController:
             or self.recipe_df.empty
         ):
             return
+        if self.pause_timepoint != -1:  # Check if paused
+            return
         elapsed_time = time.time() - self.start_time - self.pause_duration
         total_progress = int((elapsed_time / self.total_procedure_time) * 100)
         self.total_progress_bar["value"] = total_progress
@@ -722,7 +729,7 @@ class PicoController:
         if not self.serial_port:
             messagebox.showerror("Error", "Not connected to Pico.")
             return
-        
+
         pump_id = len(self.pumps) + 1
         self.update_pump_widgets(f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW")
 
