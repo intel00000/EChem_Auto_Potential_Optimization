@@ -46,10 +46,8 @@ class PicoController:
         # time stamp for the start of the procedure
         self.start_time = -1
         self.total_procedure_time = -1
-
-        # port refresh timer
-        self.last_port_refresh = -1
-        self.port_refersh_interval = 5
+        self.current_index = -1
+        self.pause_timepoint = -1
 
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -106,7 +104,7 @@ class PicoController:
         )
         self.start_button.grid(row=1, column=3, padx=10, pady=10)
 
-        self.stop_button = ttk.Button(self.select_port_frame, text="Stop")
+        self.stop_button = ttk.Button(self.select_port_frame, text="Stop", command=self.stop_procedure)
         self.stop_button.grid(row=1, column=4, padx=10, pady=10)
 
         # Manual control title with box
@@ -125,6 +123,10 @@ class PicoController:
             self.manual_control_frame, text="Add Pump", command=self.add_pump
         )
         self.add_pump_button.grid(row=1, column=0, padx=10, pady=10)
+        self.clear_pumps_button = ttk.Button(
+            self.manual_control_frame, text="Clear All Pumps", command=self.clear_pumps
+        )
+        self.clear_pumps_button.grid(row=1, column=1, padx=10, pady=10)
 
         # recipe frame
         self.recipe_frame = ttk.Labelframe(
@@ -229,24 +231,11 @@ class PicoController:
 
             # update UI
             self.status_label.config(text="Status: Not connected")
-            self.pumps_frame.destroy()
-            # Recreate pumps_frame inside the manual control frame
-            self.pumps_frame = ttk.Frame(self.manual_control_frame)
-            self.pumps_frame.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
-
+            
+            # clear the pumps widgets
+            self.clear_pumps_widgets()
             # clear the recipe table
-            self.recipe_df = None
-            self.recipe_rows = []
-            for widget in self.recipe_frame.winfo_children():
-                widget.destroy()
-            # recreate the recipe table
-            self.recipe_table = ttk.Frame(self.recipe_frame)
-            self.recipe_table.grid(
-                row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
-            )
-            # clear the progress bar
-            self.total_progress_bar["value"] = 0
-            self.remaining_time_value.config(text="")
+            self.clear_recipe()
 
             logging.info("Disconnected from Pico")
             if show_message:
@@ -280,6 +269,24 @@ class PicoController:
             command = f"{pump_id}:reg:{power_pin}:{direction_pin}:{initial_power_pin_value}:{initial_direction_pin_value}:{initial_power_status}:{initial_direction_status}"
             self.send_command_queue.put(command)
             self.update_status()
+
+    def clear_pumps(self):
+        if self.serial_port:
+            # pop a message to confirm the clear
+            if messagebox.askyesno("Clear Pumps", "Clear all pumps?") == tk.YES:
+                self.send_command_queue.put("0:clr")
+                self.clear_pumps_widgets()
+
+    def stop_procedure(self):
+        if self.start_time == -1:
+            logging.error("No procedure running.")
+            
+        self.start_time = -1
+        self.total_procedure_time = -1
+        logging.info("Procedure stopped.")
+        messagebox.showinfo(
+            "Procedure Stopped", "The procedure has been stopped."
+        )
 
     # this send_command will run in a loop, removing the first item from the queue and sending it, each sending will be a sleep of 0.1s
     def send_command(self):
@@ -414,6 +421,19 @@ class PicoController:
                     "power_button": power_button,
                     "direction_button": direction_button,
                 }
+                
+    # a function to clear all pumps
+    def clear_pumps_widgets(self):
+        for widget in self.pumps_frame.winfo_children():
+            widget.destroy()
+        # destroy the pumps frame
+        self.pumps_frame.destroy()
+        # recreate pumps frame inside the manual control frame
+        self.pumps_frame = ttk.Frame(self.manual_control_frame)
+        self.pumps_frame.grid(
+            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+        )
+        self.pumps = {}
 
     def update_pump_status(self, response):
         status_pattern = re.compile(
@@ -482,7 +502,23 @@ class PicoController:
 
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
 
-    def start_procedure(self):
+    # a function to clear the recipe table
+    def clear_recipe(self):
+        # clear the recipe table
+        self.recipe_df = None
+        self.recipe_rows = []
+        for widget in self.recipe_frame.winfo_children():
+            widget.destroy()
+        # recreate the recipe table
+        self.recipe_table = ttk.Frame(self.recipe_frame)
+        self.recipe_table.grid(
+            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+        )
+        # clear the progress bar
+        self.total_progress_bar["value"] = 0
+        self.remaining_time_value.config(text="")
+
+    def start_procedure(self, index=0, continue_procedure=False):
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to execute.")
             return
@@ -611,9 +647,12 @@ class PicoController:
                 )
 
     def add_pump(self):
-        print("Adding pump")
+        # only add a pump if connected to Pico
+        if not self.serial_port:
+            messagebox.showerror("Error", "Not connected to Pico.")
+            return
+        
         pump_id = len(self.pumps) + 1
-
         self.update_pump_widgets(f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW")
 
     def edit_pump(self, pump_id):

@@ -87,6 +87,16 @@ def register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value=0,
     except Exception as e:
         write_message(f"Error: registering pump {pump_num} failed, {e}")
 
+# function to reset the controller, it will remove all pumps
+def clear_pumps(pump_num):
+    if pump_num == 0:
+        pumps.clear()
+        write_message("Success: All pumps removed.")
+    elif pump_num in pumps:
+        # remove the pump from the dictionary
+        pumps.pop(pump_num)
+        write_message(f"Success: Pump {pump_num} removed.")
+
 # Create default pumps objects
 pumps = {
     1: Pump(power_pin_id=18, direction_pin_id=17, initial_power_pin_value=0, initial_direction_pin_value=0, initial_power_status="OFF", initial_direction_status="CCW"),
@@ -101,6 +111,7 @@ commands = {
     'st': 'status',
     'info': 'info',
     'reg': 'register',
+    'rst': 'reset',
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -158,6 +169,8 @@ def main():
                     send_status(0)
                 elif command == 'info':
                     send_info(0)
+                elif command == 'rst':
+                    clear_pumps(0)
                 elif command in commands:
                     for pump in pumps.values():
                         method = getattr(pump, commands[command], None)
@@ -176,6 +189,8 @@ def main():
                         send_status(pump_num)
                     elif command == 'info':
                         send_info(pump_num)
+                    elif command == 'rst':
+                        clear_pumps(pump_num)
                     else:
                         method = getattr(pump, commands[command], None)
                         if method:
