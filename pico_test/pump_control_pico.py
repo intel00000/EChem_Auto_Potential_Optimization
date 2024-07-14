@@ -111,7 +111,7 @@ commands = {
     'st': 'status',
     'info': 'info',
     'reg': 'register',
-    'rst': 'reset',
+    'clr': 'clear_pumps',
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -169,7 +169,7 @@ def main():
                     send_status(0)
                 elif command == 'info':
                     send_info(0)
-                elif command == 'rst':
+                elif command == 'clr':
                     clear_pumps(0)
                 elif command in commands:
                     for pump in pumps.values():
@@ -189,7 +189,7 @@ def main():
                         send_status(pump_num)
                     elif command == 'info':
                         send_info(pump_num)
-                    elif command == 'rst':
+                    elif command == 'clr':
                         clear_pumps(pump_num)
                     else:
                         method = getattr(pump, commands[command], None)

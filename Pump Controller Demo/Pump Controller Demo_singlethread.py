@@ -90,6 +90,8 @@ class PicoController:
             self.select_port_frame, text="Disconnect", command=self.disconnect_pico
         )
         self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
+        # disable the disconnect button
+        self.disconnect_button.config(state=tk.DISABLED)
 
         # second row for select_port_frame
         self.status_label = ttk.Label(
@@ -106,12 +108,16 @@ class PicoController:
         self.manual_control_frame.grid(
             row=2, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
+        self.manual_control_frame_buttons = ttk.Frame(self.manual_control_frame)
+        self.manual_control_frame_buttons.grid(
+            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+        )
         self.add_pump_button = ttk.Button(
-            self.manual_control_frame, text="Add Pump", command=self.add_pump
+            self.manual_control_frame_buttons, text="Add Pump", command=self.add_pump
         )
         self.add_pump_button.grid(row=0, column=0, padx=10, pady=10, sticky="W")
         self.clear_pumps_button = ttk.Button(
-            self.manual_control_frame, text="Clear All Pumps", command=self.clear_pumps
+            self.manual_control_frame_buttons, text="Clear All Pumps", command=self.clear_pumps
         )
         self.clear_pumps_button.grid(row=0, column=1, padx=10, pady=10, sticky="W")
         # Moved inside the manual control frame
@@ -152,10 +158,12 @@ class PicoController:
         self.continue_button.grid(row=0, column=4, padx=10, pady=10)
         self.continue_button.config(state=tk.DISABLED)
         # frame for the recipe table
-        self.recipe_table = ttk.Frame(self.recipe_frame)
-        self.recipe_table.grid(
+        self.recipe_table_frame = ttk.Frame(self.recipe_frame)
+        self.recipe_table_frame.grid(
             row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
+        self.recipe_table = ttk.Frame(self.recipe_table_frame)
+        self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
 
         # Fourth frame for total progress bar and remaining time label
         self.progress_frame = ttk.Labelframe(
@@ -178,6 +186,17 @@ class PicoController:
         self.remaining_time_label.grid(row=1, column=0, padx=10, pady=10, sticky="W")
         self.remaining_time_value = ttk.Label(self.progress_frame, text="")
         self.remaining_time_value.grid(row=1, column=1, padx=10, pady=10, sticky="W")
+
+        # Configure the style for the scrollbar
+        self.style = ttk.Style()
+        self.style.configure("Treeview.Scrollbar",
+                        background="gray",
+                        troughcolor="light gray",
+                        gripcount=0,
+                        gripcolor="white",
+                        gripinset=2,
+                        gripborderwidth=0,
+                        thickness=10)
 
     def main_loop(self):
         self.refresh_ports()
@@ -230,6 +249,9 @@ class PicoController:
                 # issue a pump info query
                 self.query_pump_info()
 
+                # enable the disconnect button
+                self.disconnect_button.config(state=tk.NORMAL)
+
             except serial.SerialException:
                 self.status_label.config(text="Status: Not connected")
                 logging.error(f"Failed to connect to {selected_port}")
@@ -251,6 +273,9 @@ class PicoController:
             self.clear_pumps_widgets()
             # clear the recipe table
             self.clear_recipe()
+
+            # disable the disconnect button
+            self.disconnect_button.config(state=tk.DISABLED)
 
             logging.info("Disconnected from Pico")
             if show_message:
@@ -319,10 +344,7 @@ class PicoController:
         self.pause_timepoint = time.time()
         self.pause_button.config(state=tk.DISABLED)
         self.continue_button.config(state=tk.NORMAL)
-        logging.info("Procedure paused.")
-        messagebox.showinfo(
-            "Procedure Paused", "The procedure has been paused."
-        )
+        """ logging.info("Procedure paused.") """
 
     def continue_procedure(self):
         if self.pause_timepoint != -1:
@@ -332,9 +354,9 @@ class PicoController:
         self.continue_button.config(state=tk.DISABLED)
         self.execute_procedure(self.current_index)
         logging.info("Procedure continued.")
-        messagebox.showinfo(
+        """ messagebox.showinfo(
             "Procedure Continued", "The procedure has been continued."
-        )
+        ) """
 
     # this send_command will run in a loop, removing the first item from the queue and sending it, each sending will be a sleep of 0.1s
     def send_command(self):
@@ -479,7 +501,7 @@ class PicoController:
         # recreate pumps frame inside the manual control frame
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
         self.pumps_frame.grid(
-            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
         self.pumps = {}
 
@@ -506,6 +528,8 @@ class PicoController:
         file_path = filedialog.askopenfilename()
         if file_path:
             try:
+                # clear the recipe table
+                self.clear_recipe()
                 if file_path.endswith(".csv"):
                     self.recipe_df = pd.read_csv(file_path, keep_default_na=False, engine="python")
                 elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
@@ -513,7 +537,39 @@ class PicoController:
                 else:
                     raise ValueError("Invalid file format.")
 
-                self.display_recipe()
+                # display_recipe
+                if self.recipe_df is None or self.recipe_df.empty:
+                    logging.error("No recipe data to display.")
+                    return
+
+                columns = list(self.recipe_df.columns) + ["Progress Bar", "Remaining Time"]
+                self.recipe_table = ttk.Treeview(
+                    self.recipe_table_frame, columns=columns, show="headings"
+                )
+
+                # create a scrollbar
+                scrollbar = ttk.Scrollbar(
+                    self.recipe_table_frame,
+                    orient="vertical",
+                    command=self.recipe_table.yview,
+                    style="Treeview.Scrollbar"
+                )
+                self.recipe_table.configure(yscrollcommand=scrollbar.set)
+                scrollbar.pack(side="right", fill="y")
+                
+
+                self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
+                for col in columns:
+                    self.recipe_table.heading(col, text=col)
+                    self.recipe_table.column(col, width=100, anchor="center")
+
+                for index, row in self.recipe_df.iterrows():
+                    values = list(row)
+                    self.recipe_table.insert("", "end", values=values)
+                    self.recipe_rows.append((index, self.recipe_table.get_children()[-1]))
+
+                # double width for the notes column
+                self.recipe_table.column("Notes", width=200, anchor="center")
 
                 # enable the start button
                 self.start_button.config(state=tk.NORMAL)
@@ -528,43 +584,16 @@ class PicoController:
                 )
                 logging.error(f"Failed to load recipe file {file_path}: {e}")
 
-    def display_recipe(self):
-        # clear the recipe table
-        self.clear_recipe()
-
-        if self.recipe_df is None or self.recipe_df.empty:
-            logging.error("No recipe data to display.")
-            return
-
-        columns = list(self.recipe_df.columns) + ["Progress Bar", "Remaining Time"]
-        self.recipe_table = ttk.Treeview(
-            self.recipe_frame, columns=columns, show="headings"
-        )
-        for col in columns:
-            self.recipe_table.heading(col, text=col)
-            self.recipe_table.column(col, width=100, anchor="center")
-
-        for index, row in self.recipe_df.iterrows():
-            values = list(row)
-            self.recipe_table.insert("", "end", values=values)
-            self.recipe_rows.append((index, self.recipe_table.get_children()[-1]))
-
-        # double width for the notes column
-        self.recipe_table.column("Notes", width=200)
-        self.recipe_table.grid(row=1, column=0, padx=10, pady=10)
-
     # a function to clear the recipe table
     def clear_recipe(self):
         # clear the recipe table
         self.recipe_df = None
         self.recipe_rows = []
-        if self.recipe_table:
-            self.recipe_table.destroy()
+        # destroy the recipe table
+        self.recipe_table.destroy()
         # recreate the recipe table
-        self.recipe_table = ttk.Frame(self.recipe_frame)
-        self.recipe_table.grid(
-            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
-        )
+        self.recipe_table = ttk.Frame(self.recipe_table_frame)
+        self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
         # clear the progress bar
         self.total_progress_bar["value"] = 0
         self.remaining_time_value.config(text="")
@@ -575,7 +604,7 @@ class PicoController:
         self.pause_button.config(state=tk.DISABLED)
         self.continue_button.config(state=tk.DISABLED)
 
-    def start_procedure(self, index=0, continue_procedure=False):
+    def start_procedure(self):
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to execute.")
             return
@@ -687,18 +716,19 @@ class PicoController:
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):
         if (
-            self.total_procedure_time == -1
+            self.total_procedure_time == -1 # Check if not started
             or self.recipe_df is None
             or self.recipe_df.empty
+            or self.pause_timepoint != -1 # Check if paused
         ):
-            return
-        if self.pause_timepoint != -1:  # Check if paused
             return
         elapsed_time = time.time() - self.start_time - self.pause_duration
         total_progress = int((elapsed_time / self.total_procedure_time) * 100)
         self.total_progress_bar["value"] = total_progress
         remaining_time = int(self.total_procedure_time - elapsed_time)
-        self.remaining_time_value.config(text=f"{remaining_time}s")
+        # convert this time to using function in time module
+        time_str = time.strftime("%H:%M:%S", time.gmtime(remaining_time))
+        self.remaining_time_value.config(text=f"{time_str}")
 
         # update the recipe table with individual progress of each row and remaining time
         for i, child in self.recipe_rows:
