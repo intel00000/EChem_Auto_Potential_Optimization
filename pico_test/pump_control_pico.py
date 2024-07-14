@@ -67,6 +67,7 @@ def register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value=0,
     # if the pump_num is 0, it will not be registered
     if pump_num == 0:
         write_message("Error: Pump number 0 is reserved for all pumps.")
+        return
     try:
         if pump_num in pumps:
             # try to reinitialize the pins
@@ -75,17 +76,16 @@ def register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value=0,
             
             pumps[pump_num].power_pin_id = power_pin
             pumps[pump_num].direction_pin_id = direction_pin
-            pumps[pump_num].initial_power_pin_value = initial_power
-            pumps[pump_num].initial_direction_pin_value = initial_direction
+            pumps[pump_num].initial_power_pin_value = initial_power_pin_value
+            pumps[pump_num].initial_direction_pin_value = initial_direction_pin_value
             pumps[pump_num].power_status = initial_power_status
             pumps[pump_num].direction_status = initial_direction_status
             write_message(f"Success: Pump {pump_num} updated successfully.")
         else:
-            pumps[pump_num] = Pump(power_pin, direction_pin, initial_power, initial_direction)
-        write_message(f"Success: Pump {pump_num} registered successfully.")
+            pumps[pump_num] = Pump(power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power_status, initial_direction_status)
+            write_message(f"Success: Pump {pump_num} registered successfully.")
     except Exception as e:
         write_message(f"Error: registering pump {pump_num} failed, {e}")
-
 
 # Create default pumps objects
 pumps = {
@@ -138,7 +138,15 @@ def main():
                     direction_pin = int(parts[3])
                     initial_power_pin_value = int(parts[4])
                     initial_direction_pin_value = int(parts[5])
+                    # check if the initial power status is valid
+                    if parts[6].upper() not in ["ON", "OFF"]:
+                        write_message("Error: Invalid initial power status, expected 'ON' or 'OFF'")
+                        continue
                     initial_power = parts[6]
+                    # check if the initial direction status is valid
+                    if parts[7].upper() not in ["CW", "CCW"]:
+                        write_message("Error: Invalid initial direction status, expected 'CW' or 'CCW'")
+                        continue
                     initial_direction = parts[7]
                     
                     register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power, initial_direction)
@@ -173,10 +181,9 @@ def main():
                         if method:
                             method()
                 else:
-                    
                     write_message(f"Error: Invalid command for pump '{pump_num}', available commands are: " + commands_mapping_string)
             else:
-                write_message(f"Error: Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys()))
+                write_message(f"Error: Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys())))
 
 # Run the main loop
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, simpledialog, filedialog
 
 # other library
 import os
@@ -17,17 +17,18 @@ from datetime import datetime
 from queue import Queue
 import pandas as pd
 
-# define pi pico vender id
+# Define Pi Pico vendor ID
 pico_vid = 0x2E8A
 
 class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Controller via Pico Demo")
-        # self.master.geometry("800x600")
-        self.port_refresh_rate = 10000  # Refresh rate for COM ports when not connected
+        # port refresh timer
+        self.last_port_refresh = -1
+        self.port_refersh_interval = 5  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
-        self.main_loop_interval = 100  # Main loop interval in milliseconds
+        self.main_loop_interval = 10  # Main loop interval in milliseconds
 
         # instance fields for the serial port and queue
         self.serial_port = None
@@ -45,14 +46,13 @@ class PicoController:
         # time stamp for the start of the procedure
         self.start_time = -1
         self.total_procedure_time = -1
-        
+
         # port refresh timer
         self.last_port_refresh = -1
         self.port_refersh_interval = 5
 
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
-        # check if there is a log subfolder, if not, create it
         try:
             os.mkdir("log")
         except FileExistsError:
@@ -64,9 +64,11 @@ class PicoController:
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
 
-        # Create and place widgets
-        # first row is for selecting COM port and connecting/disconnecting
-        self.select_port_frame = ttk.Frame(master)
+        self.create_widgets()
+        self.master.after(self.main_loop_interval, self.main_loop)
+
+    def create_widgets(self):
+        self.select_port_frame = ttk.Labelframe(self.master, text="Select Port", padding=(10, 10, 10, 10))
         self.select_port_frame.grid(
             row=0, column=0, columnspan=4, rowspan=2, padx=10, pady=10, sticky="NSEW"
         )
@@ -103,13 +105,13 @@ class PicoController:
             self.select_port_frame, text="Start", command=self.start_procedure
         )
         self.start_button.grid(row=1, column=3, padx=10, pady=10)
-        
+
         self.stop_button = ttk.Button(self.select_port_frame, text="Stop")
         self.stop_button.grid(row=1, column=4, padx=10, pady=10)
 
         # Manual control title with box
         self.manual_control_frame = ttk.Labelframe(
-            master, text="Manual Control", padding=(10, 10, 10, 10)
+            self.master, text="Manual Control", padding=(10, 10, 10, 10)
         )
         self.manual_control_frame.grid(
             row=2, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
@@ -119,10 +121,14 @@ class PicoController:
         self.pumps_frame.grid(
             row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
         )
+        self.add_pump_button = ttk.Button(
+            self.manual_control_frame, text="Add Pump", command=self.add_pump
+        )
+        self.add_pump_button.grid(row=1, column=0, padx=10, pady=10)
 
         # recipe frame
         self.recipe_frame = ttk.Labelframe(
-            master, text="Recipe", padding=(10, 10, 10, 10)
+            self.master, text="Recipe", padding=(10, 10, 10, 10)
         )
         self.recipe_frame.grid(
             row=3, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
@@ -135,7 +141,7 @@ class PicoController:
 
         # add a total progress bar and remaining time label below the recipe table
         self.progress_frame = ttk.Labelframe(
-            master, text="Progress", padding=(10, 10, 10, 10)
+            self.master, text="Progress", padding=(10, 10, 10, 10)
         )
         self.progress_frame.grid(
             row=4, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
@@ -155,8 +161,6 @@ class PicoController:
         self.remaining_time_label.grid(row=1, column=0, padx=10, pady=10, sticky="W")
         self.remaining_time_value = ttk.Label(self.progress_frame, text="")
         self.remaining_time_value.grid(row=1, column=1, padx=10, pady=10, sticky="W")
-
-        self.master.after(self.main_loop_interval, self.main_loop)
 
     def main_loop(self):
         self.refresh_ports()
@@ -208,8 +212,6 @@ class PicoController:
 
                 # issue a pump info query
                 self.query_pump_info()
-                # issue a status update
-                self.update_status()
 
             except serial.SerialException:
                 self.status_label.config(text="Status: Not connected")
@@ -273,6 +275,12 @@ class PicoController:
             self.send_command_queue.put(f"{pump_id}:di")
             self.update_status()
 
+    def register_pump(self, pump_id, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power_status, initial_direction_status):
+        if self.serial_port:
+            command = f"{pump_id}:reg:{power_pin}:{direction_pin}:{initial_power_pin_value}:{initial_direction_pin_value}:{initial_power_status}:{initial_direction_status}"
+            self.send_command_queue.put(command)
+            self.update_status()
+
     # this send_command will run in a loop, removing the first item from the queue and sending it, each sending will be a sleep of 0.1s
     def send_command(self):
         try:
@@ -297,9 +305,11 @@ class PicoController:
                 response = self.serial_port.readline().decode("utf-8").strip()
                 logging.info(f"Pico -> PC: {response}")
                 if "Info" in response:
-                    self.create_pump_widgets(response)
+                    self.update_pump_widgets(response)
                 elif "Status" in response:
                     self.update_pump_status(response)
+                elif "Error" in response:
+                    messagebox.showerror("Error", response)
         except serial.SerialException as e:
             self.disconnect_pico(False)
             logging.error(f"Connection to Pico lost: {e}")
@@ -311,63 +321,99 @@ class PicoController:
             messagebox.showerror("Error", f"Read_serial: An error occurred: {e}")
             logging.error(f"Read_serial: An error occurred: {e}")
 
-    def create_pump_widgets(self, response):
-        # clear existing widgets
-        for widget in self.pumps_frame.winfo_children():
-            widget.destroy()
-        # clear the pumps dictionary
-        self.pumps = {}
-
+    def update_pump_widgets(self, response):
         info_pattern = re.compile(
-            r"Pump(\d+) Info: Power Pin ID: (\d+), Direction Pin ID: (\d+), Initial Power Status: (ON|OFF), Initial Direction Status: (CW|CCW)"
+            r"Pump(\d+) Info: Power Pin: (-?\d+), Direction Pin: (-?\d+), Initial Power Pin Value: (\d+), Initial Direction Pin Value: (\d+), Current Power Status: (ON|OFF), Current Direction Status: (CW|CCW)"
         )
         matches = info_pattern.findall(response)
 
-        # sort the matches by pump_id
-        matches = sorted(matches, key=lambda x: int(x[0]))
-
         for match in matches:
-            pump_id, power_pin, direction_pin, initial_power, initial_direction = match
+            pump_id, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, power_status, direction_status = match
             pump_id = int(pump_id)
-            self.pumps[pump_id] = {
-                "power_pin": power_pin,
-                "direction_pin": direction_pin,
-                "power_status": initial_power,
-                "direction_status": initial_direction,
-            }
+            if pump_id in self.pumps:
+                self.pumps[pump_id].update({
+                    "power_pin": power_pin,
+                    "direction_pin": direction_pin,
+                    "initial_power_pin_value": initial_power_pin_value,
+                    "initial_direction_pin_value": initial_direction_pin_value,
+                    "power_status": power_status,
+                    "direction_status": direction_status,
+                })
 
-            pump_frame = ttk.Labelframe(self.pumps_frame, text=f"Pump {pump_id}")
-            pump_frame.grid(row=0, column=pump_id - 1, padx=10, pady=10, sticky="NS")
+                pump_frame = self.pumps[pump_id]["frame"]
+                pump_frame.grid(row=0, column=pump_id - 1, padx=10, pady=10, sticky="NS")
 
-            pump_label = ttk.Label(
-                pump_frame,
-                text=f"Pump {pump_id}, power pin: {power_pin}, direction pin: {direction_pin}",
-            )
-            pump_label.grid(row=0, column=0, padx=10, pady=10, sticky="NS")
+                self.pumps[pump_id]["power_label"].config(
+                    text=f"Power Status: {power_status}"
+                )
+                self.pumps[pump_id]["direction_label"].config(
+                    text=f"Direction Status: {direction_status}"
+                )
+                self.pumps[pump_id]["power_button"].config(
+                    state="normal" if power_pin != "-1" else "disabled"
+                )
+                self.pumps[pump_id]["direction_button"].config(
+                    state="normal" if direction_pin != "-1" else "disabled"
+                )
+                self.pumps[pump_id]["pump_label"].config(
+                    text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}"
+                )
+            else:
+                pump_frame = ttk.Labelframe(self.pumps_frame, text=f"Pump {pump_id}")
+                pump_frame.grid(row=0, column=pump_id - 1, padx=10, pady=10, sticky="NS")
 
-            power_label = ttk.Label(pump_frame, text=f"Power Status: {initial_power}")
-            power_label.grid(row=1, column=0, padx=10, pady=10, sticky="NS")
-            self.pumps[pump_id]["power_label"] = power_label
+                pump_label = ttk.Label(
+                    pump_frame,
+                    text=f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}",
+                )
+                pump_label.grid(row=0, column=0, padx=10, pady=10, sticky="NS")
 
-            direction_label = ttk.Label(
-                pump_frame, text=f"Direction Status: {initial_direction}"
-            )
-            direction_label.grid(row=1, column=1, padx=10, pady=10, sticky="NS")
-            self.pumps[pump_id]["direction_label"] = direction_label
+                edit_button = ttk.Button(
+                    pump_frame,
+                    text="Edit",
+                    command=lambda pid=pump_id: self.edit_pump(pid)
+                )
+                edit_button.grid(row=0, column=1, padx=10, pady=10, sticky="NS")
 
-            power_button = ttk.Button(
-                pump_frame,
-                text="Toggle Power",
-                command=lambda pid=pump_id: self.toggle_power(pid),
-            )
-            power_button.grid(row=2, column=0, padx=10, pady=10, sticky="NS")
+                power_label = ttk.Label(pump_frame, text=f"Power Status: {power_status}")
+                power_label.grid(row=1, column=0, padx=10, pady=10, sticky="NS")
 
-            direction_button = ttk.Button(
-                pump_frame,
-                text="Toggle Direction",
-                command=lambda pid=pump_id: self.toggle_direction(pid),
-            )
-            direction_button.grid(row=2, column=1, padx=10, pady=10, sticky="NS")
+                direction_label = ttk.Label(
+                    pump_frame, text=f"Direction Status: {direction_status}"
+                )
+                direction_label.grid(row=1, column=1, padx=10, pady=10, sticky="NS")
+
+                power_button = ttk.Button(
+                    pump_frame,
+                    text="Toggle Power",
+                    command=lambda pid=pump_id: self.toggle_power(pid),
+                    state="disabled" if power_pin == "-1" else "normal"
+                )
+                power_button.grid(row=2, column=0, padx=10, pady=10, sticky="NS")
+
+                direction_button = ttk.Button(
+                    pump_frame,
+                    text="Toggle Direction",
+                    command=lambda pid=pump_id: self.toggle_direction(pid),
+                    state="disabled" if direction_pin == "-1" else "normal"
+                )
+                direction_button.grid(row=2, column=1, padx=10, pady=10, sticky="NS")
+
+                self.pumps[pump_id] = {
+                    "power_pin": power_pin,
+                    "direction_pin": direction_pin,
+                    "initial_power_pin_value": initial_power_pin_value,
+                    "initial_direction_pin_value": initial_direction_pin_value,
+                    "power_status": power_status,
+                    "direction_status": direction_status,
+                    
+                    "frame": pump_frame,
+                    "pump_label": pump_label,
+                    "power_label": power_label,
+                    "direction_label": direction_label,
+                    "power_button": power_button,
+                    "direction_button": direction_button,
+                }
 
     def update_pump_status(self, response):
         status_pattern = re.compile(
@@ -437,6 +483,9 @@ class PicoController:
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10)
 
     def start_procedure(self):
+        if self.recipe_df is None or self.recipe_df.empty:
+            logging.error("No recipe data to execute.")
+            return
         if self.recipe_df is None:
             messagebox.showerror("Error", "No recipe file loaded.")
             return
@@ -459,6 +508,9 @@ class PicoController:
         self.execute_procedure()
 
     def execute_procedure(self, index=0):
+        if self.recipe_df is None or self.recipe_df.empty:
+            logging.error("No recipe data to execute.")
+            return
         if index >= len(self.recipe_df):
             self.start_time = -1
             self.total_procedure_time = -1
@@ -558,6 +610,27 @@ class PicoController:
                     values=list(row) + [f"{row_progress}%", f"{remaining_time_row}s"],
                 )
 
+    def add_pump(self):
+        print("Adding pump")
+        pump_id = len(self.pumps) + 1
+
+        self.update_pump_widgets(f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW")
+
+    def edit_pump(self, pump_id):
+        pump = self.pumps[pump_id]
+        power_pin = simpledialog.askinteger("Power Pin", "Enter power pin ID:", initialvalue=int(pump["power_pin"]))
+        direction_pin = simpledialog.askinteger("Direction Pin", "Enter direction pin ID:", initialvalue=int(pump["direction_pin"]))
+        initial_power_pin_value = simpledialog.askinteger("Initial Power Pin Value", "Enter initial power pin value (0/1):", initialvalue=int(pump["initial_power_pin_value"]), minvalue=0, maxvalue=1)
+        initial_direction_pin_value = simpledialog.askinteger("Initial Direction Pin Value", "Enter initial direction pin value (0/1):", initialvalue=int(pump["initial_direction_pin_value"]), minvalue=0, maxvalue=1)
+        initial_power_status = simpledialog.askstring("Initial Power Status", "Enter initial power status (ON/OFF):", initialvalue=pump["power_status"])
+        initial_direction_status = simpledialog.askstring("Initial Direction Status", "Enter initial direction status (CW/CCW):", initialvalue=pump["direction_status"])
+
+        if (power_pin is not None and direction_pin is not None and initial_power_pin_value is not None and initial_direction_pin_value is not None and initial_power_status in ["ON", "OFF"] and initial_direction_status in ["CW", "CCW"]):
+            self.register_pump(pump_id, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power_status, initial_direction_status)
+        else:
+            messagebox.showerror("Error", "Invalid input for pump registration.")
+        # update the pump info
+        self.query_pump_info()
 
 root = tk.Tk()
 app = PicoController(root)
