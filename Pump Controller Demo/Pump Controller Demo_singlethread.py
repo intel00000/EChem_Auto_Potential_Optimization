@@ -164,6 +164,7 @@ class PicoController:
         )
         self.recipe_table = ttk.Frame(self.recipe_table_frame)
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
+        self.scrollbar = ttk.Scrollbar()
 
         # Fourth frame for total progress bar and remaining time label
         self.progress_frame = ttk.Labelframe(
@@ -186,17 +187,6 @@ class PicoController:
         self.remaining_time_label.grid(row=1, column=0, padx=10, pady=10, sticky="W")
         self.remaining_time_value = ttk.Label(self.progress_frame, text="")
         self.remaining_time_value.grid(row=1, column=1, padx=10, pady=10, sticky="W")
-
-        # Configure the style for the scrollbar
-        self.style = ttk.Style()
-        self.style.configure("Treeview.Scrollbar",
-                        background="gray",
-                        troughcolor="light gray",
-                        gripcount=0,
-                        gripcolor="white",
-                        gripinset=2,
-                        gripborderwidth=0,
-                        thickness=10)
 
     def main_loop(self):
         self.refresh_ports()
@@ -548,15 +538,13 @@ class PicoController:
                 )
 
                 # create a scrollbar
-                scrollbar = ttk.Scrollbar(
+                self.scrollbar = ttk.Scrollbar(
                     self.recipe_table_frame,
                     orient="vertical",
-                    command=self.recipe_table.yview,
-                    style="Treeview.Scrollbar"
+                    command=self.recipe_table.yview
                 )
-                self.recipe_table.configure(yscrollcommand=scrollbar.set)
-                scrollbar.pack(side="right", fill="y")
-                
+                self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
+                self.scrollbar.grid(row=0, column=1, sticky="NS")
 
                 self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
                 for col in columns:
@@ -591,6 +579,8 @@ class PicoController:
         self.recipe_rows = []
         # destroy the recipe table
         self.recipe_table.destroy()
+        # destroy the scrollbar
+        self.scrollbar.destroy()
         # recreate the recipe table
         self.recipe_table = ttk.Frame(self.recipe_table_frame)
         self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
