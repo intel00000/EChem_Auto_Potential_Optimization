@@ -254,7 +254,7 @@ class PicoController(QtWidgets.QMainWindow):
                 })
 
                 pump_frame = self.pumps[pump_id]["frame"]
-                pump_frame.setGeometry(10, 30 * (pump_id - 1), 200, 30)
+                pump_frame.setGeometry(10, 30 * (pump_id - 1), 600, 100)
 
                 self.pumps[pump_id]["power_label"].setText(f"Power Status: {power_status}")
                 self.pumps[pump_id]["direction_label"].setText(f"Direction Status: {direction_status}")
@@ -264,34 +264,34 @@ class PicoController(QtWidgets.QMainWindow):
             else:
                 pump_frame = QtWidgets.QGroupBox(self.ui.pumpsFrame)
                 pump_frame.setTitle(f"Pump {pump_id}")
-                pump_frame.setGeometry(10, 30 * (pump_id - 1), 200, 30)
+                pump_frame.setGeometry(10, 30 * (pump_id - 1), 600, 100)
 
                 pump_label = QtWidgets.QLabel(pump_frame)
                 pump_label.setText(f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}")
-                pump_label.setGeometry(10, 10, 200, 20)
+                pump_label.setGeometry(10, 10, 400, 20)
 
                 edit_button = QtWidgets.QPushButton(pump_frame)
                 edit_button.setText("Edit")
-                edit_button.setGeometry(210, 10, 50, 20)
+                edit_button.setGeometry(410, 10, 50, 20)
                 edit_button.clicked.connect(lambda pid=pump_id: self.edit_pump(pid))
 
                 power_label = QtWidgets.QLabel(pump_frame)
                 power_label.setText(f"Power Status: {power_status}")
-                power_label.setGeometry(270, 10, 100, 20)
+                power_label.setGeometry(10, 40, 100, 20)
 
                 direction_label = QtWidgets.QLabel(pump_frame)
                 direction_label.setText(f"Direction Status: {direction_status}")
-                direction_label.setGeometry(380, 10, 100, 20)
+                direction_label.setGeometry(120, 40, 100, 20)
 
                 power_button = QtWidgets.QPushButton(pump_frame)
                 power_button.setText("Toggle Power")
-                power_button.setGeometry(490, 10, 100, 20)
+                power_button.setGeometry(230, 40, 100, 20)
                 power_button.setEnabled(power_pin != "-1")
                 power_button.clicked.connect(lambda pid=pump_id: self.toggle_power(pid))
 
                 direction_button = QtWidgets.QPushButton(pump_frame)
                 direction_button.setText("Toggle Direction")
-                direction_button.setGeometry(600, 10, 100, 20)
+                direction_button.setGeometry(340, 40, 100, 20)
                 direction_button.setEnabled(direction_pin != "-1")
                 direction_button.clicked.connect(lambda pid=pump_id: self.toggle_direction(pid))
 
@@ -478,7 +478,7 @@ class PicoController(QtWidgets.QMainWindow):
                 break
             else:
                 if i < len(self.recipe_df) - 1:
-                    next_row = self.recipe_df.iloc(i + 1)
+                    next_row = self.recipe_df.iloc[i + 1]
                     next_time_stamp = float(next_row["Time point (min)"]) * 60
                     time_interval = next_time_stamp - time_stamp
                     row_progress = min(100, int(((elapsed_time - time_stamp) / time_interval) * 100))
