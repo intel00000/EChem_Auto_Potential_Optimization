@@ -6,13 +6,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['serial', 'serial.tools.list_ports', 'tkinter', 'pandas'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PySide6', 'PySide2', 'PyQt6'],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
+    excludes=['PySide6', 'PySide2'],
     noarchive=False,
     optimize=0,
 )
@@ -21,8 +19,9 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='Pump Controller_tkinter',
     debug=False,
     bootloader_ignore_signals=False,
@@ -36,15 +35,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='Pump_Controller',
 )
