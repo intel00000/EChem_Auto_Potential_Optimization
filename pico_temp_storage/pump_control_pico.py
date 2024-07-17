@@ -120,82 +120,85 @@ def main():
     commands_mapping_string = ", ".join([f"'{key}': '{value}'" for key, value in commands.items()])
 
     while True:
-        # Wait for input on stdin
-        poll_results = poll_obj.poll()
+        try:
+            # Wait for input on stdin
+            poll_results = poll_obj.poll()
 
-        if poll_results:
-            # Read the data from stdin (PC console input) and strip the newline character
-            data = sys.stdin.readline().strip()
+            if poll_results:
+                # Read the data from stdin (PC console input) and strip the newline character
+                data = sys.stdin.readline().strip()
 
-            # Validate the input data
-            if not data or data == '':
-                write_message("Error: Empty input.")
-                continue
-            # Split the data into pump id and command
-            parts = data.split(':')
-            if len(parts) < 2:
-                write_message("Error: Invalid input, expected basic format 'pump_number:command...'")
-                continue
-            pump_num = int(parts[0])
-            command = parts[1].strip().lower()
+                # Validate the input data
+                if not data or data == '':
+                    write_message("Error: Empty input.")
+                    continue
+                # Split the data into pump id and command
+                parts = data.split(':')
+                if len(parts) < 2:
+                    write_message("Error: Invalid input, expected basic format 'pump_number:command...'")
+                    continue
+                pump_num = int(parts[0])
+                command = parts[1].strip().lower()
 
-            # check the input and call the appropriate function
-            if command == 'reg':
-                if len(parts) == 8:
-                    power_pin = int(parts[2])
-                    direction_pin = int(parts[3])
-                    initial_power_pin_value = int(parts[4])
-                    initial_direction_pin_value = int(parts[5])
-                    # check if the initial power status is valid
-                    if parts[6].upper() not in ["ON", "OFF"]:
-                        write_message("Error: Invalid initial power status, expected 'ON' or 'OFF'")
-                        continue
-                    initial_power = parts[6]
-                    # check if the initial direction status is valid
-                    if parts[7].upper() not in ["CW", "CCW"]:
-                        write_message("Error: Invalid initial direction status, expected 'CW' or 'CCW'")
-                        continue
-                    initial_direction = parts[7]
+                # check the input and call the appropriate function
+                if command == 'reg':
+                    if len(parts) == 8:
+                        power_pin = int(parts[2])
+                        direction_pin = int(parts[3])
+                        initial_power_pin_value = int(parts[4])
+                        initial_direction_pin_value = int(parts[5])
+                        # check if the initial power status is valid
+                        if parts[6].upper() not in ["ON", "OFF"]:
+                            write_message("Error: Invalid initial power status, expected 'ON' or 'OFF'")
+                            continue
+                        initial_power = parts[6]
+                        # check if the initial direction status is valid
+                        if parts[7].upper() not in ["CW", "CCW"]:
+                            write_message("Error: Invalid initial direction status, expected 'CW' or 'CCW'")
+                            continue
+                        initial_direction = parts[7]
 
-                    register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power, initial_direction)
-                else:
-                    write_message("Error: Invalid input, expected format 'pump_number:reg:power_pin:direction_pin:initial_power_pin_value:initial_direction_pin_value:initial_power_status:initial_direction_status'")
-
-            elif pump_num == 0:
-                if command == 'st':
-                    send_status(0)
-                elif command == 'info':
-                    send_info(0)
-                elif command == 'clr':
-                    clear_pumps(0)
-                elif command in commands:
-                    for pump in pumps.values():
-                        method = getattr(pump, commands[command], None)
-                        if method:
-                            method()
-                else:
-                    write_message(f"Error: Invalid command for pump 0 '{command}', available commands are: " + commands_mapping_string)
-
-            elif pump_num in pumps:
-                # get the pump instance
-                pump = pumps[pump_num]
-
-                # check if the command is valid
-                if command in commands:
-                    if command == 'st':
-                        send_status(pump_num)
-                    elif command == 'info':
-                        send_info(pump_num)
-                    elif command == 'clr':
-                        clear_pumps(pump_num)
+                        register_pump(pump_num, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, initial_power, initial_direction)
                     else:
-                        method = getattr(pump, commands[command], None)
-                        if method:
-                            method()
+                        write_message("Error: Invalid input, expected format 'pump_number:reg:power_pin:direction_pin:initial_power_pin_value:initial_direction_pin_value:initial_power_status:initial_direction_status'")
+
+                elif pump_num == 0:
+                    if command == 'st':
+                        send_status(0)
+                    elif command == 'info':
+                        send_info(0)
+                    elif command == 'clr':
+                        clear_pumps(0)
+                    elif command in commands:
+                        for pump in pumps.values():
+                            method = getattr(pump, commands[command], None)
+                            if method:
+                                method()
+                    else:
+                        write_message(f"Error: Invalid command for pump 0 '{command}', available commands are: " + commands_mapping_string)
+
+                elif pump_num in pumps:
+                    # get the pump instance
+                    pump = pumps[pump_num]
+
+                    # check if the command is valid
+                    if command in commands:
+                        if command == 'st':
+                            send_status(pump_num)
+                        elif command == 'info':
+                            send_info(pump_num)
+                        elif command == 'clr':
+                            clear_pumps(pump_num)
+                        else:
+                            method = getattr(pump, commands[command], None)
+                            if method:
+                                method()
+                    else:
+                        write_message(f"Error: Invalid command for pump '{pump_num}', available commands are: " + commands_mapping_string)
                 else:
-                    write_message(f"Error: Invalid command for pump '{pump_num}', available commands are: " + commands_mapping_string)
-            else:
-                write_message(f"Error: Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys())))
+                    write_message(f"Error: Invalid pump number '{pump_num}', available pumps are: " + ", ".join(map(str, pumps.keys())))
+        except Exception as e:
+            write_message(f"Error: {e}")
 
 # Run the main loop
 if __name__ == "__main__":

@@ -103,7 +103,7 @@ class PicoController(QtWidgets.QMainWindow):
         selected_port = self.ui.portComboBox.currentText()
         if selected_port:
             if self.serial_port:
-                if QMessageBox.question(self, "Disconnect", "Disconnect from current port?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+                if QMessageBox.question(self, "Disconnect", "Disconnect from current port?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
                     self.disconnect_pico(show_message=False)
                 else:
                     return
@@ -148,6 +148,7 @@ class PicoController(QtWidgets.QMainWindow):
 
     def toggle_power(self, pump_id):
         if self.serial_port:
+            print(f"{pump_id}:pw")
             self.send_command_queue.put(f"{pump_id}:pw")
             self.update_status()
 
@@ -164,7 +165,7 @@ class PicoController(QtWidgets.QMainWindow):
 
     def clear_pumps(self):
         if self.serial_port:
-            if QMessageBox.question(self, "Clear Pumps", "Clear all pumps?", QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+            if QMessageBox.question(self, "Clear Pumps", "Clear all pumps?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes:
                 self.send_command_queue.put("0:clr")
                 self.clear_pumps_widgets()
 
@@ -239,6 +240,9 @@ class PicoController(QtWidgets.QMainWindow):
             r"Pump(\d+) Info: Power Pin: (-?\d+), Direction Pin: (-?\d+), Initial Power Pin Value: (\d+), Initial Direction Pin Value: (\d+), Current Power Status: (ON|OFF), Current Direction Status: (CW|CCW)"
         )
         matches = info_pattern.findall(response)
+        
+        # sort the matches by pump_id in ascending order
+        matches = sorted(matches, key=lambda x: int(x[0]))
 
         for match in matches:
             pump_id, power_pin, direction_pin, initial_power_pin_value, initial_direction_pin_value, power_status, direction_status = match
@@ -254,66 +258,65 @@ class PicoController(QtWidgets.QMainWindow):
                 })
 
                 pump_frame = self.pumps[pump_id]["frame"]
-                pump_frame.setGeometry(10, 30 * (pump_id - 1), 600, 100)
-
-                self.pumps[pump_id]["power_label"].setText(f"Power Status: {power_status}")
-                self.pumps[pump_id]["direction_label"].setText(f"Direction Status: {direction_status}")
-                self.pumps[pump_id]["power_button"].setEnabled(power_pin != "-1")
-                self.pumps[pump_id]["direction_button"].setEnabled(direction_pin != "-1")
-                self.pumps[pump_id]["pump_label"].setText(f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}")
+                self.update_pump_frame(pump_frame, pump_id, power_pin, direction_pin, power_status, direction_status)
             else:
                 pump_frame = QtWidgets.QGroupBox(self.ui.pumpsFrame)
                 pump_frame.setTitle(f"Pump {pump_id}")
-                pump_frame.setGeometry(10, 30 * (pump_id - 1), 600, 100)
+                pump_layout = QtWidgets.QVBoxLayout(pump_frame)
+                self.pumps[pump_id] = {"frame": pump_frame, "layout": pump_layout}
+                self.update_pump_frame(pump_frame, pump_id, power_pin, direction_pin, power_status, direction_status)
+                self.ui.pumpsFrame.layout().addWidget(pump_frame)
 
-                pump_label = QtWidgets.QLabel(pump_frame)
-                pump_label.setText(f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}")
-                pump_label.setGeometry(10, 10, 400, 20)
+    def update_pump_frame(self, pump_frame, pump_id, power_pin, direction_pin, power_status, direction_status):
+        pump_layout = pump_frame.layout()
 
-                edit_button = QtWidgets.QPushButton(pump_frame)
-                edit_button.setText("Edit")
-                edit_button.setGeometry(410, 10, 50, 20)
-                edit_button.clicked.connect(lambda pid=pump_id: self.edit_pump(pid))
+        # Clear the layout first
+        for i in reversed(range(pump_layout.count())):
+            widget_to_remove = pump_layout.itemAt(i).widget()
+            pump_layout.removeWidget(widget_to_remove)
+            widget_to_remove.setParent(None)
 
-                power_label = QtWidgets.QLabel(pump_frame)
-                power_label.setText(f"Power Status: {power_status}")
-                power_label.setGeometry(10, 40, 100, 20)
+        pump_label = QtWidgets.QLabel(pump_frame)
+        pump_label.setText(f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}")
 
-                direction_label = QtWidgets.QLabel(pump_frame)
-                direction_label.setText(f"Direction Status: {direction_status}")
-                direction_label.setGeometry(120, 40, 100, 20)
+        power_label = QtWidgets.QLabel(pump_frame)
+        power_label.setText(f"Power Status: {power_status}")
 
-                power_button = QtWidgets.QPushButton(pump_frame)
-                power_button.setText("Toggle Power")
-                power_button.setGeometry(230, 40, 100, 20)
-                power_button.setEnabled(power_pin != "-1")
-                power_button.clicked.connect(lambda pid=pump_id: self.toggle_power(pid))
+        direction_label = QtWidgets.QLabel(pump_frame)
+        direction_label.setText(f"Direction Status: {direction_status}")
 
-                direction_button = QtWidgets.QPushButton(pump_frame)
-                direction_button.setText("Toggle Direction")
-                direction_button.setGeometry(340, 40, 100, 20)
-                direction_button.setEnabled(direction_pin != "-1")
-                direction_button.clicked.connect(lambda pid=pump_id: self.toggle_direction(pid))
+        power_button = QtWidgets.QPushButton(pump_frame)
+        power_button.setText("Toggle Power")
+        power_button.clicked.connect(lambda: self.toggle_power(pump_id))
+        power_button.setEnabled(power_pin != "-1")
 
-                self.pumps[pump_id] = {
-                    "power_pin": power_pin,
-                    "direction_pin": direction_pin,
-                    "initial_power_pin_value": initial_power_pin_value,
-                    "initial_direction_pin_value": initial_direction_pin_value,
-                    "power_status": power_status,
-                    "direction_status": direction_status,
+        direction_button = QtWidgets.QPushButton(pump_frame)
+        direction_button.setText("Toggle Direction")
+        direction_button.clicked.connect(lambda: self.toggle_direction(pump_id))
+        direction_button.setEnabled(direction_pin != "-1")
 
-                    "frame": pump_frame,
-                    "pump_label": pump_label,
-                    "power_label": power_label,
-                    "direction_label": direction_label,
-                    "power_button": power_button,
-                    "direction_button": direction_button,
-                }
+        pump_layout.addWidget(pump_label)
+        pump_layout.addWidget(power_label)
+        pump_layout.addWidget(direction_label)
+        pump_layout.addWidget(power_button)
+        pump_layout.addWidget(direction_button)
+
+        self.pumps[pump_id] = {
+            "frame": pump_frame,
+            "layout": pump_layout,
+            "pump_label": pump_label,
+            "power_label": power_label,
+            "direction_label": direction_label,
+            "power_button": power_button,
+            "direction_button": direction_button,
+        }
 
     def clear_pumps_widgets(self):
-        for pump in self.pumps.values():
-            pump["frame"].deleteLater()
+        layout = self.ui.pumpsFrame.layout()
+        while layout.count():
+            child = layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
         self.pumps = {}
 
     def update_pump_status(self, response):

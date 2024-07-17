@@ -56,6 +56,7 @@ class Ui_MainWindow(object):
         self.pumpsFrame.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.pumpsFrame.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
         self.pumpsFrame.setObjectName("pumpsFrame")
+        self.pumpsFrame.setLayout(QtWidgets.QVBoxLayout())
         self.verticalLayout_2.addWidget(self.pumpsFrame)
         self.verticalLayout.addWidget(self.manualControlGroup)
         self.recipeGroup = QtWidgets.QGroupBox(parent=self.centralwidget)
