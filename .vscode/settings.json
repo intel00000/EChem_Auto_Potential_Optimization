@@ -14,5 +14,11 @@
         "~\\.micropico-stubs\\included"
     ],
     "micropico.softResetAfterUpload": true,
-    "micropico.syncAllFileTypes": true
+    "micropico.syncAllFileTypes": true,
+    "editor.wordWrap": "on",
+    "prettier.useTabs": true,
+    "editor.defaultFormatter": null,
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    }
 }

@@ -231,7 +231,6 @@ class PicoController:
     def connect_to_pico(self):
         selected_port = self.port_combobox.get()
         if selected_port:
-
             # Check if already connected
             if self.serial_port:
                 # if already connected, pop a confirmation message before disconnecting

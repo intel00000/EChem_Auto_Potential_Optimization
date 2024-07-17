@@ -12,7 +12,6 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(parent=MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
@@ -56,7 +55,8 @@ class Ui_MainWindow(object):
         self.pumpsFrame.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.pumpsFrame.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
         self.pumpsFrame.setObjectName("pumpsFrame")
-        self.pumpsFrame.setLayout(QtWidgets.QVBoxLayout())
+        self.pumpsFrame.setLayout(QtWidgets.QGridLayout(self.pumpsFrame))
+
         self.verticalLayout_2.addWidget(self.pumpsFrame)
         self.verticalLayout.addWidget(self.manualControlGroup)
         self.recipeGroup = QtWidgets.QGroupBox(parent=self.centralwidget)
@@ -133,7 +133,9 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Pump Controller via Pico Demo"))
+        MainWindow.setWindowTitle(
+            _translate("MainWindow", "Pump Controller via Pico Demo")
+        )
         self.selectPortGroup.setTitle(_translate("MainWindow", "Select Port"))
         self.portLabel.setText(_translate("MainWindow", "Select COM Port:"))
         self.connectButton.setText(_translate("MainWindow", "Connect"))
