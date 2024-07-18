@@ -1,6 +1,7 @@
 from machine import Pin
 import sys
 import select
+import gc
 
 
 # Each pump class will have a power and direction pin, defined at initialization
@@ -57,6 +58,9 @@ def send_status(pump_name):
         status = ", ".join(
             [f"Pump{i} Status: {pump.get_status()}" for i, pump in pumps.items()]
         )
+        free_mem = gc.mem_free()
+        total_mem = gc.mem_alloc() + gc.mem_free()
+        status += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
         sys.stdout.write(f"{status}\n")
     elif pump_name in pumps:
         sys.stdout.write(f"Pump{pump_name} Status: {pumps[pump_name].get_status()}\n")
@@ -68,6 +72,9 @@ def send_info(pump_name):
         info = ", ".join(
             [f"Pump{i} Info: {pump.get_info()}" for i, pump in pumps.items()]
         )
+        free_mem = gc.mem_free()
+        total_mem = gc.mem_alloc() + gc.mem_free()
+        info += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
         sys.stdout.write(f"{info}\n")
     elif pump_name in pumps:
         sys.stdout.write(f"Pump{pump_name} Info: {pumps[pump_name].get_info()}\n")
