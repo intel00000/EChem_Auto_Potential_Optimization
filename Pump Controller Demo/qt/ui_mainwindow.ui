@@ -6,9 +6,21 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1025</width>
-    <height>1121</height>
+    <width>1080</width>
+    <height>880</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>1080</width>
+    <height>810</height>
+   </size>
   </property>
   <property name="font">
    <font>
@@ -17,10 +29,16 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>Pump Controller via Pico Demo</string>
+   <string>Pump Controller via Pi Pico</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,3,5,0">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout" stretch="1,5,5,1">
     <property name="spacing">
      <number>10</number>
     </property>
@@ -140,10 +158,16 @@
     </item>
     <item>
      <widget class="QGroupBox" name="manualControlGroup">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>250</height>
+       </size>
+      </property>
       <property name="title">
        <string>Manual Control</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,10">
+      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,20">
        <property name="spacing">
         <number>10</number>
        </property>
@@ -218,7 +242,7 @@
         </layout>
        </item>
        <item>
-        <widget class="QGroupBox" name="gridGroupBox">
+        <widget class="QGroupBox" name="manualControl_sec">
          <layout class="QGridLayout" name="manualControl_second">
           <property name="leftMargin">
            <number>10</number>
@@ -246,7 +270,7 @@
       <property name="title">
        <string>Recipe</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,10">
+      <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,20">
        <property name="spacing">
         <number>10</number>
        </property>
@@ -360,6 +384,18 @@
        </item>
        <item>
         <widget class="QTableWidget" name="recipeTable">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>200</height>
+          </size>
+         </property>
          <property name="dragEnabled">
           <bool>true</bool>
          </property>
@@ -367,7 +403,7 @@
           <bool>true</bool>
          </property>
          <property name="rowCount">
-          <number>1</number>
+          <number>5</number>
          </property>
          <property name="columnCount">
           <number>6</number>
@@ -382,10 +418,10 @@
           <number>50</number>
          </attribute>
          <attribute name="horizontalHeaderDefaultSectionSize">
-          <number>150</number>
+          <number>100</number>
          </attribute>
          <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-          <bool>false</bool>
+          <bool>true</bool>
          </attribute>
          <attribute name="horizontalHeaderStretchLastSection">
           <bool>true</bool>
@@ -399,9 +435,16 @@
          <attribute name="verticalHeaderHighlightSections">
           <bool>true</bool>
          </attribute>
+         <attribute name="verticalHeaderShowSortIndicator" stdset="0">
+          <bool>true</bool>
+         </attribute>
          <attribute name="verticalHeaderStretchLastSection">
           <bool>false</bool>
          </attribute>
+         <row/>
+         <row/>
+         <row/>
+         <row/>
          <row/>
          <column>
           <property name="text">
@@ -460,7 +503,7 @@
         <number>10</number>
        </property>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,10">
+        <layout class="QHBoxLayout" name="progressGroup_first" stretch="1,10">
          <property name="spacing">
           <number>10</number>
          </property>
@@ -514,7 +557,7 @@
         </layout>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0">
+        <layout class="QHBoxLayout" name="progressGroup_second" stretch="0">
          <property name="spacing">
           <number>10</number>
          </property>

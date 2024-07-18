@@ -33,7 +33,7 @@ class PicoController(QtWidgets.QMainWindow):
         self.last_port_refresh = -1
         self.port_refresh_interval = 5  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
-        self.main_loop_interval = 50  # Main loop interval in milliseconds
+        self.main_loop_interval = 10  # Main loop interval in milliseconds
 
         self.serial_port = None
         self.current_port = None
@@ -293,6 +293,11 @@ class PicoController(QtWidgets.QMainWindow):
         )
         matches = info_pattern.findall(response)
 
+        # sort the matches by pump_id in ascending order
+        matches = sorted(matches, key=lambda x: int(x[0]))
+
+        count = self.ui.manualControl_sec.layout().count()
+
         for match in matches:
             (
                 pump_id,
@@ -316,12 +321,34 @@ class PicoController(QtWidgets.QMainWindow):
                     }
                 )
             else:
-                pump_frame = QtWidgets.QGroupBox(self.ui.pumpsFrame)
+                pump_frame = QtWidgets.QGroupBox(self.ui.manualControl_sec)
                 pump_frame.setTitle(f"Pump {pump_id}")
-                self.ui.pumpsFrame.layout().addWidget(pump_frame)
+
+                # update the size policy to make the frame expandable
+                size_policy = QtWidgets.QSizePolicy(
+                    QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+                    QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+                )
+                pump_frame.setSizePolicy(size_policy)
+                # set the minimum size to 100x100
+                pump_frame.setMinimumSize(100, 100)
+                
+                # resize the manualControl_sec widget to fit the new frame
+                self.ui.manualControl_sec.resize(
+                    50 + 100 * (count % 3), 50 + 100 * (count // 3)
+                )
+
+                self.ui.manualControl_sec.layout().addWidget(
+                    pump_frame, count // 3, count % 3
+                )
+                
+                
+
                 self.pumps[pump_id] = {
                     "frame": pump_frame,
                 }
+
+                count += 1
 
             self.update_pump_frame(
                 self.pumps[pump_id]["frame"],
@@ -348,7 +375,7 @@ class PicoController(QtWidgets.QMainWindow):
                 if child.widget():
                     layout.removeWidget(child.widget())
         else:
-            pump_frame.setLayout(QtWidgets.QVBoxLayout())
+            pump_frame.setLayout(QtWidgets.QGridLayout())
 
         pump_layout = pump_frame.layout()
 
@@ -372,10 +399,30 @@ class PicoController(QtWidgets.QMainWindow):
         direction_button.setEnabled(direction_pin != "-1")
         direction_button.clicked.connect(lambda: self.toggle_direction(pump_id))
 
-        pump_layout.addWidget(pump_label)
-        pump_layout.addWidget(status_label)
-        pump_layout.addWidget(power_button)
-        pump_layout.addWidget(direction_button)
+        edit_button = QtWidgets.QPushButton(pump_frame)
+        edit_button.setText("Edit Pump")
+        edit_button.clicked.connect(lambda: self.edit_pump(pump_id))
+
+        pump_layout.addWidget(pump_label, 0, 0, 1, 3)
+        pump_layout.addWidget(status_label, 1, 0, 1, 3)
+        pump_layout.addWidget(power_button, 2, 0, 1, 1)
+        pump_layout.addWidget(direction_button, 2, 1, 1, 1)
+        pump_layout.addWidget(edit_button, 2, 2, 1, 1)
+
+        # set the layout policy to fix the size of the frame
+        pump_frame.setSizePolicy(
+            QtWidgets.QSizePolicy(
+                QtWidgets.QSizePolicy.Policy.Fixed,
+                QtWidgets.QSizePolicy.Policy.Fixed,
+            )
+        )
+
+        # set spacing between widgets
+        pump_layout.setHorizontalSpacing(10)
+        pump_layout.setVerticalSpacing(10)
+
+        # set margin around the layout
+        pump_layout.setContentsMargins(10, 10, 10, 10)
 
         self.pumps[pump_id].update(
             {
@@ -391,7 +438,7 @@ class PicoController(QtWidgets.QMainWindow):
         )
 
     def clear_pumps_widgets(self):
-        layout = self.ui.pumpsFrame.layout()
+        layout = self.ui.manualControl_sec.layout()
         while layout.count():
             child = layout.takeAt(0)
             if child.widget():
@@ -453,10 +500,20 @@ class PicoController(QtWidgets.QMainWindow):
                             index, col_index, QtWidgets.QTableWidgetItem(str(value))
                         )
 
+                self.ui.recipeTable.horizontalHeader().setVisible(True)
+                self.ui.recipeTable.horizontalHeader().setCascadingSectionResizes(True)
+                self.ui.recipeTable.horizontalHeader().setDefaultSectionSize(100)
+                self.ui.recipeTable.horizontalHeader().setMinimumSectionSize(50)
+                self.ui.recipeTable.horizontalHeader().setSortIndicatorShown(True)
                 self.ui.recipeTable.horizontalHeader().setStretchLastSection(True)
-                self.ui.recipeTable.resizeColumnsToContents()
+                self.ui.recipeTable.verticalHeader().setVisible(True)
+                self.ui.recipeTable.verticalHeader().setCascadingSectionResizes(True)
+                self.ui.recipeTable.verticalHeader().setHighlightSections(True)
+                self.ui.recipeTable.verticalHeader().setSortIndicatorShown(True)
+                self.ui.recipeTable.verticalHeader().setStretchLastSection(False)
 
                 self.ui.startButton.setEnabled(True)
+
                 logging.info(f"Recipe file loaded successfully: {file_path}")
                 QMessageBox.information(
                     self, "File Load", f"Recipe file loaded successfully: {file_path}"
@@ -476,8 +533,11 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui.recipeTable.setRowCount(0)
         self.ui.recipeTable.setColumnCount(0)
         self.ui.recipeTable.clear()
+
         self.ui.totalProgressBar.setValue(0)
-        self.ui.remainingTimeValue.setText("")
+        self.ui.remainingTimeLabel.setText(
+            QtCore.QCoreApplication.translate("MainWindow", "Remaining Time: 00:00:00")
+        )
 
         self.ui.startButton.setEnabled(False)
         self.ui.stopButton.setEnabled(False)
@@ -519,6 +579,8 @@ class PicoController(QtWidgets.QMainWindow):
             logging.error("No recipe data to execute.")
             return
         if index >= len(self.recipe_df):
+            # call update progress one last time to set the progress to 100%
+            self.update_progress()
             self.start_time = -1
             self.total_procedure_time = -1
             self.current_index = -1
@@ -563,7 +625,14 @@ class PicoController(QtWidgets.QMainWindow):
         for pump, action in pump_actions.items():
             if pd.isna(action) or action == "":
                 continue
-            pump_id = int(re.search(r"\d+", pump).group())
+
+            match = re.search(r"\d+", pump)
+            if not match:
+                logging.error(f"No valid pump ID found in {pump_actions}")
+                continue
+            else:
+                pump_id = int(match.group())
+
             if (
                 pump_id in self.pumps
                 and action.lower() != self.pumps[pump_id]["power_status"].lower()
@@ -576,7 +645,14 @@ class PicoController(QtWidgets.QMainWindow):
         for valve, action in valve_actions.items():
             if pd.isna(action) or action == "":
                 continue
-            valve_id = int(re.search(r"\d+", valve).group())
+
+            match = re.search(r"\d+", valve)
+            if not match:
+                logging.error(f"No valid valve ID found in {valve_actions}")
+                continue
+            else:
+                valve_id = int(match.group())
+
             if (
                 valve_id in self.pumps
                 and action.upper() != self.pumps[valve_id]["direction_status"].upper()
@@ -602,7 +678,7 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui.totalProgressBar.setValue(total_progress)
         remaining_time = int(self.total_procedure_time - elapsed_time)
         time_str = time.strftime("%H:%M:%S", time.gmtime(remaining_time))
-        self.ui.remainingTimeValue.setText(f"{time_str}")
+        self.ui.remainingTimeLabel.setText(f"{time_str}")
 
         for i, row in self.recipe_df.iterrows():
             time_stamp = float(row["Time point (min)"]) * 60

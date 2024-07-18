@@ -3,38 +3,45 @@ from uctypes import addressof, struct, UINT32
 import rp2
 import array
 import time
-import machine
 
-def pwm_dma_led_fade(frequency = 512):
+
+def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
     # Set up PWM on the onboard LED pin (GPIO 25)
     led_pin = Pin("LED")
     pwm = PWM(led_pin)
-    pwm.deinit()            # Deinitialize the PWM channel to release the pin for PWM use
-    pwm.init()              # Reinitialize the PWM channel to use the pin
+    pwm.deinit()  # Deinitialize the PWM channel to release the pin for PWM use
+    pwm.init()  # Reinitialize the PWM channel to use the pin
 
     # setup the PWM channel and register addresses
-    PWM_BASE = 0x40050000   # PWM base address
-    PWM_CH_OFFSET = 0x14    # PWM channel block offset
-    PWM_CSR = 0x00          # PWM control and status offset
-    PWM_DIV = 0x04          # PWM frequency divisor offset
-    PWM_CC = 0x0c           # PWM Counter compare values offset
-    PWM_TOP = 0x10          # PWM Counter wrap value offset
+    PWM_BASE = 0x40050000  # PWM base address
+    PWM_CH_OFFSET = 0x14  # PWM channel block offset
+    PWM_CSR = 0x00  # PWM control and status offset
+    PWM_DIV = 0x04  # PWM frequency divisor offset
+    PWM_CC = 0x0C  # PWM Counter compare values offset
+    PWM_TOP = 0x10  # PWM Counter wrap value offset
 
     # the onboard LED on the RP2040 is connected to PWM slice 4, at 4B
     pwm_ch = PWM_BASE + (PWM_CH_OFFSET * 4)
     pwm_cc = pwm_ch + PWM_CC
-    mem32[pwm_cc] = 0x0     # clear the pwm_cc value first
+    mem32[pwm_cc] = 0x0  # clear the pwm_cc value first
 
     # Set the PWM divisor to slow down the frequency for smooth fading
     # mem32[pwm_ch + PWM_DIV] = (0x1 << 4)  # Set clock divider to 8
     # or set it by frequency
     pwm.freq(frequency)
 
-    mem32[pwm_ch + PWM_CSR] |= (1 << 1) | 1  # Enable phase-correct modulation and enable PWM
+    mem32[pwm_ch + PWM_CSR] |= (
+        1 << 1
+    ) | 1  # Enable phase-correct modulation and enable PWM
 
     # Create the fade buffer with gamma correction
-    fade_buffer = array.array('I', [(i * i) << 16 for i in range(0, 256, 1)] + [(i * i) << 16 for i in range(255, -1, -1)])
-    fade_buffer_addr = addressof(fade_buffer)
+    if fade_buffer_addr is None:
+        fade_buffer = array.array(
+            "I",
+            [(i * i) << 16 for i in range(0, 256, 1)]
+            + [(i * i) << 16 for i in range(255, -1, -1)],
+        )
+        fade_buffer_addr = addressof(fade_buffer)
 
     # Set up DMA channels
     dma_main = rp2.DMA()
@@ -47,14 +54,17 @@ def pwm_dma_led_fade(frequency = 512):
 
     # Configure main DMA to write to the PWM compare register
     main_ctrl = dma_main.pack_ctrl(
-        size=2,             # Transfer size: 0=byte, 1=half word, 2=word
-        inc_read=True,      # Increment the read address
-        inc_write=False,    # Do not increment the write address
-        treq_sel=DREQ_PWM_WRAP4,    # Select the PWM DREQ for PWM slice 4
-        ring_size=0,        # Disable wrapping
-        ring_sel=False,     # Apply wrap to read address
+        size=2,  # Transfer size: 0=byte, 1=half word, 2=word
+        inc_read=True,  # Increment the read address
+        inc_write=False,  # Do not increment the write address
+        treq_sel=DREQ_PWM_WRAP4,  # Select the PWM DREQ for PWM slice 4
+        ring_size=0,  # Disable wrapping
+        ring_sel=False,  # Apply wrap to read address
         chain_to=dma_secondary.channel,  # chain to the secondary DMA channel
-        irq_quiet=True      # Do not generate interrupts
+        irq_quiet=True,  # Do not generate interrupts
+        sniff_en=True,  # Do not enable read sniffing
+        write_err=True,  # Clear a previously reported write error.
+        read_err=True,  # Clear a previously reported read error.
     )
 
     # Configure the main DMA transfer
@@ -63,7 +73,7 @@ def pwm_dma_led_fade(frequency = 512):
         write=pwm_cc,
         count=len(fade_buffer),
         ctrl=main_ctrl,
-        trigger=False
+        trigger=False,
     )
 
     # Define the DMA control register layout
@@ -81,18 +91,22 @@ def pwm_dma_led_fade(frequency = 512):
         size=2,  # Transfer size: 0=byte, 1=half word, 2=word
         inc_read=False,  # Do not increment the read address
         inc_write=False,  # Do not increment the write address
-        treq_sel=0x3f,   # Permanent request, for unpaced transfers
+        treq_sel=0x3F,  # Permanent request, for unpaced transfers
         chain_to=dma_main.channel,  # Chain back to main DMA
         irq_quiet=True,  # Do not generate interrupts
+        sniff_en=True,  # Do not enable read sniffing
+        write_err=True,  # Clear a previously reported write error.
+        read_err=True,  # Clear a previously reported read error.
     )
 
     # Configure the secondary DMA transfer
     dma_secondary.config(
         read=addressof(secondary_config_data),
-        write=DMA_BASE + dma_main.channel * DMA_CH,  # Write to the main DMA channel's registers
+        write=DMA_BASE
+        + dma_main.channel * DMA_CH,  # Write to the main DMA channel's registers
         count=4,  # Number of registers to write (READ_ADDR, WRITE_ADDR, TRANS_COUNT, CTRL_TRIG)
         ctrl=secondary_ctrl,
-        trigger=False
+        trigger=False,
     )
 
     print("DMA configured with read address:", fade_buffer_addr)
@@ -102,6 +116,7 @@ def pwm_dma_led_fade(frequency = 512):
     # Start the DMA transfer
     dma_main.active(1)
     print("DMA transfer started")
+
 
 def adjust_pwm_frequency_from_adc(adc_pin):
     adc = ADC(adc_pin)
@@ -118,15 +133,21 @@ def adjust_pwm_frequency_from_adc(adc_pin):
         # print the adc value
 
         # Map the ADC value to the frequency range
-        frequency = int(min_frequency + (adc_value / 65535) * (max_frequency - min_frequency))
+        frequency = int(
+            min_frequency + (adc_value / 65535) * (max_frequency - min_frequency)
+        )
         # change the frequency
         pwm.freq(frequency)
 
         print(f"ADC value: {adc_value}, Adjusted frequency: {frequency} Hz")
         time.sleep(1)  # Adjust the frequency every 1 second for demonstration purposes
 
-def main():
-    pwm_dma_led_fade(512)  # Start the PWM DMA LED fade with a frequency of 512 Hz
+
+def main(fade_buffer, fade_buffer_addr):
+    pwm_dma_led_fade(
+        fade_buffer, fade_buffer_addr, 512
+    )  # Start the PWM DMA LED fade with a frequency of 512 Hz
+
 
 if __name__ == "__main__":
-    main()
+    main(None, None)
