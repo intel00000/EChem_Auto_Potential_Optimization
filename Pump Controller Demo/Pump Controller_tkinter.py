@@ -760,9 +760,7 @@ class PicoController:
                 self.toggle_direction(valve_id)
 
         # issue a one-time status update
-        self.update_status()
-        # the interval depend on the time difference between the current and next step
-        self.scheduled_task = self.master.after(0, self.execute_procedure, index + 1)
+        self.scheduled_task = self.master.after(100, self.execute_procedure, index + 1)
 
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):

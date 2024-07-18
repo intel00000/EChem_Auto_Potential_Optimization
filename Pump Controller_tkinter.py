@@ -29,7 +29,7 @@ class PicoController:
         self.last_port_refresh = -1
         self.port_refersh_interval = 5  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
-        self.main_loop_interval = 50  # Main loop interval in milliseconds
+        self.main_loop_interval = 10  # Main loop interval in milliseconds
 
         # instance fields for the serial port and queue
         self.serial_port = None
@@ -231,7 +231,6 @@ class PicoController:
     def connect_to_pico(self):
         selected_port = self.port_combobox.get()
         if selected_port:
-
             # Check if already connected
             if self.serial_port:
                 # if already connected, pop a confirmation message before disconnecting
@@ -307,16 +306,18 @@ class PicoController:
             # put the command in the queue
             self.send_command_queue.put("0:st")
 
-    def toggle_power(self, pump_id):
+    def toggle_power(self, pump_id, update_status=True):
         if self.serial_port:
             self.send_command_queue.put(f"{pump_id}:pw")
-            self.update_status()
+            if update_status:
+                self.update_status()
 
-    def toggle_direction(self, pump_id):
+    def toggle_direction(self, pump_id, update_status=True):
         if self.serial_port:
             # put the command in the queue
             self.send_command_queue.put(f"{pump_id}:di")
-            self.update_status()
+            if update_status:
+                self.update_status()
 
     def register_pump(
         self,
@@ -745,7 +746,7 @@ class PicoController:
                 logging.info(
                     f"At index {index}, pump_id {pump_id} status: {self.pumps[pump_id]['power_status']}, intended status: {action}, toggling power."
                 )
-                self.toggle_power(pump_id)
+                self.toggle_power(pump_id, update_status=False)
 
         for valve, action in valve_actions.items():
             if pd.isna(action) or action == "":
@@ -758,11 +759,11 @@ class PicoController:
                 logging.info(
                     f"At index {index}, valve_id {valve_id} status: {self.pumps[valve_id]['direction_status']}, intended status: {action}, toggling direction."
                 )
-                self.toggle_direction(valve_id)
+                self.toggle_direction(valve_id, update_status=False)
 
         # issue a one-time status update
         self.update_status()
-        self.scheduled_task = self.master.after(100, self.execute_procedure, index + 1)
+        self.scheduled_task = self.master.after(0, self.execute_procedure, index + 1)
 
     # this update_progress will update all field in the recipe table and the progress frame
     def update_progress(self):

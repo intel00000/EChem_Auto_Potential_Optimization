@@ -332,7 +332,7 @@ class PicoController(QtWidgets.QMainWindow):
                 pump_frame.setSizePolicy(size_policy)
                 # set the minimum size to 100x100
                 pump_frame.setMinimumSize(100, 100)
-                
+
                 # resize the manualControl_sec widget to fit the new frame
                 self.ui.manualControl_sec.resize(
                     50 + 100 * (count % 3), 50 + 100 * (count // 3)
@@ -341,8 +341,6 @@ class PicoController(QtWidgets.QMainWindow):
                 self.ui.manualControl_sec.layout().addWidget(
                     pump_frame, count // 3, count % 3
                 )
-                
-                
 
                 self.pumps[pump_id] = {
                     "frame": pump_frame,
@@ -662,7 +660,6 @@ class PicoController(QtWidgets.QMainWindow):
                 )
                 self.toggle_direction(valve_id)
 
-        self.update_status()
         self.execute_procedure(index + 1)
 
     def update_progress(self):
