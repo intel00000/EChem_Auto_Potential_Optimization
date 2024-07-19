@@ -19,6 +19,6 @@
     "prettier.useTabs": true,
     "editor.defaultFormatter": null,
     "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff"
+        "editor.defaultFormatter": "ms-python.autopep8"
     }
 }

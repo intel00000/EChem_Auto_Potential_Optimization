@@ -61,10 +61,10 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         ring_size=0,  # Disable wrapping
         ring_sel=False,  # Apply wrap to read address
         chain_to=dma_secondary.channel,  # chain to the secondary DMA channel
-        irq_quiet=True,  # Do not generate interrupts
-        sniff_en=True,  # Do not enable read sniffing
-        write_err=True,  # Clear a previously reported write error.
-        read_err=True,  # Clear a previously reported read error.
+        irq_quiet=True,     # Do not generate interrupts
+        sniff_en=False,     # Do not enable read sniffing
+        write_err=True,     # Clear a previously reported write error.
+        read_err=True,      # Clear a previously reported read error.
     )
 
     # Configure the main DMA transfer
@@ -94,7 +94,7 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         treq_sel=0x3F,  # Permanent request, for unpaced transfers
         chain_to=dma_main.channel,  # Chain back to main DMA
         irq_quiet=True,  # Do not generate interrupts
-        sniff_en=True,  # Do not enable read sniffing
+        sniff_en=False,  # Do not enable read sniffing
         write_err=True,  # Clear a previously reported write error.
         read_err=True,  # Clear a previously reported read error.
     )
@@ -104,7 +104,8 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         read=addressof(secondary_config_data),
         write=DMA_BASE
         + dma_main.channel * DMA_CH,  # Write to the main DMA channel's registers
-        count=4,  # Number of registers to write (READ_ADDR, WRITE_ADDR, TRANS_COUNT, CTRL_TRIG)
+        # Number of registers to write (READ_ADDR, WRITE_ADDR, TRANS_COUNT, CTRL_TRIG)
+        count=4,
         ctrl=secondary_ctrl,
         trigger=False,
     )
@@ -134,13 +135,15 @@ def adjust_pwm_frequency_from_adc(adc_pin):
 
         # Map the ADC value to the frequency range
         frequency = int(
-            min_frequency + (adc_value / 65535) * (max_frequency - min_frequency)
+            min_frequency + (adc_value / 65535) *
+            (max_frequency - min_frequency)
         )
         # change the frequency
         pwm.freq(frequency)
 
         print(f"ADC value: {adc_value}, Adjusted frequency: {frequency} Hz")
-        time.sleep(1)  # Adjust the frequency every 1 second for demonstration purposes
+        # Adjust the frequency every 1 second for demonstration purposes
+        time.sleep(1)
 
 
 def main(fade_buffer, fade_buffer_addr):
