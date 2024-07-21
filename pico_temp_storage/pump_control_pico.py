@@ -1,4 +1,7 @@
 from machine import Pin
+from uctypes import addressof, struct, UINT32
+import pwm_dma_fade_onetime
+import array
 import sys
 import select
 import gc
@@ -190,6 +193,18 @@ def main():
         [f"'{key}': '{value}'" for key, value in commands.items()]
     )
 
+    fade_buffer = array.array(
+        "I",
+        [(i * i) << 16 for i in range(0, 256, 1)],
+    )
+    secondary_config_data = bytearray(16)
+    (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
+        fade_buffer_addr=addressof(fade_buffer),
+        fade_buffer_len=len(fade_buffer),
+        secondary_config_data_addr=addressof(secondary_config_data),
+        frequency=10240,
+    )
+
     while True:
         try:
             # Wait for input on stdin
@@ -198,6 +213,7 @@ def main():
             if poll_results:
                 # Read the data from stdin (PC console input) and strip the newline character
                 data = sys.stdin.readline().strip()
+                dma_secondary.active(1)
 
                 # Validate the input data
                 if not data or data == "":

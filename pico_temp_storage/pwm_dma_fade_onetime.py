@@ -5,7 +5,13 @@ import array
 import time
 
 
-def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
+# No cycle version of the PWM DMA fade example
+def pwm_dma_led_fade(
+    fade_buffer_addr=None,
+    fade_buffer_len=512,
+    secondary_config_data_addr=None,
+    frequency=65535,
+) -> (rp2.DMA, rp2.DMA):
     # Set up PWM on the onboard LED pin (GPIO 25)
     led_pin = Pin("LED")
     pwm = PWM(led_pin)
@@ -42,6 +48,7 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
             + [(i * i) << 16 for i in range(255, -1, -1)],
         )
         fade_buffer_addr = addressof(fade_buffer)
+        fade_buffer_len = len(fade_buffer)
 
     # Set up DMA channels
     dma_main = rp2.DMA()
@@ -60,18 +67,18 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         treq_sel=DREQ_PWM_WRAP4,  # Select the PWM DREQ for PWM slice 4
         ring_size=0,  # Disable wrapping
         ring_sel=False,  # Apply wrap to read address
-        chain_to=dma_secondary.channel,  # chain to the secondary DMA channel
-        irq_quiet=True,     # Do not generate interrupts
-        sniff_en=False,     # Do not enable read sniffing
-        write_err=True,     # Clear a previously reported write error.
-        read_err=True,      # Clear a previously reported read error.
+        chain_to=dma_main.channel,  # Disable chaining
+        irq_quiet=True,  # Do not generate interrupts
+        sniff_en=False,  # Do not enable read sniffing
+        write_err=True,  # Clear a previously reported write error.
+        read_err=True,  # Clear a previously reported read error.
     )
 
     # Configure the main DMA transfer
     dma_main.config(
         read=fade_buffer_addr,
         write=pwm_cc,
-        count=len(fade_buffer),
+        count=fade_buffer_len,  # Number of words to transfer
         ctrl=main_ctrl,
         trigger=False,
     )
@@ -81,8 +88,9 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         "READ_ADDR": 0x00 | UINT32,
     }
     # Prepare the secondary configuration data struct
-    secondary_config_data = bytearray(16)
-    secondary_config_data_addr = addressof(secondary_config_data)
+    if secondary_config_data_addr is None:
+        secondary_config_data = bytearray(16)
+        secondary_config_data_addr = addressof(secondary_config_data)
     secondary_config = struct(secondary_config_data_addr, DMA_CTRL_LAYOUT)
     secondary_config.READ_ADDR = fade_buffer_addr
 
@@ -92,7 +100,9 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
         inc_read=False,  # Do not increment the read address
         inc_write=False,  # Do not increment the write address
         treq_sel=0x3F,  # Permanent request, for unpaced transfers
-        chain_to=dma_main.channel,  # Chain back to main DMA
+        ring_size=0,  # Disable wrapping
+        ring_sel=False,  # Apply wrap to read address
+        chain_to=dma_main.channel,  # Chain to main DMA
         irq_quiet=True,  # Do not generate interrupts
         sniff_en=False,  # Do not enable read sniffing
         write_err=True,  # Clear a previously reported write error.
@@ -101,7 +111,7 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
 
     # Configure the secondary DMA transfer
     dma_secondary.config(
-        read=addressof(secondary_config_data),
+        read=secondary_config_data_addr,
         write=DMA_BASE
         + dma_main.channel * DMA_CH,  # Write to the main DMA channel's registers
         # Number of registers to write (READ_ADDR, WRITE_ADDR, TRANS_COUNT, CTRL_TRIG)
@@ -112,11 +122,13 @@ def pwm_dma_led_fade(fade_buffer=None, fade_buffer_addr=None, frequency=512):
 
     print("DMA configured with read address:", fade_buffer_addr)
     print("DMA configured with write address:", pwm_cc)
-    print("DMA transfer count:", len(fade_buffer))
+    print("DMA transfer count:", fade_buffer_len)
 
     # Start the DMA transfer
     dma_main.active(1)
     print("DMA transfer started")
+
+    return dma_main, dma_secondary
 
 
 def adjust_pwm_frequency_from_adc(adc_pin):
@@ -135,8 +147,7 @@ def adjust_pwm_frequency_from_adc(adc_pin):
 
         # Map the ADC value to the frequency range
         frequency = int(
-            min_frequency + (adc_value / 65535) *
-            (max_frequency - min_frequency)
+            min_frequency + (adc_value / 65535) * (max_frequency - min_frequency)
         )
         # change the frequency
         pwm.freq(frequency)
@@ -146,11 +157,11 @@ def adjust_pwm_frequency_from_adc(adc_pin):
         time.sleep(1)
 
 
-def main(fade_buffer, fade_buffer_addr):
+def main(fade_buffer_addr, fade_buffer_len, secondary_config_data_addr, frequency):
     pwm_dma_led_fade(
-        fade_buffer, fade_buffer_addr, 512
-    )  # Start the PWM DMA LED fade with a frequency of 512 Hz
+        fade_buffer_addr, fade_buffer_len, secondary_config_data_addr, frequency
+    )
 
 
 if __name__ == "__main__":
-    main(None, None)
+    main(None, None, None, 512)
