@@ -1,5 +1,6 @@
 from machine import Pin, SPI, ADC
 import time
+from AD5761 import AD5761, ad5761r_dev, AD5761R_RANGES, AD5761R_SCALES
 
 # Define pin connections
 start_stop_pin = Pin(0, Pin.OUT)
@@ -29,55 +30,34 @@ spi = SPI(
     miso=ad5761_sdo,
 )
 
-# Initialize pins
-ad5761_sync.value(1)  # Deselect DAC
-ad5761_alert.irq(trigger=Pin.IRQ_FALLING, handler=lambda t: print("Alert detected!"))
+# Initialize AD5761 DAC
+ad5761 = AD5761(spi, cs_pin=5)
+
+# Device settings
+dev_settings = ad5761r_dev(
+    ra=AD5761R_RANGES["0_v_to_p_10v"],
+    pv=AD5761R_SCALES["zero"],
+    cv=AD5761R_SCALES["zero"],
+    int_ref_en=True,
+    exc_temp_sd_en=True,
+    b2c_range_en=False,
+    ovr_en=False,
+)
 
 
 # Function to write to the control register
 def write_control_register():
-    command = 0x040000  # Command to write to control register with all bits don't care
-    high_byte = (command >> 16) & 0xFF
-    mid_byte = (command >> 8) & 0xFF
-    low_byte = command & 0xFF
-    ad5761_sync.value(0)  # Select DAC
-    spi.write(bytearray([high_byte, mid_byte, low_byte]))  # Write data
-    ad5761_sync.value(1)  # Deselect DAC
-    time.sleep(0.01)  # Ensure proper timing
+    ad5761.config(dev_settings.settings)
 
 
 # Function to write and update the DAC register with a 16-bit value
 def write_and_update_dac(value):
-    command = 0x030000 | (value & 0xFFFF)  # Command to write and update DAC register
-    high_byte = (command >> 16) & 0xFF
-    mid_byte = (command >> 8) & 0xFF
-    low_byte = command & 0xFF
-    ad5761_sync.value(0)  # Select DAC
-    write_content = bytearray([high_byte, mid_byte, low_byte])
-    spi.write(write_content)  # Write data
-    # print the binary value of the data written
-    print(
-        f"Binary value written to DAC: {write_content[0]:08b} {write_content[1]:08b} {write_content[2]:08b}"
-    )
-    ad5761_sync.value(1)  # Deselect DAC
-    time.sleep(0.01)  # Ensure proper timing
+    ad5761.write_update_dac_register(value)
 
 
 # Function to read back from the DAC register
 def read_dac():
-    command = 0xA00000  # Command to readback DAC register
-    ad5761_sync.value(0)  # Select DAC
-    # print the binary value of the command
-    print(f"Binary command sent to DAC: {command:024b}")
-    spi.write(
-        bytearray([(command >> 16) & 0xFF, (command >> 8) & 0xFF, command & 0xFF])
-    )
-    ad5761_sync.value(1)  # Deselect DAC
-    time.sleep(0.01)
-    ad5761_sync.value(0)  # Select DAC again for read
-    read_data = spi.read(3)  # Read 24 bits
-    ad5761_sync.value(1)  # Deselect DAC
-    return read_data
+    return ad5761.register_readback("dac")
 
 
 # Toggle output functions
