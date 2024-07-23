@@ -40,6 +40,7 @@ class AD5761:
     def __init__(self, spi, cs_pin, reset_pin=None, clr_pin=None, ldac_pin=None):
         self.spi = spi
         self.cs = Pin(cs_pin, Pin.OUT)
+        self.cs.value(1)  # Deselect device by default
         self.reset = Pin(reset_pin, Pin.OUT) if reset_pin else None
         self.clr = Pin(clr_pin, Pin.OUT) if clr_pin else None
         self.ldac = Pin(ldac_pin, Pin.OUT) if ldac_pin else None

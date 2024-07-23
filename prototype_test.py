@@ -35,7 +35,7 @@ ad5761 = AD5761(spi, cs_pin=5)
 
 # Device settings
 dev_settings = ad5761r_dev(
-    ra=AD5761R_RANGES["0_v_to_p_10v"],
+    ra=AD5761R_RANGES["0_v_to_p_10v"],  # Output range is 0V to +10V
     pv=AD5761R_SCALES["zero"],
     cv=AD5761R_SCALES["zero"],
     int_ref_en=True,
@@ -58,6 +58,14 @@ def write_and_update_dac(value):
 # Function to read back from the DAC register
 def read_dac():
     return ad5761.register_readback("dac")
+
+
+# Function to set DAC voltage
+def set_dac_voltage(voltage):
+    if 0 <= voltage <= 10:
+        dac_value = int((voltage / 10.0) * 65535)
+        write_and_update_dac(dac_value)
+        print(f"Set DAC to {voltage}V -> DAC value: {dac_value}")
 
 
 # Toggle output functions
@@ -115,15 +123,22 @@ def print_summary():
 # Main loop
 def main():
     write_control_register()  # Write to the control register first
+    voltage = 0.0
+    step = 1.0
     while True:
         # Example usage: toggle and print summary every 5 seconds
         toggle_start_stop()
         toggle_cw_ccw()
         toggle_prime()
+
         print_summary()
-        # Example of setting a DAC value
-        write_and_update_dac(0x8000)  # Mid-scale value for 16-bit DAC
-        time.sleep(5)
+        # setting a DAC value, incrementing by 0.1V every 5 seconds
+        write_and_update_dac(0x0000)  # 0V
+        if voltage <= 10.0:
+            set_dac_voltage(voltage)  # Set DAC to the specified voltage
+            time.sleep(1)  # Wait for 1 second before incrementing
+            voltage += step
+        time.sleep(10)
 
 
 # Run the main loop
