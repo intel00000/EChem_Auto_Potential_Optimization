@@ -1,10 +1,11 @@
 # main.py
 
-import pump_control_pico
+import fade_ws2812b
+import read_temp
 
 
 def main():
-    pump_control_pico.main()
+    read_temp.main()
 
 
 if __name__ == "__main__":
