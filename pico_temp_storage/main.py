@@ -1,11 +1,10 @@
 # main.py
 
-import fade_ws2812b
-import read_temp
+import prototype_test
 
 
 def main():
-    read_temp.main()
+    prototype_test.main()
 
 
 if __name__ == "__main__":
