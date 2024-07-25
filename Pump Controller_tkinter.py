@@ -220,10 +220,13 @@ class PicoController:
             ]
             # print detail information of the ports to the console
             for port in serial.tools.list_ports.comports():
-                # put these into one line
-                logging.info(
-                    f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}"
-                )
+                try:
+                    # put these into one line
+                    logging.info(
+                        f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}"
+                    )
+                except Exception as e:
+                    logging.error(f"Error: {e}")
 
             self.port_combobox["values"] = ports
             self.last_port_refresh = time.time()
