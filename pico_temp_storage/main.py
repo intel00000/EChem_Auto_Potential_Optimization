@@ -1,10 +1,10 @@
 # main.py
 
-import prototype_test
+import pump_control_pico
 
 
 def main():
-    prototype_test.main()
+    pump_control_pico.main()
 
 
 if __name__ == "__main__":
