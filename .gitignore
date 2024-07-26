@@ -4,6 +4,13 @@ build/*
 dist/*
 logs/*
 
+# ignore python virtual environment
+venv/*
+env/*
+Lib/*
+Scripts/*
+pyvenv.cfg
+
 # exclude by extension
 *.pyc
 *.pyo
