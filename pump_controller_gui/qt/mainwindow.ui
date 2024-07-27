@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Pump Control via Pi Pico</string>
+   <string>MasterFlex Pump Control via Pi Pico</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="_2" stretch="1,3,3,1">
@@ -175,20 +175,11 @@
        </item>
        <item>
         <widget class="QTableWidget" name="recipeTable">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
          <property name="minimumSize">
           <size>
            <width>0</width>
            <height>200</height>
           </size>
-         </property>
-         <property name="dragEnabled">
-          <bool>true</bool>
          </property>
          <property name="showGrid">
           <bool>true</bool>
@@ -204,12 +195,6 @@
          </attribute>
          <attribute name="horizontalHeaderCascadingSectionResizes">
           <bool>true</bool>
-         </attribute>
-         <attribute name="horizontalHeaderMinimumSectionSize">
-          <number>50</number>
-         </attribute>
-         <attribute name="horizontalHeaderDefaultSectionSize">
-          <number>100</number>
          </attribute>
          <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
           <bool>true</bool>

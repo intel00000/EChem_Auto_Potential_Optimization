@@ -98,13 +98,7 @@ class Ui_MainWindow(object):
         self.recipe_1.addWidget(self.continueButton)
         self.verticalLayout_3.addLayout(self.recipe_1)
         self.recipeTable = QtWidgets.QTableWidget(parent=self.recipeGroup)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.MinimumExpanding)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.recipeTable.sizePolicy().hasHeightForWidth())
-        self.recipeTable.setSizePolicy(sizePolicy)
         self.recipeTable.setMinimumSize(QtCore.QSize(0, 200))
-        self.recipeTable.setDragEnabled(True)
         self.recipeTable.setShowGrid(True)
         self.recipeTable.setRowCount(5)
         self.recipeTable.setColumnCount(6)
@@ -123,8 +117,6 @@ class Ui_MainWindow(object):
         self.recipeTable.setHorizontalHeaderItem(5, item)
         self.recipeTable.horizontalHeader().setVisible(True)
         self.recipeTable.horizontalHeader().setCascadingSectionResizes(True)
-        self.recipeTable.horizontalHeader().setDefaultSectionSize(100)
-        self.recipeTable.horizontalHeader().setMinimumSectionSize(50)
         self.recipeTable.horizontalHeader().setSortIndicatorShown(True)
         self.recipeTable.horizontalHeader().setStretchLastSection(True)
         self.recipeTable.verticalHeader().setVisible(True)
@@ -180,7 +172,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Pump Control via Pi Pico"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "MasterFlex Pump Control via Pi Pico"))
         self.selectPortGroup.setTitle(_translate("MainWindow", "Select Port"))
         self.portLabel.setText(_translate("MainWindow", "Select COM Port:"))
         self.connectButton.setText(_translate("MainWindow", "Connect"))

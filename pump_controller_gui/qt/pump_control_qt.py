@@ -5,7 +5,7 @@ import serial.tools.list_ports
 # gui imports
 import sys
 from PyQt6 import QtCore, QtWidgets, QtGui
-from PyQt6.QtWidgets import QMessageBox, QFileDialog, QInputDialog
+from PyQt6.QtWidgets import QMessageBox, QFileDialog, QInputDialog, QHeaderView
 
 # other library
 import os
@@ -19,6 +19,8 @@ import pandas as pd
 # Import the converted UI file
 from mainwindow import Ui_MainWindow
 from pump_frame import Ui_GroupBox
+
+import qdarkstyle
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
@@ -92,6 +94,8 @@ class PicoController(QtWidgets.QMainWindow):
                 "Remaining Time: " + time.strftime("%H:%M:%S", time.gmtime(0)),
             )
         )
+
+        self.resize_table()
 
     def start_main_loop(self):
         self.refresh_ports()
@@ -373,6 +377,7 @@ class PicoController(QtWidgets.QMainWindow):
                         "direction_status": direction_status,
                     }
                 )
+
             else:
                 pump_frame = QtWidgets.QGroupBox(self.ui.manualControl_2)
                 # use the Ui_GroupBox class to set up the pump frame
@@ -403,12 +408,13 @@ class PicoController(QtWidgets.QMainWindow):
 
                 count += 1
 
-            # Update contents of the pump frame
-            self.update_pump_frame(pump_id, pump_frame_struct_class)
+            # Update contents of the pump frame, reconnecting signals
+            self.update_pump_frame(pump_id, self.pumps[pump_id]["struct_class"], True)
 
     # Function to update the pump frame with the latest information from the dictionary
-    def update_pump_frame(self, pump_id, pump_frame_struct_class):
-
+    def update_pump_frame(
+        self, pump_id, pump_frame_struct_class, connect_signals=False
+    ):
         pump_label = pump_frame_struct_class.pump_label
         pump_label.setText(
             f"Power pin: {'N/A' if self.pumps[pump_id]['power_pin'] == '-1' else self.pumps[pump_id]['power_pin']}, Direction pin: {'N/A' if self.pumps[pump_id]['direction_pin'] == '-1' else self.pumps[pump_id]['direction_pin']}"
@@ -421,14 +427,26 @@ class PicoController(QtWidgets.QMainWindow):
 
         power_button = pump_frame_struct_class.power_button
         power_button.setEnabled(self.pumps[pump_id]["power_pin"] != "-1")
-        power_button.clicked.connect(lambda: self.toggle_power(pump_id))
 
         direction_button = pump_frame_struct_class.direction_button
         direction_button.setEnabled(self.pumps[pump_id]["direction_pin"] != "-1")
-        direction_button.clicked.connect(lambda: self.toggle_direction(pump_id))
 
         edit_button = pump_frame_struct_class.edit_button
-        edit_button.clicked.connect(lambda: self.edit_pump(pump_id))
+
+        if connect_signals is True:
+            self.disconnect_signal(power_button.clicked)
+            power_button.clicked.connect(lambda: self.toggle_power(pump_id))
+            self.disconnect_signal(direction_button.clicked)
+            direction_button.clicked.connect(lambda: self.toggle_direction(pump_id))
+            self.disconnect_signal(edit_button.clicked)
+            edit_button.clicked.connect(lambda: self.edit_pump(pump_id))
+
+    def disconnect_signal(self, signal):
+        try:
+            while signal.disconnect():
+                pass
+        except Exception:
+            pass
 
     def clear_pumps_widgets(self):
         layout = self.ui.manualControl_second
@@ -450,7 +468,9 @@ class PicoController(QtWidgets.QMainWindow):
             if pump_id in self.pumps:
                 self.pumps[pump_id]["power_status"] = power_status
                 self.pumps[pump_id]["direction_status"] = direction_status
-                self.update_pump_frame(pump_id, self.pumps[pump_id]["struct_class"])
+                self.update_pump_frame(
+                    pump_id, self.pumps[pump_id]["struct_class"], False
+                )
 
     def load_recipe(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -485,18 +505,15 @@ class PicoController(QtWidgets.QMainWindow):
                         self.ui.recipeTable.setItem(
                             index, col_index, QtWidgets.QTableWidgetItem(str(value))
                         )
+                        # align the text to the center
+                        self.ui.recipeTable.item(index, col_index).setTextAlignment(
+                            QtCore.Qt.AlignmentFlag.AlignCenter
+                        )
 
-                self.ui.recipeTable.horizontalHeader().setVisible(True)
-                self.ui.recipeTable.horizontalHeader().setCascadingSectionResizes(True)
-                self.ui.recipeTable.horizontalHeader().setDefaultSectionSize(100)
-                self.ui.recipeTable.horizontalHeader().setMinimumSectionSize(50)
-                self.ui.recipeTable.horizontalHeader().setSortIndicatorShown(True)
-                self.ui.recipeTable.horizontalHeader().setStretchLastSection(True)
-                self.ui.recipeTable.verticalHeader().setVisible(True)
-                self.ui.recipeTable.verticalHeader().setCascadingSectionResizes(True)
-                self.ui.recipeTable.verticalHeader().setHighlightSections(True)
-                self.ui.recipeTable.verticalHeader().setSortIndicatorShown(True)
-                self.ui.recipeTable.verticalHeader().setStretchLastSection(False)
+                self.resize_table()
+
+                # fix the size of the horizontal and vertical headers
+                self.ui.recipeTable.horizontalHeader().setFixedHeight
 
                 self.ui.startButton.setEnabled(True)
 
@@ -513,6 +530,11 @@ class PicoController(QtWidgets.QMainWindow):
                 )
                 logging.error(f"Failed to load recipe file {file_path}: {e}")
 
+    # a function to resize the recipe table to fit the contents
+    def resize_table(self):
+        self.ui.recipeTable.resizeColumnsToContents()
+        self.ui.recipeTable.resizeRowsToContents()
+
     def clear_recipe(self):
         self.recipe_df = None
         self.recipe_rows = []
@@ -522,7 +544,10 @@ class PicoController(QtWidgets.QMainWindow):
 
         self.ui.totalProgressBar.setValue(0)
         self.ui.remainingTimeLabel.setText(
-            QtCore.QCoreApplication.translate("MainWindow", "Remaining Time: 00:00:00")
+            QtCore.QCoreApplication.translate(
+                "MainWindow",
+                "Remaining Time: " + time.strftime("%H:%M:%S", time.gmtime(0)),
+            )
         )
 
         self.ui.startButton.setEnabled(False)
@@ -773,6 +798,10 @@ class PicoController(QtWidgets.QMainWindow):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
+    # apply style sheet
+    css = "material.css"
+    with open(css, "r") as css:
+        app.setStyleSheet(css.read())
     window = PicoController()
     window.show()
     sys.exit(app.exec())
