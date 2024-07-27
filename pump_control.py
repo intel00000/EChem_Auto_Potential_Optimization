@@ -361,9 +361,7 @@ class PicoController:
 
             logging.info("Disconnected from Pico")
             if show_message:
-                messagebox.showinfo(
-                    "Disconnection Status", "Successfully disconnected from Pico"
-                )
+                messagebox.showinfo("Connection Status", "Disconnected from Pico")
 
     def query_pump_info(self):
         if self.serial_port:
@@ -419,11 +417,9 @@ class PicoController:
         self.current_index = -1
         self.pause_timepoint = -1
         self.pause_duration = 0
-        # disable the stop button
+        # disable the buttons
         self.stop_button.config(state=tk.DISABLED)
-        # disable the pause button
         self.pause_button.config(state=tk.DISABLED)
-        # disable the continue button
         self.continue_button.config(state=tk.DISABLED)
         logging.info("Procedure stopped.")
         messagebox.showinfo("Procedure Stopped", "The procedure has been stopped.")
@@ -445,11 +441,8 @@ class PicoController:
         self.continue_button.config(state=tk.DISABLED)
         self.execute_procedure(self.current_index)
         logging.info("Procedure continued.")
-        """ messagebox.showinfo(
-            "Procedure Continued", "The procedure has been continued."
-        ) """
 
-    # this send_command will run in a loop, removing the first item from the queue and sending it, each sending will be a sleep of 0.1s
+    # send_command will remove the first item from the queue and send it
     def send_command(self):
         try:
             if self.serial_port and not self.send_command_queue.empty():
@@ -498,6 +491,12 @@ class PicoController:
             r"Pump(\d+) Info: Power Pin: (-?\d+), Direction Pin: (-?\d+), Initial Power Pin Value: (\d+), Initial Direction Pin Value: (\d+), Current Power Status: (ON|OFF), Current Direction Status: (CW|CCW)"
         )
         matches = info_pattern.findall(response)
+
+        # sort the matches by pump_id in ascending order
+        matches = sorted(matches, key=lambda x: int(x[0]))
+        
+        # get the existing number of pumps
+        existing_pumps_widget_count = len(self.pumps)
 
         for match in matches:
             (

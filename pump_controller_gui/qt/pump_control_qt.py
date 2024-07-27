@@ -17,7 +17,7 @@ from queue import Queue
 import pandas as pd
 
 # Import the converted UI file
-from ui_mainwindow import Ui_MainWindow
+from pump_controller_gui.qt.mainwindow import Ui_MainWindow
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
@@ -39,7 +39,7 @@ class PicoController(QtWidgets.QMainWindow):
         # instance fields for the serial port and queue
         self.serial_port = None
         self.current_port = None
-        
+
         # a queue to store commands to be sent to the Pico
         self.send_command_queue = Queue()
 
@@ -48,7 +48,7 @@ class PicoController(QtWidgets.QMainWindow):
 
         self.recipe_df = pd.DataFrame()
         self.recipe_rows = []
-        
+
         # time stamp for the start of the procedure
         self.start_time = -1
         self.total_procedure_time = -1
@@ -84,12 +84,6 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui.addPumpButton.clicked.connect(self.add_pump)
         self.ui.clearPumpsButton.clicked.connect(self.clear_pumps)
 
-        self.ui.disconnectButton.setEnabled(False)
-        self.ui.startButton.setEnabled(False)
-        self.ui.stopButton.setEnabled(False)
-        self.ui.pauseButton.setEnabled(False)
-        self.ui.continueButton.setEnabled(False)
-
     def start_main_loop(self):
         self.refresh_ports()
         self.read_serial()
@@ -103,7 +97,7 @@ class PicoController(QtWidgets.QMainWindow):
                 return
             # filter by vendor id
             ports = [
-                port.device + " (" + str(port.serial_number) + ")"
+                port.device + " (SN:" + str(port.serial_number) + ")"
                 for port in serial.tools.list_ports.comports()
                 if port.vid == pico_vid
             ]
@@ -143,62 +137,79 @@ class PicoController(QtWidgets.QMainWindow):
 
             # Attempt to connect to the selected port
             try:
-                self.serial_port = serial.Serial(
-                    selected_port.split("(")[0], timeout=self.timeout
-                )
+                parsed_port = selected_port.split("(")[0].strip()
+                self.serial_port = serial.Serial(parsed_port, timeout=self.timeout)
                 self.current_port = selected_port
-                self.ui.statusLabel.setText(f"Status: Connected to {selected_port}")
+                self.ui.statusLabel.setText(f"Status: Connected to {parsed_port}")
 
                 logging.info(f"Connected to {selected_port}")
                 QMessageBox.information(
                     self,
                     "Connection Status",
-                    f"Successfully connected to {selected_port}",
+                    f"Successfully connected to {parsed_port}",
                 )
 
+                # issue a pump info query
                 self.query_pump_info()
+                # enable the disconnect button
                 self.ui.disconnectButton.setEnabled(True)
 
-            except serial.SerialException:
+            except serial.SerialException as e:
                 self.ui.statusLabel.setText("Status: Not connected")
-                logging.error(f"Failed to connect to {selected_port}")
+                logging.error(f"Error: {e}")
                 QMessageBox.critical(
                     self, "Connection Status", f"Failed to connect to {selected_port}"
                 )
 
     def disconnect_pico(self, show_message=True):
         if self.serial_port:
+            # close the serial port connection
             self.serial_port.close()
             self.serial_port = None
             self.current_port = None
+
+            # update UI
             self.ui.statusLabel.setText("Status: Not connected")
+
+            # clear the pumps widgets
             self.clear_pumps_widgets()
+            # clear the recipe table
             self.clear_recipe()
+
+            # disable the disconnect button
             self.ui.disconnectButton.setEnabled(False)
+
+            # refresh the port list immediately
+            self.refresh_ports()
 
             logging.info("Disconnected from Pico")
             if show_message:
                 QMessageBox.information(
-                    self, "Disconnection Status", "Successfully disconnected from Pico"
+                    self, "Connection Status", "Disconnected from Pico"
                 )
 
     def query_pump_info(self):
         if self.serial_port:
+            # put the command in the queue
             self.send_command_queue.put("0:info")
 
     def update_status(self):
         if self.serial_port:
+            # put the command in the queue
             self.send_command_queue.put("0:st")
 
-    def toggle_power(self, pump_id):
+    def toggle_power(self, pump_id, update_status=True):
         if self.serial_port:
             self.send_command_queue.put(f"{pump_id}:pw")
-            self.update_status()
+            if update_status:
+                self.update_status()
 
-    def toggle_direction(self, pump_id):
+    def toggle_direction(self, pump_id, update_status=True):
         if self.serial_port:
+            # put the command in the queue
             self.send_command_queue.put(f"{pump_id}:di")
-            self.update_status()
+            if update_status:
+                self.update_status()
 
     def register_pump(
         self,
@@ -242,6 +253,7 @@ class PicoController(QtWidgets.QMainWindow):
         self.current_index = -1
         self.pause_timepoint = -1
         self.pause_duration = 0
+        # disable the buttons
         self.ui.stopButton.setEnabled(False)
         self.ui.pauseButton.setEnabled(False)
         self.ui.continueButton.setEnabled(False)
@@ -271,6 +283,7 @@ class PicoController(QtWidgets.QMainWindow):
         self.execute_procedure(self.current_index)
         logging.info("Procedure continued.")
 
+    # send_command will remove the first item from the queue and send it
     def send_command(self):
         try:
             if self.serial_port and not self.send_command_queue.empty():
@@ -279,12 +292,17 @@ class PicoController(QtWidgets.QMainWindow):
                 logging.info(f"PC -> Pico: {command}")
         except serial.SerialException as e:
             self.disconnect_pico(False)
-            logging.error(f"Connection to Pico lost: {e}")
+            logging.error(f"Error: {e}")
             QMessageBox.critical(
                 self,
                 "Connection Error",
                 "Connection to Pico lost. Please reconnect to continue.",
             )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Send_command: An error occurred: {e}")
+            logging.error(f"Error: {e}")
+            # call disconnect_pico to clear the serial port
+            self.disconnect_pico()
 
     def read_serial(self):
         try:
@@ -297,14 +315,20 @@ class PicoController(QtWidgets.QMainWindow):
                     self.update_pump_status(response)
                 elif "Error" in response:
                     QMessageBox.critical(self, "Error", response)
+                    logging.error(f"Error: {response}")
         except serial.SerialException as e:
             self.disconnect_pico(False)
-            logging.error(f"Connection to Pico lost: {e}")
+            logging.error(f"Error: {e}")
             QMessageBox.critical(
                 self,
                 "Connection Error",
                 "Connection to Pico lost. Please reconnect to continue.",
             )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Read_serial: An error occurred: {e}")
+            logging.error(f"Error: {e}")
+            # call disconnect_pico to clear the serial port
+            self.disconnect_pico()
 
     def update_pump_widgets(self, response):
         info_pattern = re.compile(
@@ -315,6 +339,7 @@ class PicoController(QtWidgets.QMainWindow):
         # sort the matches by pump_id in ascending order
         matches = sorted(matches, key=lambda x: int(x[0]))
 
+        # get the existing count of pumps widgets
         count = self.ui.manualControl_second.count()
 
         for match in matches:
@@ -350,7 +375,7 @@ class PicoController(QtWidgets.QMainWindow):
                 )
                 pump_frame.setSizePolicy(size_policy)
                 # set the minimum size to 100x100
-                pump_frame.setMinimumSize(100, 100)
+                pump_frame.setMinimumSize(250, 200)
 
                 # resize the manualControl_sec widget to fit the new frame
                 self.ui.manualControl_2.resize(
@@ -398,7 +423,7 @@ class PicoController(QtWidgets.QMainWindow):
 
         pump_label = QtWidgets.QLabel(pump_frame)
         pump_label.setText(
-            f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}"
+            f"Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}"
         )
 
         status_label = QtWidgets.QLabel(pump_frame)

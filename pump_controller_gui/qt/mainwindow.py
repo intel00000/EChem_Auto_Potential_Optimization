@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file '.\ui_mainwindow.ui'
+# Form implementation generated from reading ui file '.\mainwindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.7.1
 #
@@ -180,7 +180,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MasterFlex Pump Control via Pi Pico"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Pump Control via Pi Pico"))
         self.selectPortGroup.setTitle(_translate("MainWindow", "Select Port"))
         self.portLabel.setText(_translate("MainWindow", "Select COM Port:"))
         self.connectButton.setText(_translate("MainWindow", "Connect"))
