@@ -1,7 +1,7 @@
 
-# Pump Controller Demo
+# MasterFlex Pump Controller
 
-This repository contains a Pump Controller Demo implemented in Python, utilizing a Raspberry Pi Pico for hardware control and a PC-side GUI for managing the pumps and their operations.
+This repository contains a MasterFlex Pump Controller implemented in Python, utilizing a Raspberry Pi Pico for hardware control and a PC-side GUI for pumps automation and operations.
 
 ## Table of Contents
 - [Requirements](#requirements)
@@ -25,16 +25,12 @@ This repository contains a Pump Controller Demo implemented in Python, utilizing
 1. Clone the repository:
     ```sh
     git clone https://github.com/intel00000/EChem_Auto_Potential_Optimization.git
-    ```
-    ```sh
     cd EChem_Auto_Potential_Optimization
     ```
-
 2. Install required Python libraries:
     ```sh
     pip install -r requirements.txt
     ```
-
 3. Run the Pump Controller Demo with the following command:
     ```sh
     python pump_control.py
@@ -68,7 +64,7 @@ It is recommended to use a Python virtual environment for better dependency mana
     python pump_control.py
     ```
 
-#### Linux
+#### Linux & MacOS (Untested)
 
 1. Open a terminal and navigate to the project directory.
 2. Create a virtual environment:
