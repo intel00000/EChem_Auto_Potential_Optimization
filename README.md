@@ -38,7 +38,7 @@ This repository contains a MasterFlex Pump Controller implemented in Python, uti
 
 ### 2. Using a Python Virtual Environment (Recommended)
 
-It is recommended to use a Python virtual environment for better dependency management, especially when compiling the executable.
+It is recommended to use a Python virtual environment for better dependency management, especially when compiling the executable. See https://docs.python.org/3/library/venv.html for more details.
 
 #### Windows
 
@@ -55,11 +55,11 @@ It is recommended to use a Python virtual environment for better dependency mana
     ```sh
     Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
     ```
-4. Install the required packages:
+5. Install the required packages:
     ```sh
     pip install -r requirements.txt
     ```
-5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
+6. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
     ```sh
     python pump_control.py
     ```
@@ -75,7 +75,7 @@ It is recommended to use a Python virtual environment for better dependency mana
     ```
 3. Activate the virtual environment:
     ```sh
-    venv\Scripts\activate
+    source ./venv/bin/activate
     ```
 4. Install the required packages:
     ```sh
@@ -83,7 +83,7 @@ It is recommended to use a Python virtual environment for better dependency mana
     ```
 5. To run the Pump Controller Demo, activated the virtual environment first and use the following command:
     ```sh
-    python pump_control.py
+    python3 pump_control.py
     ```
 
 ## Compiling to an Executable
