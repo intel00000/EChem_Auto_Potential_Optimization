@@ -6,6 +6,8 @@ This repository contains a Pump Controller Demo implemented in Python, utilizing
 ## Table of Contents
 - [Requirements](#requirements)
 - [Setup](#setup)
+  - [Native Installation](#native-installation)
+  - [Using a Python Virtual Environment (Recommended)](#using-a-python-virtual-environment-recommended)
 - [Running the Application](#running-the-application)
 - [Compiling to an Executable](#compiling-to-an-executable)
 - [Usage](#usage)
@@ -25,7 +27,9 @@ Install the required Python libraries using the following command:
 pip install pyserial tkinter pandas openpyxl
 ```
 
-## Setup
+## Setup (two methods)
+
+### 1. Native Installation
 
 1. Clone the repository:
     ```sh
@@ -38,28 +42,73 @@ pip install pyserial tkinter pandas openpyxl
     pip install -r requirements.txt
     ```
 
-## Running the Application
+3. To run the Pump Controller Demo, use the following command:
+    ```sh
+    python Pump\ Controller\ Demo_singlethread.py
+    ```
 
-To run the Pump Controller Demo, use the following command:
-```sh
-python Pump\ Controller\ Demo_singlethread.py
-```
+### 2. Using a Python Virtual Environment (Recommended)
+
+It is recommended to use a Python virtual environment for better dependency management, especially when compiling the executable.
+
+#### Windows
+
+1. Open a command prompt and navigate to the project directory.
+2. Create a virtual environment:
+    ```sh
+    python -m venv venv
+    ```
+3. Activate the virtual environment:
+    ```sh
+    venv\Scripts\activate
+    ```
+4. Install the required packages:
+    ```sh
+    pip install -r requirements.txt
+    ```
+
+5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
+    ```sh
+    python Pump\ Controller\ Demo_singlethread.py
+    ```
+
+#### Linux
+
+1. Open a terminal and navigate to the project directory.
+2. Create a virtual environment:
+    ```sh
+    python3 -m venv venv
+    ```
+3. Activate the virtual environment:
+    ```sh
+    source venv/bin/activate
+    ```
+4. Install the required packages:
+    ```sh
+    pip install -r requirements.txt
+    ```
+
+5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
+    ```sh
+    python Pump\ Controller\ Demo_singlethread.py
+    ```
 
 ## Compiling to an Executable
 
-To compile the application to a standalone executable using PyInstaller, follow these steps:
+To compile the application to a standalone executable using PyInstaller, it is recommended to use a Python virtual environment.
 
-1. Install PyInstaller if you haven't already:
+### Windows
+
+1. Create and activate a virtual environment as described above.
+2. Install PyInstaller if you haven't already:
     ```sh
     pip install pyinstaller
     ```
-
-2. Run PyInstaller to compile the executable:
+3. Run PyInstaller to compile the executable:
     ```sh
     pyinstaller --onefile --windowed Pump\ Controller\ Demo_singlethread.py
     ```
-
-3. After the process completes, you will find the executable in the `dist` directory.
+4. After the process completes, you will find the executable in the `dist` directory.
 
 ## Usage
 
@@ -95,8 +144,6 @@ Time point (min),Pump 1,Pump 2,Pump 3,Valve 1,Valve 2,Valve 3,Notes
 150,,Off,,,,
 150,,On,CCW,CCW,CCW,
 155,,Off,,,,
-155,,On,CW,CW,CW,
-160,,Off,,,,
 ```
 
 Ensure the `Time point (min)` column is sorted in ascending order.
@@ -106,5 +153,3 @@ Ensure the `Time point (min)` column is sorted in ascending order.
 For any issues or contributions, please open an issue or pull request on GitHub.
 
 ---
-
-This README provides all necessary steps and information to set up, run, and compile the Pump Controller Demo application. Ensure to follow each section carefully for a successful setup.

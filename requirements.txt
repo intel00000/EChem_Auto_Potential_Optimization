@@ -1,3 +1,5 @@
+openpyxl
+pandas
+pyinstaller
 pyserial
 tkinter
-pandas
