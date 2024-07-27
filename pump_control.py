@@ -20,6 +20,9 @@ import pandas as pd
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
 
+global_pad_x = 5
+global_pad_y = 5
+
 
 class PicoController:
     def __init__(self, master):
@@ -74,27 +77,27 @@ class PicoController:
             self.master, text="Select Port", padding=(10, 10, 10, 10)
         )
         self.select_port_frame.grid(
-            row=0, column=0, columnspan=4, rowspan=2, padx=10, pady=10, sticky="NSEW"
+            row=0, column=0, columnspan=4, rowspan=2, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
 
         # first row is for select_port_frame
         self.port_label = ttk.Label(self.select_port_frame, text="Select COM Port:")
-        self.port_label.grid(row=0, column=0, padx=10, pady=10)
+        self.port_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y)
         self.port_combobox = ttk.Combobox(
             self.select_port_frame, state="readonly", width=50
         )
-        self.port_combobox.grid(row=0, column=1, padx=10, pady=10)
+        self.port_combobox.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y)
         self.refresh_ports()
         if len(self.port_combobox["values"]) > 0:
             self.port_combobox.current(0)  # Default to the first port
         self.connect_button = ttk.Button(
             self.select_port_frame, text="Connect", command=self.connect_to_pico
         )
-        self.connect_button.grid(row=0, column=2, padx=10, pady=10)
+        self.connect_button.grid(row=0, column=2, padx=global_pad_x, pady=global_pad_y)
         self.disconnect_button = ttk.Button(
             self.select_port_frame, text="Disconnect", command=self.disconnect_pico
         )
-        self.disconnect_button.grid(row=0, column=3, padx=10, pady=10)
+        self.disconnect_button.grid(row=0, column=3, padx=global_pad_x, pady=global_pad_y)
         # disable the disconnect button
         self.disconnect_button.config(state=tk.DISABLED)
 
@@ -103,7 +106,7 @@ class PicoController:
             self.select_port_frame, text="Status: Not connected"
         )
         self.status_label.grid(
-            row=1, column=0, padx=10, pady=10, columnspan=2, sticky="W"
+            row=1, column=0, padx=global_pad_x, pady=global_pad_y, columnspan=2, sticky="W"
         )
 
         # Second frame for manual control
@@ -111,26 +114,26 @@ class PicoController:
             self.master, text="Manual Control", padding=(10, 10, 10, 10)
         )
         self.manual_control_frame.grid(
-            row=2, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=2, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.manual_control_frame_buttons = ttk.Frame(self.manual_control_frame)
         self.manual_control_frame_buttons.grid(
-            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=0, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.add_pump_button = ttk.Button(
             self.manual_control_frame_buttons, text="Add Pump", command=self.add_pump
         )
-        self.add_pump_button.grid(row=0, column=0, padx=10, pady=10, sticky="W")
+        self.add_pump_button.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.clear_pumps_button = ttk.Button(
             self.manual_control_frame_buttons,
             text="Clear All Pumps",
             command=self.clear_pumps,
         )
-        self.clear_pumps_button.grid(row=0, column=1, padx=10, pady=10, sticky="W")
+        self.clear_pumps_button.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W")
         # Moved inside the manual control frame
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
         self.pumps_frame.grid(
-            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=1, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
 
         # Third frame for the recipe and procedure execution
@@ -138,45 +141,45 @@ class PicoController:
             self.master, text="Recipe", padding=(10, 10, 10, 10)
         )
         self.recipe_frame.grid(
-            row=3, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=3, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
 
         # create a frame for the buttons
         self.recipe_frame_buttons = ttk.Frame(self.recipe_frame)
         self.recipe_frame_buttons.grid(
-            row=0, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=0, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.load_recipe_button = ttk.Button(
             self.recipe_frame_buttons, text="Load Recipe", command=self.load_recipe
         )
-        self.load_recipe_button.grid(row=0, column=0, padx=10, pady=10)
+        self.load_recipe_button.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y)
         self.start_button = ttk.Button(
             self.recipe_frame_buttons, text="Start", command=self.start_procedure
         )
-        self.start_button.grid(row=0, column=1, padx=10, pady=10)
+        self.start_button.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y)
         self.start_button.config(state=tk.DISABLED)
         self.stop_button = ttk.Button(
             self.recipe_frame_buttons, text="Stop", command=self.stop_procedure
         )
-        self.stop_button.grid(row=0, column=2, padx=10, pady=10)
+        self.stop_button.grid(row=0, column=2, padx=global_pad_x, pady=global_pad_y)
         self.stop_button.config(state=tk.DISABLED)
         self.pause_button = ttk.Button(
             self.recipe_frame_buttons, text="Pause", command=self.pause_procedure
         )
-        self.pause_button.grid(row=0, column=3, padx=10, pady=10)
+        self.pause_button.grid(row=0, column=3, padx=global_pad_x, pady=global_pad_y)
         self.pause_button.config(state=tk.DISABLED)
         self.continue_button = ttk.Button(
             self.recipe_frame_buttons, text="Continue", command=self.continue_procedure
         )
-        self.continue_button.grid(row=0, column=4, padx=10, pady=10)
+        self.continue_button.grid(row=0, column=4, padx=global_pad_x, pady=global_pad_y)
         self.continue_button.config(state=tk.DISABLED)
         # frame for the recipe table
         self.recipe_table_frame = ttk.Frame(self.recipe_frame)
         self.recipe_table_frame.grid(
-            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=1, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.recipe_table = ttk.Frame(self.recipe_table_frame)
-        self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
+        self.recipe_table.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW")
         self.scrollbar = ttk.Scrollbar()
 
         # Fourth frame for total progress bar and remaining time label
@@ -184,22 +187,22 @@ class PicoController:
             self.master, text="Progress", padding=(10, 10, 10, 10)
         )
         self.progress_frame.grid(
-            row=4, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=4, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.total_progress_label = ttk.Label(
             self.progress_frame, text="Total Progress:"
         )
-        self.total_progress_label.grid(row=0, column=0, padx=10, pady=10, sticky="W")
+        self.total_progress_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.total_progress_bar = ttk.Progressbar(
             self.progress_frame, length=200, mode="determinate"
         )
-        self.total_progress_bar.grid(row=0, column=1, padx=10, pady=10, sticky="W")
+        self.total_progress_bar.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.remaining_time_label = ttk.Label(
             self.progress_frame, text="Remaining Time:"
         )
-        self.remaining_time_label.grid(row=1, column=0, padx=10, pady=10, sticky="W")
+        self.remaining_time_label.grid(row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.remaining_time_value = ttk.Label(self.progress_frame, text="")
-        self.remaining_time_value.grid(row=1, column=1, padx=10, pady=10, sticky="W")
+        self.remaining_time_value.grid(row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W")
 
     def main_loop(self):
         self.refresh_ports()
@@ -214,7 +217,7 @@ class PicoController:
                 return
             # filter by vendor id
             ports = [
-                port.device + " (" + str(port.serial_number) + ")"
+                port.device + " (SN:" + str(port.serial_number) + ")"
                 for port in serial.tools.list_ports.comports()
                 if port.vid == pico_vid
             ]
@@ -248,15 +251,16 @@ class PicoController:
 
             # Attempt to connect to the selected port
             try:
+                parsed_port = selected_port.split("(")[0].strip()
                 self.serial_port = serial.Serial(
-                    selected_port.split("(")[0], timeout=self.timeout
+                    parsed_port, timeout=self.timeout
                 )
                 self.current_port = selected_port
-                self.status_label.config(text=f"Status: Connected to {selected_port}")
+                self.status_label.config(text=f"Status: Connected to {parsed_port}")
 
                 logging.info(f"Connected to {selected_port}")
                 messagebox.showinfo(
-                    "Connection Status", f"Successfully connected to {selected_port}"
+                    "Connection Status", f"Successfully connected to {parsed_port}"
                 )
 
                 # issue a pump info query
@@ -265,9 +269,9 @@ class PicoController:
                 # enable the disconnect button
                 self.disconnect_button.config(state=tk.NORMAL)
 
-            except serial.SerialException:
+            except serial.SerialException as e:
                 self.status_label.config(text="Status: Not connected")
-                logging.error(f"Failed to connect to {selected_port}")
+                logging.error(f"Error: {e}")
                 messagebox.showerror(
                     "Connection Status", f"Failed to connect to {selected_port}"
                 )
@@ -392,14 +396,14 @@ class PicoController:
                 logging.info(f"PC -> Pico: {command}")
         except serial.SerialException as e:
             self.disconnect_pico(False)
-            logging.error(f"Connection to Pico lost: {e}")
+            logging.error(f"Error: {e}")
             messagebox.showerror(
                 "Connection Error",
                 "Connection to Pico lost. Please reconnect to continue.",
             )
         except Exception as e:
             messagebox.showerror("Error", f"Send_command: An error occurred: {e}")
-            logging.error(f"Send_command: An error occurred: {e}")
+            logging.error(f"Error: {e}")
             # call disconnect_pico to clear the serial port
             self.disconnect_pico()
 
@@ -416,14 +420,14 @@ class PicoController:
                     messagebox.showerror("Error", response)
         except serial.SerialException as e:
             self.disconnect_pico(False)
-            logging.error(f"Connection to Pico lost: {e}")
+            logging.error(f"Error: {e}")
             messagebox.showerror(
                 "Connection Error",
                 "Connection to Pico lost. Please reconnect to continue.",
             )
         except Exception as e:
             messagebox.showerror("Error", f"Read_serial: An error occurred: {e}")
-            logging.error(f"Read_serial: An error occurred: {e}")
+            logging.error(f"Error: {e}")
             # call disconnect_pico to clear the serial port
             self.disconnect_pico()
 
@@ -458,7 +462,7 @@ class PicoController:
 
                 pump_frame = self.pumps[pump_id]["frame"]
                 pump_frame.grid(
-                    row=0, column=pump_id - 1, padx=10, pady=10, sticky="NS"
+                    row=0, column=pump_id - 1, padx=global_pad_x, pady=global_pad_y, sticky="NS"
                 )
 
                 self.pumps[pump_id]["power_label"].config(
@@ -474,36 +478,36 @@ class PicoController:
                     state="normal" if direction_pin != "-1" else "disabled"
                 )
                 self.pumps[pump_id]["pump_label"].config(
-                    text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}"
+                    text=f"Power pin: {power_pin}, Direction pin: {direction_pin}"
                 )
             else:
                 pump_frame = ttk.Labelframe(self.pumps_frame, text=f"Pump {pump_id}")
                 pump_frame.grid(
-                    row=0, column=pump_id - 1, padx=10, pady=10, sticky="NS"
+                    row=0, column=pump_id - 1, padx=global_pad_x, pady=global_pad_y, sticky="NS"
                 )
 
                 pump_label = ttk.Label(
                     pump_frame,
-                    text=f"Pump {pump_id}, Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}",
+                    text=f"Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}",
                 )
-                pump_label.grid(row=0, column=0, padx=10, pady=10, sticky="NS")
+                pump_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 edit_button = ttk.Button(
                     pump_frame,
                     text="Edit",
                     command=lambda pid=pump_id: self.edit_pump(pid),
                 )
-                edit_button.grid(row=0, column=1, padx=10, pady=10, sticky="NS")
+                edit_button.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 power_label = ttk.Label(
                     pump_frame, text=f"Power Status: {power_status}"
                 )
-                power_label.grid(row=1, column=0, padx=10, pady=10, sticky="NS")
+                power_label.grid(row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 direction_label = ttk.Label(
                     pump_frame, text=f"Direction Status: {direction_status}"
                 )
-                direction_label.grid(row=1, column=1, padx=10, pady=10, sticky="NS")
+                direction_label.grid(row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 power_button = ttk.Button(
                     pump_frame,
@@ -511,7 +515,7 @@ class PicoController:
                     command=lambda pid=pump_id: self.toggle_power(pid),
                     state="disabled" if power_pin == "-1" else "normal",
                 )
-                power_button.grid(row=2, column=0, padx=10, pady=10, sticky="NS")
+                power_button.grid(row=2, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 direction_button = ttk.Button(
                     pump_frame,
@@ -519,7 +523,7 @@ class PicoController:
                     command=lambda pid=pump_id: self.toggle_direction(pid),
                     state="disabled" if direction_pin == "-1" else "normal",
                 )
-                direction_button.grid(row=2, column=1, padx=10, pady=10, sticky="NS")
+                direction_button.grid(row=2, column=1, padx=global_pad_x, pady=global_pad_y, sticky="NS")
 
                 self.pumps[pump_id] = {
                     "power_pin": power_pin,
@@ -545,7 +549,7 @@ class PicoController:
         # recreate pumps frame inside the manual control frame
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
         self.pumps_frame.grid(
-            row=1, column=0, columnspan=4, padx=10, pady=10, sticky="NSEW"
+            row=1, column=0, columnspan=4, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.pumps = {}
 
@@ -607,7 +611,7 @@ class PicoController:
                 self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
                 self.scrollbar.grid(row=0, column=1, sticky="NS")
 
-                self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
+                self.recipe_table.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW")
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
                     self.recipe_table.column(col, width=100, anchor="center")
@@ -633,7 +637,7 @@ class PicoController:
                 messagebox.showerror(
                     "File Load Error", f"Failed to load recipe file {file_path}: {e}"
                 )
-                logging.error(f"Failed to load recipe file {file_path}: {e}")
+                logging.error(f"Error: {e}")
 
     # a function to clear the recipe table
     def clear_recipe(self):
@@ -646,7 +650,7 @@ class PicoController:
         self.scrollbar.destroy()
         # recreate the recipe table
         self.recipe_table = ttk.Frame(self.recipe_table_frame)
-        self.recipe_table.grid(row=0, column=0, padx=10, pady=10, sticky="NSEW")
+        self.recipe_table.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW")
         # clear the progress bar
         self.total_progress_bar["value"] = 0
         self.remaining_time_value.config(text="")
