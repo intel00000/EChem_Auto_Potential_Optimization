@@ -76,19 +76,25 @@ It is recommended to use a Python virtual environment for better dependency mana
 
 1. Open a terminal and navigate to the project directory.
 2. Create a virtual environment:
+
+    In Powershell, run the following commands:
     ```sh
     python3 -m venv venv
     ```
 3. Activate the virtual environment:
     ```sh
-    source venv/bin/activate
+    .\venv\Scripts\Activate.ps1
+    ```
+    If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
+    ```sh
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
     ```
 4. Install the required packages:
     ```sh
     pip install -r requirements.txt
     ```
 
-5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
+5. To run the Pump Controller Demo, activated the virtual environment first and use the following command:
     ```sh
     python Pump\ Controller\ Demo_singlethread.py
     ```
