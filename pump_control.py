@@ -468,7 +468,7 @@ class PicoController:
                 response = self.serial_port.readline().decode("utf-8").strip()
                 logging.info(f"Pico -> PC: {response}")
                 if "Info" in response:
-                    self.update_pump_widgets(response)
+                    self.add_pump_widgets(response)
                 elif "Status" in response:
                     self.update_pump_status(response)
                 elif "Error" in response:
@@ -486,7 +486,7 @@ class PicoController:
             # call disconnect_pico to clear the serial port
             self.disconnect_pico()
 
-    def update_pump_widgets(self, response):
+    def add_pump_widgets(self, response):
         info_pattern = re.compile(
             r"Pump(\d+) Info: Power Pin: (-?\d+), Direction Pin: (-?\d+), Initial Power Pin Value: (\d+), Initial Direction Pin Value: (\d+), Current Power Status: (ON|OFF), Current Direction Status: (CW|CCW)"
         )
@@ -494,7 +494,7 @@ class PicoController:
 
         # sort the matches by pump_id in ascending order
         matches = sorted(matches, key=lambda x: int(x[0]))
-        
+
         # get the existing number of pumps
         existing_pumps_widget_count = len(self.pumps)
 
@@ -910,7 +910,7 @@ class PicoController:
             return
 
         pump_id = len(self.pumps) + 1
-        self.update_pump_widgets(
+        self.add_pump_widgets(
             f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW"
         )
 

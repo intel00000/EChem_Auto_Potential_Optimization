@@ -17,7 +17,8 @@ from queue import Queue
 import pandas as pd
 
 # Import the converted UI file
-from pump_controller_gui.qt.mainwindow import Ui_MainWindow
+from mainwindow import Ui_MainWindow
+from pump_frame import Ui_GroupBox
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
@@ -28,6 +29,7 @@ class PicoController(QtWidgets.QMainWindow):
         super().__init__()
 
         self.ui = Ui_MainWindow()
+        self.pump_frame_setup = Ui_GroupBox()
         self.ui.setupUi(self)
 
         # port refresh timer
@@ -83,6 +85,13 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui.continueButton.clicked.connect(self.continue_procedure)
         self.ui.addPumpButton.clicked.connect(self.add_pump)
         self.ui.clearPumpsButton.clicked.connect(self.clear_pumps)
+
+        self.ui.remainingTimeLabel.setText(
+            QtCore.QCoreApplication.translate(
+                "MainWindow",
+                "Remaining Time: " + time.strftime("%H:%M:%S", time.gmtime(0)),
+            )
+        )
 
     def start_main_loop(self):
         self.refresh_ports()
@@ -310,7 +319,7 @@ class PicoController(QtWidgets.QMainWindow):
                 response = self.serial_port.readline().decode("utf-8").strip()
                 logging.info(f"Pico -> PC: {response}")
                 if "Info" in response:
-                    self.update_pump_widgets(response)
+                    self.add_pump_widgets(response)
                 elif "Status" in response:
                     self.update_pump_status(response)
                 elif "Error" in response:
@@ -330,7 +339,7 @@ class PicoController(QtWidgets.QMainWindow):
             # call disconnect_pico to clear the serial port
             self.disconnect_pico()
 
-    def update_pump_widgets(self, response):
+    def add_pump_widgets(self, response):
         info_pattern = re.compile(
             r"Pump(\d+) Info: Power Pin: (-?\d+), Direction Pin: (-?\d+), Initial Power Pin Value: (\d+), Initial Direction Pin Value: (\d+), Current Power Status: (ON|OFF), Current Direction Status: (CW|CCW)"
         )
@@ -366,20 +375,15 @@ class PicoController(QtWidgets.QMainWindow):
                 )
             else:
                 pump_frame = QtWidgets.QGroupBox(self.ui.manualControl_2)
+                # use the Ui_GroupBox class to set up the pump frame
+                pump_frame_struct_class = Ui_GroupBox()
+                pump_frame_struct_class.setupUi(pump_frame)
                 pump_frame.setTitle(f"Pump {pump_id}")
-
-                # update the size policy to make the frame expandable
-                size_policy = QtWidgets.QSizePolicy(
-                    QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-                    QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-                )
-                pump_frame.setSizePolicy(size_policy)
-                # set the minimum size to 100x100
-                pump_frame.setMinimumSize(250, 200)
 
                 # resize the manualControl_sec widget to fit the new frame
                 self.ui.manualControl_2.resize(
-                    50 + 100 * (count % 3), 50 + 100 * (count // 3)
+                    50 + pump_frame.minimumWidth() * (count % 3),
+                    50 + pump_frame.minimumHeight() * (count // 3),
                 )
 
                 self.ui.manualControl_second.addWidget(
@@ -388,96 +392,43 @@ class PicoController(QtWidgets.QMainWindow):
 
                 self.pumps[pump_id] = {
                     "frame": pump_frame,
+                    "struct_class": pump_frame_struct_class,
+                    "power_pin": power_pin,
+                    "direction_pin": direction_pin,
+                    "initial_power_pin_value": initial_power_pin_value,
+                    "initial_direction_pin_value": initial_direction_pin_value,
+                    "power_status": power_status,
+                    "direction_status": direction_status,
                 }
 
                 count += 1
 
-            self.update_pump_frame(
-                self.pumps[pump_id]["frame"],
-                pump_id,
-                power_pin,
-                direction_pin,
-                power_status,
-                direction_status,
-            )
+            # Update contents of the pump frame
+            self.update_pump_frame(pump_id, pump_frame_struct_class)
 
-    def update_pump_frame(
-        self,
-        pump_frame,
-        pump_id,
-        power_pin,
-        direction_pin,
-        power_status,
-        direction_status,
-    ):
-        if pump_frame.layout():
-            layout = pump_frame.layout()
-            while layout.count():
-                child = layout.takeAt(0)
-                if child.widget():
-                    layout.removeWidget(child.widget())
-        else:
-            pump_frame.setLayout(QtWidgets.QGridLayout())
+    # Function to update the pump frame with the latest information from the dictionary
+    def update_pump_frame(self, pump_id, pump_frame_struct_class):
 
-        pump_layout = pump_frame.layout()
-
-        pump_label = QtWidgets.QLabel(pump_frame)
+        pump_label = pump_frame_struct_class.pump_label
         pump_label.setText(
-            f"Power pin: {'N/A' if power_pin == '-1' else power_pin}, Direction pin: {'N/A' if direction_pin == '-1' else direction_pin}"
+            f"Power pin: {'N/A' if self.pumps[pump_id]['power_pin'] == '-1' else self.pumps[pump_id]['power_pin']}, Direction pin: {'N/A' if self.pumps[pump_id]['direction_pin'] == '-1' else self.pumps[pump_id]['direction_pin']}"
         )
 
-        status_label = QtWidgets.QLabel(pump_frame)
+        status_label = pump_frame_struct_class.status_label
         status_label.setText(
-            f"Power Status: {power_status} Direction Status: {direction_status}"
+            f"Power Status: {self.pumps[pump_id]['power_status']} Direction Status: {self.pumps[pump_id]['direction_status']}"
         )
 
-        power_button = QtWidgets.QPushButton(pump_frame)
-        power_button.setText("Toggle Power")
-        power_button.setEnabled(power_pin != "-1")
+        power_button = pump_frame_struct_class.power_button
+        power_button.setEnabled(self.pumps[pump_id]["power_pin"] != "-1")
         power_button.clicked.connect(lambda: self.toggle_power(pump_id))
 
-        direction_button = QtWidgets.QPushButton(pump_frame)
-        direction_button.setText("Toggle Direction")
-        direction_button.setEnabled(direction_pin != "-1")
+        direction_button = pump_frame_struct_class.direction_button
+        direction_button.setEnabled(self.pumps[pump_id]["direction_pin"] != "-1")
         direction_button.clicked.connect(lambda: self.toggle_direction(pump_id))
 
-        edit_button = QtWidgets.QPushButton(pump_frame)
-        edit_button.setText("Edit Pump")
+        edit_button = pump_frame_struct_class.edit_button
         edit_button.clicked.connect(lambda: self.edit_pump(pump_id))
-
-        pump_layout.addWidget(pump_label, 0, 0, 1, 3)
-        pump_layout.addWidget(status_label, 1, 0, 1, 3)
-        pump_layout.addWidget(power_button, 2, 0, 1, 1)
-        pump_layout.addWidget(direction_button, 2, 1, 1, 1)
-        pump_layout.addWidget(edit_button, 2, 2, 1, 1)
-
-        # set the layout policy to fix the size of the frame
-        pump_frame.setSizePolicy(
-            QtWidgets.QSizePolicy(
-                QtWidgets.QSizePolicy.Policy.Fixed,
-                QtWidgets.QSizePolicy.Policy.Fixed,
-            )
-        )
-
-        # set spacing between widgets
-        pump_layout.setHorizontalSpacing(10)
-        pump_layout.setVerticalSpacing(10)
-
-        # set margin around the layout
-        pump_layout.setContentsMargins(10, 10, 10, 10)
-
-        self.pumps[pump_id].update(
-            {
-                "power_pin": power_pin,
-                "direction_pin": direction_pin,
-                "power_status": power_status,
-                "direction_status": direction_status,
-                "pump_label": pump_label,
-                "status_label": status_label,
-                "power_button": power_button,
-                "direction_button": direction_button,
-            }
-        )
 
     def clear_pumps_widgets(self):
         layout = self.ui.manualControl_second
@@ -499,14 +450,7 @@ class PicoController(QtWidgets.QMainWindow):
             if pump_id in self.pumps:
                 self.pumps[pump_id]["power_status"] = power_status
                 self.pumps[pump_id]["direction_status"] = direction_status
-                self.update_pump_frame(
-                    self.pumps[pump_id]["frame"],
-                    pump_id,
-                    self.pumps[pump_id]["power_pin"],
-                    self.pumps[pump_id]["direction_pin"],
-                    power_status,
-                    direction_status,
-                )
+                self.update_pump_frame(pump_id, self.pumps[pump_id]["struct_class"])
 
     def load_recipe(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -682,7 +626,7 @@ class PicoController(QtWidgets.QMainWindow):
                 logging.info(
                     f"At index {index}, pump_id {pump_id} status: {self.pumps[pump_id]['power_status']}, intended status: {action}, toggling power."
                 )
-                self.toggle_power(pump_id)
+                self.toggle_power(pump_id, update_status=False)
 
         for valve, action in valve_actions.items():
             if pd.isna(action) or action == "":
@@ -702,8 +646,10 @@ class PicoController(QtWidgets.QMainWindow):
                 logging.info(
                     f"At index {index}, valve_id {valve_id} status: {self.pumps[valve_id]['direction_status']}, intended status: {action}, toggling direction."
                 )
-                self.toggle_direction(valve_id)
+                self.toggle_direction(valve_id, update_status=False)
 
+        # issue a status update after executing the actions
+        self.update_status()
         self.execute_procedure(index + 1)
 
     def update_progress(self):
@@ -719,7 +665,7 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui.totalProgressBar.setValue(total_progress)
         remaining_time = int(self.total_procedure_time - elapsed_time)
         time_str = time.strftime("%H:%M:%S", time.gmtime(remaining_time))
-        self.ui.remainingTimeLabel.setText(f"{time_str}")
+        self.ui.remainingTimeLabel.setText(f"Remaining Time: {time_str}")
 
         for i, row in self.recipe_df.iterrows():
             time_stamp = float(row["Time point (min)"]) * 60
@@ -756,7 +702,7 @@ class PicoController(QtWidgets.QMainWindow):
             return
 
         pump_id = len(self.pumps) + 1
-        self.update_pump_widgets(
+        self.add_pump_widgets(
             f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW"
         )
 
