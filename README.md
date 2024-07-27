@@ -15,17 +15,8 @@ This repository contains a Pump Controller Demo implemented in Python, utilizing
 
 ## Requirements
 
-Ensure you have the following software and libraries installed:
-
-### Software
 - Python 3.11 or higher
 - Pip package manager
-
-### Python Libraries
-Install the required Python libraries using the following command:
-```sh
-pip install pyserial tkinter pandas openpyxl
-```
 
 ## Setup (two methods)
 
@@ -33,18 +24,18 @@ pip install pyserial tkinter pandas openpyxl
 
 1. Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/pump-controller-demo.git
-    cd pump-controller-demo
+    git clone https://github.com/intel00000/EChem_Auto_Potential_Optimization.git
+    cd EChem_Auto_Potential_Optimization
     ```
 
-2. Ensure all required Python libraries are installed:
+2. Install required Python libraries:
     ```sh
     pip install -r requirements.txt
     ```
 
-3. To run the Pump Controller Demo, use the following command:
+3. Run the Pump Controller Demo with the following command:
     ```sh
-    python Pump\ Controller\ Demo_singlethread.py
+    python pump_control.py
     ```
 
 ### 2. Using a Python Virtual Environment (Recommended)
@@ -60,16 +51,19 @@ It is recommended to use a Python virtual environment for better dependency mana
     ```
 3. Activate the virtual environment:
     ```sh
-    venv\Scripts\activate
+    .\venv\Scripts\Activate.ps1
+    ```
+    If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
+    ```sh
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
     ```
 4. Install the required packages:
     ```sh
     pip install -r requirements.txt
     ```
-
 5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
     ```sh
-    python Pump\ Controller\ Demo_singlethread.py
+    python pump_control.py
     ```
 
 #### Linux
@@ -83,20 +77,15 @@ It is recommended to use a Python virtual environment for better dependency mana
     ```
 3. Activate the virtual environment:
     ```sh
-    .\venv\Scripts\Activate.ps1
-    ```
-    If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
-    ```sh
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+    venv\Scripts\activate
     ```
 4. Install the required packages:
     ```sh
     pip install -r requirements.txt
     ```
-
 5. To run the Pump Controller Demo, activated the virtual environment first and use the following command:
     ```sh
-    python Pump\ Controller\ Demo_singlethread.py
+    python pump_control.py
     ```
 
 ## Compiling to an Executable
@@ -112,7 +101,7 @@ To compile the application to a standalone executable using PyInstaller, it is r
     ```
 3. Run PyInstaller to compile the executable:
     ```sh
-    pyinstaller --onefile --windowed Pump\ Controller\ Demo_singlethread.py
+    pyinstaller --onefile --windowed pump_control.py
     ```
 4. After the process completes, you will find the executable in the `dist` directory.
 
