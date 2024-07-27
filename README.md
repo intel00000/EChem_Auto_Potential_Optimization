@@ -141,10 +141,22 @@ Time point (min),Pump 1,Pump 2,Pump 3,Valve 1,Valve 2,Valve 3,Notes
 155,,Off,,,,
 ```
 
+```excel
+Time point (min)	Pump 1	Pump 2	Pump 3	Valve 1	Valve 2	Valve 3	Notes
+0	                OFF	    OFF	    OFF	    CW	    CW	    CW	    1
+0.2	                ON	    ON	    ON	    CCW	    CCW	    CCW	    2
+0.4	                OFF	    OFF	    OFF	    CW	    CW	    CW	    3
+0.6	                ON	    ON	    ON	    CCW	    CCW	    CCW	    4
+0.8	                OFF	    OFF	    OFF	    CW	    CW	    CW	    5
+1	                ON	    ON	    ON	    CCW	    CCW	    CCW	    6
+1.2	                OFF	    OFF	    OFF	    CW	    CW	    CW	    7
+1.4	                ON	    ON	    ON	    CCW	    CCW	    CCW	    8
+1.6	                OFF	    OFF	    OFF	    CW	    CW	    CW	    9
+1.8	                ON	    ON	    ON	    CCW	    CCW	    CCW	    10
+```
+
 Ensure the `Time point (min)` column is sorted in ascending order.
 
 ## Contact
 
 For any issues or contributions, please open an issue or pull request on GitHub.
-
----
