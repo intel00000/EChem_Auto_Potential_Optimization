@@ -15,6 +15,5 @@ pyvenv.cfg
 *.pyc
 *.pyo
 *.log
-
+*.spec
 .micropico
-*.exe
