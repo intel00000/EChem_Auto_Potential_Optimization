@@ -2,4 +2,3 @@ openpyxl
 pandas
 pyinstaller
 pyserial
-tkinter
