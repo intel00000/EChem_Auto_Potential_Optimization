@@ -115,7 +115,9 @@ To compile the application to a standalone executable using PyInstaller, it is r
 
 - `main.py`: The main entry point for the Raspberry Pi Pico script. It calls the `main` function from `pump_control_pico.py`.
 - `pump_control_pico.py`: Contains the logic for controlling the pumps connected to the Raspberry Pi Pico.
-- `Pump Controller Demo_singlethread.py`: The main Python script for the PC-side GUI, allowing users to interact with the pumps, load recipes, and monitor progress.
+- `pwm_dma_fade_onetime.py`: Fade the onboard led of the pi pico using DMA & PWM without using logic core. (Currently don't work for Pi Pico W where the onboard led is controlled by the wifi chip.)
+
+- `pump_control.py`: The Python script for the PC-side GUI, allowing users to interact with the pumps, load recipes, and monitor progress.
 
 ### Example Recipe File
 An example of a recipe file structure (CSV or Excel):
