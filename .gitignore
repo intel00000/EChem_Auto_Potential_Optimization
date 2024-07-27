@@ -17,3 +17,4 @@ pyvenv.cfg
 *.log
 *.spec
 .micropico
+*.lck

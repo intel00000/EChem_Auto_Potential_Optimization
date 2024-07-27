@@ -30,17 +30,26 @@ class PicoController(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        # port refresh timer
         self.last_port_refresh = -1
         self.port_refresh_interval = 5  # Refresh rate for COM ports when not connected
         self.timeout = 1  # Serial port timeout in seconds
         self.main_loop_interval = 10  # Main loop interval in milliseconds
 
+        # instance fields for the serial port and queue
         self.serial_port = None
         self.current_port = None
+        
+        # a queue to store commands to be sent to the Pico
         self.send_command_queue = Queue()
+
+        # Dictionary to store pump information
         self.pumps = {}
+
         self.recipe_df = pd.DataFrame()
         self.recipe_rows = []
+        
+        # time stamp for the start of the procedure
         self.start_time = -1
         self.total_procedure_time = -1
         self.current_index = -1
@@ -92,15 +101,21 @@ class PicoController(QtWidgets.QMainWindow):
         if not self.serial_port:
             if time.time() - self.last_port_refresh < self.port_refresh_interval:
                 return
+            # filter by vendor id
             ports = [
                 port.device + " (" + str(port.serial_number) + ")"
                 for port in serial.tools.list_ports.comports()
                 if port.vid == pico_vid
             ]
+            # print detail information of the ports to the console
             for port in serial.tools.list_ports.comports():
-                logging.info(
-                    f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}"
-                )
+                try:
+                    # put these into one line
+                    logging.info(
+                        f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}"
+                    )
+                except Exception as e:
+                    logging.error(f"Error: {e}")
 
             self.ui.portComboBox.clear()
             self.ui.portComboBox.addItems(ports)
@@ -109,7 +124,9 @@ class PicoController(QtWidgets.QMainWindow):
     def connect_to_pico(self):
         selected_port = self.ui.portComboBox.currentText()
         if selected_port:
+            # Check if already connected
             if self.serial_port:
+                # if already connected, pop a confirmation message before disconnecting
                 if (
                     QMessageBox.question(
                         self,
@@ -119,10 +136,12 @@ class PicoController(QtWidgets.QMainWindow):
                     )
                     == QMessageBox.StandardButton.Yes
                 ):
+                    # suppress the message for the disconnect
                     self.disconnect_pico(show_message=False)
                 else:
                     return
 
+            # Attempt to connect to the selected port
             try:
                 self.serial_port = serial.Serial(
                     selected_port.split("(")[0], timeout=self.timeout
@@ -296,7 +315,7 @@ class PicoController(QtWidgets.QMainWindow):
         # sort the matches by pump_id in ascending order
         matches = sorted(matches, key=lambda x: int(x[0]))
 
-        count = self.ui.manualControl_sec.layout().count()
+        count = self.ui.manualControl_second.count()
 
         for match in matches:
             (
@@ -321,7 +340,7 @@ class PicoController(QtWidgets.QMainWindow):
                     }
                 )
             else:
-                pump_frame = QtWidgets.QGroupBox(self.ui.manualControl_sec)
+                pump_frame = QtWidgets.QGroupBox(self.ui.manualControl_2)
                 pump_frame.setTitle(f"Pump {pump_id}")
 
                 # update the size policy to make the frame expandable
@@ -334,11 +353,11 @@ class PicoController(QtWidgets.QMainWindow):
                 pump_frame.setMinimumSize(100, 100)
 
                 # resize the manualControl_sec widget to fit the new frame
-                self.ui.manualControl_sec.resize(
+                self.ui.manualControl_2.resize(
                     50 + 100 * (count % 3), 50 + 100 * (count // 3)
                 )
 
-                self.ui.manualControl_sec.layout().addWidget(
+                self.ui.manualControl_second.addWidget(
                     pump_frame, count // 3, count % 3
                 )
 
@@ -436,10 +455,10 @@ class PicoController(QtWidgets.QMainWindow):
         )
 
     def clear_pumps_widgets(self):
-        layout = self.ui.manualControl_sec.layout()
+        layout = self.ui.manualControl_second
         while layout.count():
             child = layout.takeAt(0)
-            if child.widget():
+            if child and child.widget():
                 child.widget().deleteLater()
         self.pumps = {}
 
