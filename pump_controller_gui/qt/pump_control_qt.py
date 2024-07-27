@@ -19,8 +19,7 @@ import pandas as pd
 # Import the converted UI file
 from mainwindow import Ui_MainWindow
 from pump_frame import Ui_GroupBox
-
-import qdarkstyle
+from style import style_sheet
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
@@ -799,9 +798,7 @@ class PicoController(QtWidgets.QMainWindow):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     # apply style sheet
-    css = "material.css"
-    with open(css, "r") as css:
-        app.setStyleSheet(css.read())
+    app.setStyleSheet(style_sheet)
     window = PicoController()
     window.show()
     sys.exit(app.exec())

@@ -48,8 +48,12 @@ class Ui_GroupBox(object):
     def retranslateUi(self, GroupBox):
         _translate = QtCore.QCoreApplication.translate
         GroupBox.setTitle(_translate("GroupBox", "Pump N/A"))
-        self.pump_label.setText(_translate("GroupBox", "Power pin: N/A, Direction pin: N/A"))
-        self.status_label.setText(_translate("GroupBox", "Power Status: N/A, Direction Status: N/A"))
+        self.pump_label.setText(
+            _translate("GroupBox", "Power pin: N/A, Direction pin: N/A")
+        )
+        self.status_label.setText(
+            _translate("GroupBox", "Power Status: N/A, Direction Status: N/A")
+        )
         self.power_button.setText(_translate("GroupBox", "Power"))
         self.direction_button.setText(_translate("GroupBox", "Direction"))
         self.edit_button.setText(_translate("GroupBox", "Edit"))
@@ -57,6 +61,7 @@ class Ui_GroupBox(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     GroupBox = QtWidgets.QGroupBox()
     ui = Ui_GroupBox()

@@ -1,10 +1,13 @@
-/*
+"""
 Ubuntu Style Sheet for QT Applications
 Author: Jaime A. Quiroga P.
 Company: GTRONICK
 Last updated: 01/10/2021 (dd/mm/yyyy), 15:18.
 Available at: https://github.com/GTRONICK/QSS/blob/master/Ubuntu.qss
 */
+"""
+
+style_sheet = """
 QMainWindow {
 	background-color:#f0f0f0;
 }
@@ -494,3 +497,4 @@ QTimeEdit, QToolBox, QToolBox::tab, QToolBox::tab:selected {
 	color:rgb(81,72,65);
 	background-color: #ffffff;
 }
+"""

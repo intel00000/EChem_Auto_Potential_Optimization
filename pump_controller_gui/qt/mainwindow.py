@@ -135,18 +135,28 @@ class Ui_MainWindow(object):
         self.progressGroup_1 = QtWidgets.QHBoxLayout()
         self.progressGroup_1.setObjectName("progressGroup_1")
         self.totalProgressLabel = QtWidgets.QLabel(parent=self.progressGroup)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.MinimumExpanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        )
         sizePolicy.setHorizontalStretch(1)
         sizePolicy.setVerticalStretch(1)
-        sizePolicy.setHeightForWidth(self.totalProgressLabel.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.totalProgressLabel.sizePolicy().hasHeightForWidth()
+        )
         self.totalProgressLabel.setSizePolicy(sizePolicy)
         self.totalProgressLabel.setObjectName("totalProgressLabel")
         self.progressGroup_1.addWidget(self.totalProgressLabel)
         self.totalProgressBar = QtWidgets.QProgressBar(parent=self.progressGroup)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.MinimumExpanding, QtWidgets.QSizePolicy.Policy.MinimumExpanding)
+        sizePolicy = QtWidgets.QSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        )
         sizePolicy.setHorizontalStretch(8)
         sizePolicy.setVerticalStretch(1)
-        sizePolicy.setHeightForWidth(self.totalProgressBar.sizePolicy().hasHeightForWidth())
+        sizePolicy.setHeightForWidth(
+            self.totalProgressBar.sizePolicy().hasHeightForWidth()
+        )
         self.totalProgressBar.setSizePolicy(sizePolicy)
         self.totalProgressBar.setProperty("value", 0)
         self.totalProgressBar.setObjectName("totalProgressBar")
@@ -172,7 +182,9 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MasterFlex Pump Control via Pi Pico"))
+        MainWindow.setWindowTitle(
+            _translate("MainWindow", "MasterFlex Pump Control via Pi Pico")
+        )
         self.selectPortGroup.setTitle(_translate("MainWindow", "Select Port"))
         self.portLabel.setText(_translate("MainWindow", "Select COM Port:"))
         self.connectButton.setText(_translate("MainWindow", "Connect"))
@@ -207,6 +219,7 @@ class Ui_MainWindow(object):
 
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
