@@ -46,7 +46,7 @@ It is recommended to use a Python virtual environment for better dependency mana
 
 #### Windows
 
-1. Open a command prompt and navigate to the project directory.
+1. Open a Windows Powershell and navigate to the project directory.
 2. Create a virtual environment:
     ```sh
     python -m venv venv
