@@ -25,6 +25,8 @@ This repository contains a Pump Controller Demo implemented in Python, utilizing
 1. Clone the repository:
     ```sh
     git clone https://github.com/intel00000/EChem_Auto_Potential_Optimization.git
+    ```
+    ```sh
     cd EChem_Auto_Potential_Optimization
     ```
 
