@@ -19,7 +19,7 @@ import pandas as pd
 # Import the converted UI file
 from mainwindow import Ui_MainWindow
 from pump_frame import Ui_GroupBox
-from style import style_sheet
+from style_sheet import style_sheet
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
