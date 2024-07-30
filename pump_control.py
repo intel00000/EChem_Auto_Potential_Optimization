@@ -269,11 +269,15 @@ class PicoController:
         )
 
     def main_loop(self):
-        self.refresh_ports()
-        self.read_serial()
-        self.send_command()
-        self.update_progress()
-        self.master.after(self.main_loop_interval, self.main_loop)
+        try:
+            self.refresh_ports()
+            self.read_serial()
+            self.send_command()
+            self.update_progress()
+            self.master.after(self.main_loop_interval, self.main_loop)
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+            logging.error(f"Error: {e}")
 
     def refresh_ports(self):
         if not self.serial_port:
@@ -776,7 +780,7 @@ class PicoController:
         self.pause_timepoint = -1
 
         # calculate the total procedure time
-        self.total_procedure_time = self.recipe_df["Time point (min)"].max() * 60
+        self.total_procedure_time = float(self.recipe_df["Time point (min)"].max()) * 60
 
         # clear the recipe table progress and remaining time
         for i, child in self.recipe_rows:
