@@ -216,7 +216,9 @@ def save_pumps(pump_num=0):
             write_message(f"Error: save_pumps, pump {pump_num} not found.")
             return
 
-        if os.path.exists(SAVE_FILE):
+        # Check if the file exists using os.listdir() and os.getcwd()
+        files = os.listdir(os.getcwd())
+        if SAVE_FILE in files:
             with open(SAVE_FILE, "r") as file:
                 existing_data = json.load(file)
         else:
@@ -237,17 +239,21 @@ def save_pumps(pump_num=0):
 # function to load the pumps state from a JSON file
 def load_pumps():
     global pumps, SAVE_FILE
-    if os.path.exists(SAVE_FILE):
-        try:
+    try:
+        # Check if the file exists using os.listdir() and os.getcwd()
+        files = os.listdir(os.getcwd())
+        if SAVE_FILE in files:
             with open(SAVE_FILE, "r") as file:
                 data = json.load(file)
                 for key, value in data.items():
                     pumps[int(key)] = Pump.from_dict(value)
             write_message(f"Success: Loaded pump data from {SAVE_FILE}.")
-        except Exception as e:
-            write_message(f"Error: Could not load pumps, {e}")
-    else:
-        write_message(f"No save file found ({SAVE_FILE}). Starting with default pumps.")
+        else:
+            write_message(
+                f"No save file found ({SAVE_FILE}). Starting with default pumps."
+            )
+    except Exception as e:
+        write_message(f"Error: Could not load pumps, {e}")
 
 
 # Define a dictionary for the commands
