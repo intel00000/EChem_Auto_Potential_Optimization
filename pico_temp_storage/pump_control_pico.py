@@ -1,12 +1,18 @@
 from machine import Pin, reset
 from uctypes import addressof, struct, UINT32
+import machine
 import pwm_dma_fade_onetime
 import array
 import sys
 import select
 import gc
+import json
+import os
 
+# a dictionary to store the pumps, the key is the pump number and the value is the pump instance
+pumps = {}
 version = "0.01"
+SAVE_FILE = "pumps_config.json"
 
 
 # Each pump class will have a power and direction pin, defined at initialization
@@ -61,9 +67,31 @@ class Pump:
     def get_info(self):
         return f"Power Pin: {self.power_pin_id}, Direction Pin: {self.direction_pin_id}, Initial Power Pin Value: {self.initial_power_pin_value}, Initial Direction Pin Value: {self.initial_direction_pin_value}, Current Power Status: {self.power_status}, Current Direction Status: {self.direction_status}"
 
+    def to_dict(self):
+        return {
+            "power_pin_id": self.power_pin_id,
+            "direction_pin_id": self.direction_pin_id,
+            "initial_power_pin_value": self.initial_power_pin_value,
+            "initial_direction_pin_value": self.initial_direction_pin_value,
+            "power_status": self.power_status,
+            "direction_status": self.direction_status,
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            power_pin_id=data["power_pin_id"],
+            direction_pin_id=data["direction_pin_id"],
+            initial_power_pin_value=data["initial_power_pin_value"],
+            initial_direction_pin_value=data["initial_direction_pin_value"],
+            initial_power_status=data["power_status"],
+            initial_direction_status=data["direction_status"],
+        )
+
 
 # functions to assemble and send status, when pump_name is 0, it will send status/info for all pumps
 def send_status(pump_name):
+    global pumps
     if pump_name == 0:
         status = ", ".join(
             [f"Pump{i} Status: {pump.get_status()}" for i, pump in pumps.items()]
@@ -78,6 +106,7 @@ def send_status(pump_name):
 
 # functions to assemble and send info, when pump_name is 0, it will send status/info for all pumps
 def send_info(pump_name):
+    global pumps
     if pump_name == 0:
         info = ", ".join(
             [f"Pump{i} Info: {pump.get_info()}" for i, pump in pumps.items()]
@@ -105,6 +134,7 @@ def register_pump(
     initial_power_status="OFF",
     initial_direction_status="CCW",
 ):
+    global pumps
     # if the pump_num is 0, it will not be registered
     if pump_num == 0:
         write_message("Error: Pump number 0 is reserved for all pumps.")
@@ -142,6 +172,7 @@ def register_pump(
 
 # function to reset the controller, it will remove all pumps
 def clear_pumps(pump_num):
+    global pumps
     if pump_num == 0:
         pumps.clear()
         write_message("Success: All pumps removed.")
@@ -153,6 +184,7 @@ def clear_pumps(pump_num):
 
 # function to perform an emergency shutdown
 def emergency_shutdown():
+    global pumps
     for id, pump in pumps.items():
         if pump.power_status != "OFF":
             pump.toggle_power()
@@ -172,41 +204,51 @@ def hard_reset():
     reset()
 
 
-# Create default pumps objects
-pumps = {
-    1: Pump(
-        power_pin_id=18,
-        direction_pin_id=17,
-        initial_power_pin_value=0,
-        initial_direction_pin_value=0,
-        initial_power_status="OFF",
-        initial_direction_status="CCW",
-    ),
-    2: Pump(
-        power_pin_id=16,
-        direction_pin_id=14,
-        initial_power_pin_value=0,
-        initial_direction_pin_value=0,
-        initial_power_status="OFF",
-        initial_direction_status="CCW",
-    ),
-    3: Pump(
-        power_pin_id=7,
-        direction_pin_id=15,
-        initial_power_pin_value=0,
-        initial_direction_pin_value=0,
-        initial_power_status="OFF",
-        initial_direction_status="CCW",
-    ),
-    4: Pump(
-        power_pin_id=0,
-        direction_pin_id=1,
-        initial_power_pin_value=0,
-        initial_direction_pin_value=0,
-        initial_power_status="OFF",
-        initial_direction_status="CCW",
-    ),
-}
+# function to save the current state of the pumps to a JSON file
+def save_pumps(pump_num=0):
+    global pumps, SAVE_FILE
+    try:
+        if pump_num == 0:
+            data = {str(num): pump.to_dict() for num, pump in pumps.items()}
+        elif pump_num in pumps:
+            data = {str(pump_num): pumps[pump_num].to_dict()}
+        else:
+            write_message(f"Error: save_pumps, pump {pump_num} not found.")
+            return
+
+        if os.path.exists(SAVE_FILE):
+            with open(SAVE_FILE, "r") as file:
+                existing_data = json.load(file)
+        else:
+            existing_data = {}
+
+        existing_data.update(data)
+
+        with open(SAVE_FILE, "w") as file:
+            json.dump(existing_data, file)
+
+        write_message(
+            f"Success: Pump(s) {', '.join(data.keys())} saved to {SAVE_FILE}."
+        )
+    except Exception as e:
+        write_message(f"Error: Could not save pumps, {e}")
+
+
+# function to load the pumps state from a JSON file
+def load_pumps():
+    global pumps, SAVE_FILE
+    if os.path.exists(SAVE_FILE):
+        try:
+            with open(SAVE_FILE, "r") as file:
+                data = json.load(file)
+                for key, value in data.items():
+                    pumps[int(key)] = Pump.from_dict(value)
+            write_message(f"Success: Loaded pump data from {SAVE_FILE}.")
+        except Exception as e:
+            write_message(f"Error: Could not load pumps, {e}")
+    else:
+        write_message(f"No save file found ({SAVE_FILE}). Starting with default pumps.")
+
 
 # Define a dictionary for the commands
 commands = {
@@ -219,6 +261,7 @@ commands = {
     "shutdown": "emergency_shutdown",
     "reset": "hard_reset",
     "ping": "ping",
+    "save": "save_pumps",
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -243,6 +286,8 @@ def main():
         secondary_config_data_addr=addressof(secondary_config_data),
         frequency=10240,
     )
+    # Load the pumps at startup
+    load_pumps()
 
     while True:
         try:
@@ -313,6 +358,8 @@ def main():
                         clear_pumps(0)
                     elif command == "shutdown":
                         emergency_shutdown()
+                    elif command == "save":
+                        save_pumps(0)
                     elif command in commands:
                         if command == "ping":
                             ping()
@@ -323,10 +370,6 @@ def main():
                                 method = getattr(pump, commands[command], None)
                                 if method:
                                     method()
-                                else:
-                                    write_message(
-                                        f"Error: No corresponding method for command '{command}'"
-                                    )
                     else:
                         write_message(
                             f"Error: Invalid command for pump 0 '{command}', available commands are: "
@@ -345,6 +388,8 @@ def main():
                             send_info(pump_num)
                         elif command == "clr":
                             clear_pumps(pump_num)
+                        elif command == "save":
+                            save_pumps(pump_num)
                         else:
                             method = getattr(pump, commands[command], None)
                             if method:
