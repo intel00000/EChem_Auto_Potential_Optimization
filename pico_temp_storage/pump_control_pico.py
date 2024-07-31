@@ -209,29 +209,28 @@ def save_pumps(pump_num=0):
     global pumps, SAVE_FILE
     try:
         if pump_num == 0:
+            # Overwrite the file completely when saving all pumps
             data = {str(num): pump.to_dict() for num, pump in pumps.items()}
-        elif pump_num in pumps:
-            data = {str(pump_num): pumps[pump_num].to_dict()}
+            with open(SAVE_FILE, "w") as file:
+                json.dump(data, file)
+            write_message(f"Success: All pumps saved to {SAVE_FILE}.")
         else:
-            write_message(f"Error: save_pumps, pump {pump_num} not found.")
-            return
+            # Save a specific pump, check if it's new or existing
+            pump_data = {str(pump_num): pumps[pump_num].to_dict()}
+            files = os.listdir(os.getcwd())
 
-        # Check if the file exists using os.listdir() and os.getcwd()
-        files = os.listdir(os.getcwd())
-        if SAVE_FILE in files:
-            with open(SAVE_FILE, "r") as file:
-                existing_data = json.load(file)
-        else:
-            existing_data = {}
+            if SAVE_FILE in files:
+                with open(SAVE_FILE, "r") as file:
+                    existing_data = json.load(file)
+            else:
+                existing_data = {}
 
-        existing_data.update(data)
+            # Update the entire file
+            existing_data.update(pump_data)
+            with open(SAVE_FILE, "w") as file:
+                json.dump(existing_data, file)
 
-        with open(SAVE_FILE, "w") as file:
-            json.dump(existing_data, file)
-
-        write_message(
-            f"Success: Pump(s) {', '.join(data.keys())} saved to {SAVE_FILE}."
-        )
+            write_message(f"Success: Pump {pump_num} saved to {SAVE_FILE}.")
     except Exception as e:
         write_message(f"Error: Could not save pumps, {e}")
 
@@ -365,7 +364,7 @@ def main():
                     elif command == "shutdown":
                         emergency_shutdown()
                     elif command == "save":
-                        save_pumps(0)
+                        save_pumps()
                     elif command in commands:
                         if command == "ping":
                             ping()
