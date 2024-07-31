@@ -1,10 +1,12 @@
-from machine import Pin
+from machine import Pin, reset
 from uctypes import addressof, struct, UINT32
 import pwm_dma_fade_onetime
 import array
 import sys
 import select
 import gc
+
+version = "0.01"
 
 
 # Each pump class will have a power and direction pin, defined at initialization
@@ -149,6 +151,27 @@ def clear_pumps(pump_num):
         write_message(f"Success: Pump {pump_num} removed.")
 
 
+# function to perform an emergency shutdown
+def emergency_shutdown():
+    for id, pump in pumps.items():
+        if pump.power_status != "OFF":
+            pump.toggle_power()
+            write_message(f"Success: Pump {id} is off.")
+    write_message("Success: Emergency Shutdown, all pumps are off.")
+
+
+# function to return the version of the script
+def ping():
+    global version
+    write_message(f"Success: Pico Pump Control Version {version}")
+
+
+# a function to reset the device, equivalent to a hard reset
+def hard_reset():
+    write_message("Success: Performing hard reset.")
+    reset()
+
+
 # Create default pumps objects
 pumps = {
     1: Pump(
@@ -175,6 +198,14 @@ pumps = {
         initial_power_status="OFF",
         initial_direction_status="CCW",
     ),
+    4: Pump(
+        power_pin_id=0,
+        direction_pin_id=1,
+        initial_power_pin_value=0,
+        initial_direction_pin_value=0,
+        initial_power_status="OFF",
+        initial_direction_status="CCW",
+    ),
 }
 
 # Define a dictionary for the commands
@@ -185,6 +216,9 @@ commands = {
     "info": "info",
     "reg": "register",
     "clr": "clear_pumps",
+    "shutdown": "emergency_shutdown",
+    "reset": "hard_reset",
+    "ping": "ping",
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -277,11 +311,22 @@ def main():
                         send_info(0)
                     elif command == "clr":
                         clear_pumps(0)
+                    elif command == "shutdown":
+                        emergency_shutdown()
                     elif command in commands:
-                        for pump in pumps.values():
-                            method = getattr(pump, commands[command], None)
-                            if method:
-                                method()
+                        if command == "ping":
+                            ping()
+                        elif command == "reset":
+                            hard_reset()
+                        else:
+                            for pump in pumps.values():
+                                method = getattr(pump, commands[command], None)
+                                if method:
+                                    method()
+                                else:
+                                    write_message(
+                                        f"Error: No corresponding method for command '{command}'"
+                                    )
                     else:
                         write_message(
                             f"Error: Invalid command for pump 0 '{command}', available commands are: "
@@ -304,6 +349,10 @@ def main():
                             method = getattr(pump, commands[command], None)
                             if method:
                                 method()
+                            else:
+                                write_message(
+                                    f"Error: No corresponding method for command '{command}'"
+                                )
                     else:
                         write_message(
                             f"Error: Invalid command for pump '{pump_num}', available commands are: "
