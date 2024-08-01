@@ -680,6 +680,9 @@ class PicoController:
                 if self.recipe_df is None or self.recipe_df.empty:
                     logging.error("No recipe data to display.")
                     return
+                
+                # Display the cleaned dataframe in the log
+                logging.info(self.recipe_df)
 
                 columns = list(self.recipe_df.columns) + [
                     "Progress Bar",

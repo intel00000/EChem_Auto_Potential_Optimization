@@ -71,8 +71,8 @@ class Pump:
         return {
             "power_pin_id": self.power_pin_id,
             "direction_pin_id": self.direction_pin_id,
-            "initial_power_pin_value": self.initial_power_pin_value,
-            "initial_direction_pin_value": self.initial_direction_pin_value,
+            "initial_power_pin_value": self.power_pin.value(),
+            "initial_direction_pin_value": self.direction_pin.value(),
             "power_status": self.power_status,
             "direction_status": self.direction_status,
         }
@@ -155,7 +155,7 @@ def register_pump(
             pumps[pump_num].initial_direction_pin_value = initial_direction_pin_value
             pumps[pump_num].power_status = initial_power_status
             pumps[pump_num].direction_status = initial_direction_status
-            write_message(f"Success: Pump {pump_num} updated successfully.")
+            write_message(f"Success: Pump {pump_num} updated.")
         else:
             pumps[pump_num] = Pump(
                 power_pin,
@@ -165,7 +165,7 @@ def register_pump(
                 initial_power_status,
                 initial_direction_status,
             )
-            write_message(f"Success: Pump {pump_num} registered successfully.")
+            write_message(f"Success: Pump {pump_num} registered.")
     except Exception as e:
         write_message(f"Error: registering pump {pump_num} failed, {e}")
 
@@ -185,17 +185,16 @@ def clear_pumps(pump_num):
 # function to perform an emergency shutdown
 def emergency_shutdown():
     global pumps
-    for id, pump in pumps.items():
+    for _, pump in pumps.items():
         if pump.power_status != "OFF":
             pump.toggle_power()
-            write_message(f"Success: Pump {id} is off.")
     write_message("Success: Emergency Shutdown, all pumps are off.")
 
 
 # function to return the version of the script
 def ping():
     global version
-    write_message(f"Success: Pico Pump Control Version {version}")
+    write_message(f"Ping: Pico Pump Control Version {version}")
 
 
 # a function to reset the device, equivalent to a hard reset
