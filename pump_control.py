@@ -220,7 +220,7 @@ class PicoController:
         self.recipe_frame.grid(
             row=3,
             column=0,
-            columnspan=5,
+            columnspan=4,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -231,7 +231,7 @@ class PicoController:
         self.recipe_frame_buttons.grid(
             row=0,
             column=0,
-            columnspan=5,
+            columnspan=4,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -270,7 +270,7 @@ class PicoController:
         self.recipe_table_frame.grid(
             row=1,
             column=0,
-            columnspan=5,
+            columnspan=4,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -290,7 +290,7 @@ class PicoController:
         self.progress_frame.grid(
             row=4,
             column=0,
-            columnspan=5,
+            columnspan=4,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -551,8 +551,6 @@ class PicoController:
                 if messagebox.askyesno(
                     "Reset", "Are you sure you want to reset the Pico?"
                 ):
-                    # stop the procedure if running
-                    self.stop_procedure()
                     self.send_command_queue.put("0:reset")
                     logging.info("Signal sent for Pico reset.")
                     messagebox.showinfo("Reset", "Signal sent for Pico reset.")
@@ -579,6 +577,8 @@ class PicoController:
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
             self.continue_button.config(state=tk.DISABLED)
+            # enable the disconnect button
+            self.disconnect_button.config(state=tk.NORMAL)
             logging.info("Procedure stopped.")
             if message:
                 messagebox.showinfo(
@@ -1059,6 +1059,8 @@ class PicoController:
             self.pause_button.config(state=tk.NORMAL)
             # disable the continue button
             self.continue_button.config(state=tk.DISABLED)
+            # disable the disconnect button
+            self.disconnect_button.config(state=tk.DISABLED)
 
             # clear the stop time and pause time
             self.pause_timepoint = -1
@@ -1068,9 +1070,10 @@ class PicoController:
                 float(self.recipe_df["Time point (min)"].max()) * 60
             )
 
-            # clear the recipe table progress and remaining time
+            # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
             for i, child in self.recipe_rows:
-                self.recipe_table.item(child, values=list(self.recipe_df.iloc[i]))
+                self.recipe_table.set(child, "Progress Bar", "")
+                self.recipe_table.set(child, "Remaining Time", "")
 
             # record start time
             self.start_time = time.time() - self.pause_duration
@@ -1093,21 +1096,21 @@ class PicoController:
 
         try:
             if index >= len(self.recipe_df):
+                # update progress bar and remaining time
+                self.update_progress()
                 self.start_time = -1
                 self.total_procedure_time = -1
                 self.current_index = -1
+                # call a emergency shutdown in case the power is still on
+                self.emergency_shutdown()
                 logging.info("Procedure completed.")
                 messagebox.showinfo(
                     "Procedure Complete", "The procedure has been completed."
                 )
                 # disable the stop button
                 self.stop_button.config(state=tk.DISABLED)
-                # disable the pause button
                 self.pause_button.config(state=tk.DISABLED)
-                # disable the continue button
                 self.continue_button.config(state=tk.DISABLED)
-                # call a emergency shutdown in case the power is still on
-                self.emergency_shutdown()
                 return
 
             self.current_index = index
@@ -1121,7 +1124,9 @@ class PicoController:
             # Handle duplicate time points or immediate execution
             if current_step_remaining_time > 0:
                 # If there is time remaining, sleep for half of the remaining time
-                intended_sleep_time = int(current_step_remaining_time * 1000 / 2)
+                intended_sleep_time = max(
+                    100, int(current_step_remaining_time * 1000 / 2)
+                )
                 self.scheduled_task = self.master.after(
                     intended_sleep_time, self.execute_procedure, index
                 )
