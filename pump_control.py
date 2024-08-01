@@ -36,7 +36,7 @@ class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Control via Pi Pico")
-        self.main_loop_interval = 10  # Main loop interval in milliseconds
+        self.main_loop_interval = 20  # Main loop interval in milliseconds
 
         # port refresh timer
         self.port_refersh_interval = 5  # Refresh rate for COM ports when not connected
@@ -553,7 +553,6 @@ class PicoController:
                 ):
                     self.send_command_queue.put("0:reset")
                     logging.info("Signal sent for Pico reset.")
-                    messagebox.showinfo("Reset", "Signal sent for Pico reset.")
                     self.enable_disable_pumps_buttons(tk.DISABLED)
             except Exception as e:
                 logging.error(f"Error: {e}")
@@ -952,6 +951,10 @@ class PicoController:
                         "Time points are required in monotonically increasing order."
                     )
 
+                # check if there is duplicate time points
+                if self.recipe_df[self.recipe_df.columns[0]].duplicated().any():
+                    raise ValueError("Duplicate time points are not allowed.")
+
                 # Setup the table to display the data
                 columns = list(self.recipe_df.columns) + [
                     "Progress Bar",
@@ -1043,9 +1046,6 @@ class PicoController:
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to execute.")
             return
-        if self.recipe_df is None:
-            messagebox.showerror("Error", "No recipe file loaded.")
-            return
         if not self.serial_port:
             messagebox.showerror("Error", "Not connected to Pico.")
             return
@@ -1121,9 +1121,8 @@ class PicoController:
             # calculate the remaining time for the current step
             current_step_remaining_time = target_time - elapsed_time
 
-            # Handle duplicate time points or immediate execution
+            # If there is time remaining, sleep for half of the remaining time
             if current_step_remaining_time > 0:
-                # If there is time remaining, sleep for half of the remaining time
                 intended_sleep_time = max(
                     100, int(current_step_remaining_time * 1000 / 2)
                 )
@@ -1183,7 +1182,7 @@ class PicoController:
 
         # issue a one-time status update
         self.update_status()
-        self.scheduled_task = self.master.after(0, self.execute_procedure, index + 1)
+        self.scheduled_task = self.master.after(100, self.execute_procedure, index + 1)
 
     def update_progress(self):
         if (
@@ -1200,7 +1199,9 @@ class PicoController:
             total_progress = 100
             remaining_time = 0
         else:
-            total_progress = int((elapsed_time / self.total_procedure_time) * 100)
+            total_progress = min(
+                100, int((elapsed_time / self.total_procedure_time) * 100)
+            )
             remaining_time = max(0, int(self.total_procedure_time - elapsed_time))
 
         self.total_progress_bar["value"] = total_progress
@@ -1215,12 +1216,12 @@ class PicoController:
             if elapsed_time < time_stamp:
                 break
             else:
-                # Handle duplicate time points and calculate progress for each step
+                # Calculate progress for each step
                 if i < len(self.recipe_df) - 1:
                     next_row = self.recipe_df.iloc[i + 1]
                     next_time_stamp = float(next_row["Time point (min)"]) * 60
-                    if next_time_stamp != time_stamp:
-                        time_interval = next_time_stamp - time_stamp
+                    time_interval = next_time_stamp - time_stamp
+                    if time_interval > 0:
                         # handle the case where the next row has the same timestamp
                         row_progress = min(
                             100,
