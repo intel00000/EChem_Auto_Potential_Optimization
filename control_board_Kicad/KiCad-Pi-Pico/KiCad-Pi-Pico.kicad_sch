@@ -9051,7 +9051,7 @@
 				)
 			)
 		)
-		(property "Footprint" "SC0915:MODULE_SC0915"
+		(property "Footprint" "RPi_Pico:RPi_Pico_SMD_TH"
 			(at 177.8 74.93 0)
 			(effects
 				(font
