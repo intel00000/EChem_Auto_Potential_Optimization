@@ -442,13 +442,7 @@ class PicoController:
         """Synchronize the Pico's RTC with the PC's time."""
         try:
             now = datetime.now()
-            day_of_week = (
-                now.weekday() + 1
-            ) % 7  # Python's weekday: Mon=0, Pico: Sun=0
-            sync_command = (
-                f"0:stime:{now.year}:{now.month}:{now.day}:"
-                f"{day_of_week}:{now.hour}:{now.minute}:{now.second}"
-            )
+            sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
             self.send_command_queue.put(sync_command)
         except Exception as e:
             logging.error(f"Error synchronizing RTC with PC time: {e}")
@@ -463,15 +457,10 @@ class PicoController:
 
     def update_rtc_time_display(self, response):
         try:
-            match = re.search(
-                r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+) \((\w+)\)", response
-            )
+            match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
             if match:
                 rtc_time = match.group(1)
-                day_name = match.group(2)
-                self.current_time_label.config(
-                    text=f"RTC Time: {rtc_time} ({day_name})"
-                )
+                self.current_time_label.config(text=f"RTC Time: {rtc_time}")
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
@@ -685,7 +674,9 @@ class PicoController:
             if self.serial_port and not self.send_command_queue.empty():
                 command = self.send_command_queue.get(block=False)
                 self.serial_port.write(f"{command}\n".encode())
-                logging.info(f"PC -> Pico: {command}")
+                # don't log the RTC time sync command
+                if "time" not in command:
+                    logging.info(f"PC -> Pico: {command}")
         except serial.SerialException as e:
             self.disconnect_pico(False)
             logging.error(f"Error: {e}")
@@ -701,7 +692,11 @@ class PicoController:
         try:
             if self.serial_port and self.serial_port.in_waiting:
                 response = self.serial_port.readline().decode("utf-8").strip()
-                logging.info(f"Pico -> PC: {response}")
+
+                # don't log the RTC time response
+                if "RTC Time" not in response:
+                    logging.info(f"Pico -> PC: {response}")
+
                 if "Info" in response:
                     self.add_pump_widgets(response)
                 elif "Status" in response:
@@ -709,14 +704,12 @@ class PicoController:
                 elif "RTC Time" in response:
                     self.update_rtc_time_display(response)
                 elif "Success" in response:
-                    # don't display the emergency shutdown success message or the RTC time sync success message
-                    if (
-                        "Emergency Shutdown" not in response
-                        or "RTC Time" not in response
-                    ):
+                    # don't display the emergency shutdown success message
+                    if "Emergency Shutdown" not in response:
                         messagebox.showinfo("Success", response)
                 elif "Error" in response:
                     messagebox.showerror("Error", response)
+
         except serial.SerialException as e:
             self.disconnect_pico(False)
             logging.error(f"Error: {e}")

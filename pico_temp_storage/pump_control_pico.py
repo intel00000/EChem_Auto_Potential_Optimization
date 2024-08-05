@@ -268,7 +268,7 @@ def set_time(year, month, day, hour, minute, second):
     try:
         rtc.datetime((year, month, day, 0, hour, minute, second, 0))
         write_message(
-            f"Success: RTC time set to {year}-{month}-{day} {hour}:{minute}:{second}"
+            f"Success: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
         )
     except Exception as e:
         write_message(f"Error: Could not set RTC time, {e}")
