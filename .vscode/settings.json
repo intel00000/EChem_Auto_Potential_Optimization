@@ -20,5 +20,8 @@
     "editor.defaultFormatter": null,
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
     }
 }
