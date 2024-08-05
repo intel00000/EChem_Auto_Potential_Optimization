@@ -31,15 +31,21 @@ global_pad_S = 5
 global_pad_W = 5
 global_pad_E = 5
 
+NANOSECONDS_PER_SECOND = 1_000_000_000
+
 
 class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Control via Pi Pico")
-        self.main_loop_interval = 20  # Main loop interval in milliseconds
+        self.main_loop_interval = (
+            20 * NANOSECONDS_PER_SECOND
+        )  # Main loop interval in nanoseconds
 
         # port refresh timer
-        self.port_refersh_interval = 5  # Refresh rate for COM ports when not connected
+        self.port_refresh_interval = (
+            5 * NANOSECONDS_PER_SECOND
+        )  # Refresh rate for COM ports when not connected
         self.last_port_refresh = -1
         self.timeout = 1  # Serial port timeout in seconds
 
@@ -85,7 +91,9 @@ class PicoController:
         )
 
         self.create_widgets()
-        self.master.after(self.main_loop_interval, self.main_loop)
+        self.master.after(
+            self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
+        )
 
     def create_widgets(self):
         # Select port frame
@@ -325,26 +333,24 @@ class PicoController:
         )
 
         # RTC time frame
-        self.rtc_time_frame = ttk.Labelframe(
+        self.rtc_time_frame = ttk.Frame(
             self.master,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            padding=(0, 0, 0, 0),
         )
         self.rtc_time_frame.grid(
             row=5,
             column=0,
             columnspan=4,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
+            padx=0,
+            pady=0,
+            sticky="NSE",
         )
 
         # first row in the rtc_time_frame, containing the current rtc time from the Pico
         self.current_time_label = ttk.Label(
             self.rtc_time_frame, text="RTC Time: --:--:--"
         )
-        self.current_time_label.grid(
-            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSW"
-        )
+        self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
 
     def main_loop(self):
         try:
@@ -353,16 +359,23 @@ class PicoController:
             self.send_command()
             self.update_progress()
             self.query_rtc_time()
-            self.master.after(self.main_loop_interval, self.main_loop)
+            self.master.after(
+                self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
             messagebox.showerror("Error", f"An error occurred: {e}")
             # we will continue the main loop even if an error occurs
-            self.master.after(self.main_loop_interval, self.main_loop)
+            self.master.after(
+                self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
+            )
 
     def refresh_ports(self):
         if not self.serial_port:
-            if time.time() - self.last_port_refresh < self.port_refersh_interval:
+            if (
+                time.monotonic_ns() - self.last_port_refresh
+                < self.port_refresh_interval
+            ):
                 return
             # filter by vendor id
             ports = [
@@ -386,7 +399,7 @@ class PicoController:
             else:
                 # clear the port combobox
                 self.port_combobox.set("")
-            self.last_port_refresh = time.time()
+            self.last_port_refresh = time.monotonic_ns()
 
     def connect_to_pico(self):
         selected_port = self.port_combobox.get()
@@ -450,7 +463,7 @@ class PicoController:
     def query_rtc_time(self):
         """Send a request to the Pico to get the current RTC time every second."""
         current_time = time.monotonic_ns()
-        if current_time - self.last_time_query >= 1_000_000_000:
+        if current_time - self.last_time_query >= NANOSECONDS_PER_SECOND:
             if self.serial_port:
                 self.send_command_queue.put("0:time")
                 self.last_time_query = current_time
@@ -647,7 +660,7 @@ class PicoController:
             if self.scheduled_task:
                 self.master.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
-            self.pause_timepoint = time.time()
+            self.pause_timepoint = time.monotonic_ns()
             self.pause_button.config(state=tk.DISABLED)
             self.continue_button.config(state=tk.NORMAL)
             logging.info("Procedure paused.")
@@ -658,7 +671,7 @@ class PicoController:
     def continue_procedure(self):
         try:
             if self.pause_timepoint != -1:
-                self.pause_duration += time.time() - self.pause_timepoint
+                self.pause_duration += time.monotonic_ns() - self.pause_timepoint
                 self.pause_timepoint = -1
             self.pause_button.config(state=tk.NORMAL)
             self.continue_button.config(state=tk.DISABLED)
@@ -1131,7 +1144,9 @@ class PicoController:
 
             # calculate the total procedure time
             self.total_procedure_time = (
-                float(self.recipe_df["Time point (min)"].max()) * 60
+                float(self.recipe_df["Time point (min)"].max())
+                * 60
+                * NANOSECONDS_PER_SECOND
             )
 
             # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
@@ -1140,7 +1155,7 @@ class PicoController:
                 self.recipe_table.set(child, "Remaining Time", "")
 
             # record start time
-            self.start_time = time.time() - self.pause_duration
+            self.start_time = time.monotonic_ns() - self.pause_duration
             self.current_index = 0
             self.execute_procedure()
         except Exception as e:
@@ -1179,19 +1194,21 @@ class PicoController:
 
             self.current_index = index
             row = self.recipe_df.iloc[index]
-            target_time = float(row["Time point (min)"]) * 60
+            target_time = float(row["Time point (min)"]) * 60 * NANOSECONDS_PER_SECOND
 
-            elapsed_time = time.time() - self.start_time - self.pause_duration
+            elapsed_time = time.monotonic_ns() - self.start_time - self.pause_duration
             # calculate the remaining time for the current step
             current_step_remaining_time = target_time - elapsed_time
 
             # If there is time remaining, sleep for half of the remaining time
             if current_step_remaining_time > 0:
                 intended_sleep_time = max(
-                    100, int(current_step_remaining_time * 1000 / 2)
+                    100 * NANOSECONDS_PER_SECOND, current_step_remaining_time // 2
                 )
                 self.scheduled_task = self.master.after(
-                    intended_sleep_time, self.execute_procedure, index
+                    intended_sleep_time // NANOSECONDS_PER_SECOND,
+                    self.execute_procedure,
+                    index,
                 )
                 return
 
@@ -1257,7 +1274,7 @@ class PicoController:
         ):
             return
 
-        elapsed_time = time.time() - self.start_time - self.pause_duration
+        elapsed_time = time.monotonic_ns() - self.start_time - self.pause_duration
         # Handle total_procedure_time being zero
         if self.total_procedure_time == 0:
             total_progress = 100
@@ -1266,7 +1283,12 @@ class PicoController:
             total_progress = min(
                 100, int((elapsed_time / self.total_procedure_time) * 100)
             )
-            remaining_time = max(0, int(self.total_procedure_time - elapsed_time))
+            remaining_time = max(
+                0,
+                int(
+                    (self.total_procedure_time - elapsed_time) / NANOSECONDS_PER_SECOND
+                ),
+            )
 
         self.total_progress_bar["value"] = total_progress
         time_str = time.strftime("%H:%M:%S", time.gmtime(remaining_time))
@@ -1274,7 +1296,11 @@ class PicoController:
 
         # Update the recipe table with individual progress and remaining time
         for i, child in self.recipe_rows:
-            time_stamp = float(self.recipe_df.iloc[i]["Time point (min)"]) * 60
+            time_stamp = (
+                float(self.recipe_df.iloc[i]["Time point (min)"])
+                * 60
+                * NANOSECONDS_PER_SECOND
+            )
 
             # if the time stamp is in the future, break the loop
             if elapsed_time < time_stamp:
@@ -1283,7 +1309,11 @@ class PicoController:
                 # Calculate progress for each step
                 if i < len(self.recipe_df) - 1:
                     next_row = self.recipe_df.iloc[i + 1]
-                    next_time_stamp = float(next_row["Time point (min)"]) * 60
+                    next_time_stamp = (
+                        float(next_row["Time point (min)"])
+                        * 60
+                        * NANOSECONDS_PER_SECOND
+                    )
                     time_interval = next_time_stamp - time_stamp
                     if time_interval > 0:
                         # handle the case where the next row has the same timestamp
@@ -1291,7 +1321,13 @@ class PicoController:
                             100,
                             int(((elapsed_time - time_stamp) / time_interval) * 100),
                         )
-                        remaining_time_row = max(0, int(next_time_stamp - elapsed_time))
+                        remaining_time_row = max(
+                            0,
+                            int(
+                                (next_time_stamp - elapsed_time)
+                                / NANOSECONDS_PER_SECOND
+                            ),
+                        )
                     else:
                         # If the next row has the same timestamp, mark the progress as 100%
                         row_progress = 100
