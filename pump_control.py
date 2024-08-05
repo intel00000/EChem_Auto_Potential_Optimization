@@ -32,15 +32,15 @@ global_pad_W = 5
 global_pad_E = 5
 
 NANOSECONDS_PER_SECOND = 1_000_000_000
+NANOSECONDS_PER_MILLISECOND = 1_000_000
+NANOSECONDS_PER_MICROSECOND = 1_000
 
 
 class PicoController:
     def __init__(self, master):
         self.master = master
         self.master.title("Pump Control via Pi Pico")
-        self.main_loop_interval = (
-            20 * NANOSECONDS_PER_SECOND
-        )  # Main loop interval in nanoseconds
+        self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
 
         # port refresh timer
         self.port_refresh_interval = (
@@ -91,9 +91,7 @@ class PicoController:
         )
 
         self.create_widgets()
-        self.master.after(
-            self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
-        )
+        self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def create_widgets(self):
         # Select port frame
@@ -359,16 +357,12 @@ class PicoController:
             self.send_command()
             self.update_progress()
             self.query_rtc_time()
-            self.master.after(
-                self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
-            )
+            self.master.after(self.main_loop_interval_ms, self.main_loop)
         except Exception as e:
             logging.error(f"Error: {e}")
             messagebox.showerror("Error", f"An error occurred: {e}")
             # we will continue the main loop even if an error occurs
-            self.master.after(
-                self.main_loop_interval // NANOSECONDS_PER_SECOND, self.main_loop
-            )
+            self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def refresh_ports(self):
         if not self.serial_port:
@@ -1173,61 +1167,54 @@ class PicoController:
             messagebox.showerror("Error", "Not connected to Pico.")
             return
 
-        try:
-            if index >= len(self.recipe_df):
-                # update progress bar and remaining time
-                self.update_progress()
-                self.start_time = -1
-                self.total_procedure_time = -1
-                self.current_index = -1
-                # call a emergency shutdown in case the power is still on
-                self.emergency_shutdown()
-                logging.info("Procedure completed.")
-                messagebox.showinfo(
-                    "Procedure Complete", "The procedure has been completed."
-                )
-                # disable the stop button
-                self.stop_button.config(state=tk.DISABLED)
-                self.pause_button.config(state=tk.DISABLED)
-                self.continue_button.config(state=tk.DISABLED)
-                return
+        if index >= len(self.recipe_df):
+            # update progress bar and remaining time
+            self.update_progress()
+            self.start_time = -1
+            self.total_procedure_time = -1
+            self.current_index = -1
+            # call a emergency shutdown in case the power is still on
+            self.emergency_shutdown()
+            logging.info("Procedure completed.")
+            messagebox.showinfo(
+                "Procedure Complete", "The procedure has been completed."
+            )
+            # disable the stop button
+            self.stop_button.config(state=tk.DISABLED)
+            self.pause_button.config(state=tk.DISABLED)
+            self.continue_button.config(state=tk.DISABLED)
+            return
 
-            self.current_index = index
-            row = self.recipe_df.iloc[index]
-            target_time = float(row["Time point (min)"]) * 60 * NANOSECONDS_PER_SECOND
+        self.current_index = index
+        row = self.recipe_df.iloc[index]
+        target_time = float(row["Time point (min)"]) * 60 * NANOSECONDS_PER_SECOND
 
-            elapsed_time = time.monotonic_ns() - self.start_time - self.pause_duration
-            # calculate the remaining time for the current step
-            current_step_remaining_time = target_time - elapsed_time
+        elapsed_time = time.monotonic_ns() - self.start_time - self.pause_duration
+        # calculate the remaining time for the current step
+        current_step_remaining_time = target_time - elapsed_time
 
-            # If there is time remaining, sleep for half of the remaining time
-            if current_step_remaining_time > 0:
-                intended_sleep_time = max(
-                    100 * NANOSECONDS_PER_SECOND, current_step_remaining_time // 2
-                )
-                self.scheduled_task = self.master.after(
-                    intended_sleep_time // NANOSECONDS_PER_SECOND,
-                    self.execute_procedure,
-                    index,
-                )
-                return
+        # If there is time remaining, sleep for half of the remaining time
+        if current_step_remaining_time > 0:
+            intended_sleep_time_ms = max(
+                100, current_step_remaining_time // 2 // NANOSECONDS_PER_MILLISECOND
+            )
+            # convert from nanoseconds to milliseconds
+            self.scheduled_task = self.master.after(
+                int(intended_sleep_time_ms),
+                self.execute_procedure,
+                index,
+            )
+            return
 
-            logging.info(f"executing step at index {index}")
+        logging.info(f"executing step at index {index}")
 
-            # Parse pump and valve actions dynamically
-            pump_actions = {
-                col: row[col] for col in row.index if col.startswith("Pump")
-            }
-            valve_actions = {
-                col: row[col] for col in row.index if col.startswith("Valve")
-            }
+        # Parse pump and valve actions dynamically
+        pump_actions = {col: row[col] for col in row.index if col.startswith("Pump")}
+        valve_actions = {col: row[col] for col in row.index if col.startswith("Valve")}
 
-            # issue a one-time status update
-            self.update_status()
-            self.execute_actions(index, pump_actions, valve_actions)
-        except Exception as e:
-            logging.error(f"Error: {e}")
-            messagebox.showerror("Error", f"An error occurred: {e}")
+        # issue a one-time status update
+        self.update_status()
+        self.execute_actions(index, pump_actions, valve_actions)
 
     def execute_actions(self, index, pump_actions, valve_actions):
         for pump, action in pump_actions.items():
@@ -1263,7 +1250,7 @@ class PicoController:
 
         # issue a one-time status update
         self.update_status()
-        self.scheduled_task = self.master.after(100, self.execute_procedure, index + 1)
+        self.scheduled_task = self.master.after(20, self.execute_procedure, index + 1)
 
     def update_progress(self):
         if (
