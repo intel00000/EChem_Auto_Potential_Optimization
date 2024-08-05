@@ -1,6 +1,5 @@
-from machine import Pin, reset
+from machine import Pin, reset, RTC
 from uctypes import addressof, struct, UINT32
-import machine
 import pwm_dma_fade_onetime
 import array
 import sys
@@ -10,6 +9,7 @@ import json
 import os
 
 # a dictionary to store the pumps, the key is the pump number and the value is the pump instance
+rtc = RTC()
 pumps = {}
 version = "0.01"
 SAVE_FILE = "pumps_config.json"
@@ -254,6 +254,38 @@ def load_pumps():
         write_message(f"Error: Could not load pumps, {e}")
 
 
+# function to get the current RTC time
+def get_time():
+    try:
+        year, month, day, day_of_week, hour, minute, second, _ = rtc.datetime()
+        day_names = [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+        ]
+        day_name = day_names[day_of_week]
+        write_message(
+            f"RTC Time: {year}-{month}-{day} {hour}:{minute}:{second} ({day_name})"
+        )
+    except Exception as e:
+        write_message(f"Error: Could not get RTC time, {e}")
+
+
+# function to set the RTC time
+def set_time(year, month, day, day_of_week, hour, minute, second):
+    try:
+        rtc.datetime((year, month, day, day_of_week, hour, minute, second, 0))
+        write_message(
+            f"Success: RTC time set to {year}-{month}-{day} (Day of Week: {day_of_week}) {hour}:{minute}:{second}"
+        )
+    except Exception as e:
+        write_message(f"Error: Could not set RTC time, {e}")
+
+
 # Define a dictionary for the commands
 commands = {
     "pw": "toggle_power",
@@ -266,6 +298,8 @@ commands = {
     "reset": "hard_reset",
     "ping": "ping",
     "save": "save_pumps",
+    "time": "get_time",
+    "stime": "set_time",
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -352,7 +386,25 @@ def main():
                         write_message(
                             "Error: Invalid input, expected format 'pump_number:reg:power_pin:direction_pin:initial_power_pin_value:initial_direction_pin_value:initial_power_status:initial_direction_status'"
                         )
-
+                elif command == "time":
+                    # Get current RTC time
+                    get_time()
+                elif command == "stime":
+                    if (
+                        len(parts) == 9
+                    ):  # Adjust the length to accommodate the day_of_week
+                        year = int(parts[2])
+                        month = int(parts[3])
+                        day = int(parts[4])
+                        day_of_week = int(parts[5])
+                        hour = int(parts[6])
+                        minute = int(parts[7])
+                        second = int(parts[8])
+                        set_time(year, month, day, day_of_week, hour, minute, second)
+                    else:
+                        write_message(
+                            "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
+                        )
                 elif pump_num == 0:
                     if command == "st":
                         send_status(0)
