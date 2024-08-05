@@ -352,120 +352,127 @@ def main():
                 command = parts[1].strip().lower()
 
                 # check the input and call the appropriate function
-                if command == "reg":
-                    if len(parts) == 8:
-                        power_pin = int(parts[2])
-                        direction_pin = int(parts[3])
-                        initial_power_pin_value = int(parts[4])
-                        initial_direction_pin_value = int(parts[5])
-                        # check if the initial power status is valid
-                        if parts[6].upper() not in ["ON", "OFF"]:
-                            write_message(
-                                "Error: Invalid initial power status, expected 'ON' or 'OFF'"
-                            )
-                            continue
-                        initial_power = parts[6]
-                        # check if the initial direction status is valid
-                        if parts[7].upper() not in ["CW", "CCW"]:
-                            write_message(
-                                "Error: Invalid initial direction status, expected 'CW' or 'CCW'"
-                            )
-                            continue
-                        initial_direction = parts[7]
+                try:
+                    if command == "reg":
+                        if len(parts) == 8:
+                            power_pin = int(parts[2])
+                            direction_pin = int(parts[3])
+                            initial_power_pin_value = int(parts[4])
+                            initial_direction_pin_value = int(parts[5])
+                            # check if the initial power status is valid
+                            if parts[6].upper() not in ["ON", "OFF"]:
+                                write_message(
+                                    "Error: Invalid initial power status, expected 'ON' or 'OFF'"
+                                )
+                                continue
+                            initial_power = parts[6]
+                            # check if the initial direction status is valid
+                            if parts[7].upper() not in ["CW", "CCW"]:
+                                write_message(
+                                    "Error: Invalid initial direction status, expected 'CW' or 'CCW'"
+                                )
+                                continue
+                            initial_direction = parts[7]
 
-                        register_pump(
-                            pump_num,
-                            power_pin,
-                            direction_pin,
-                            initial_power_pin_value,
-                            initial_direction_pin_value,
-                            initial_power,
-                            initial_direction,
-                        )
-                    else:
-                        write_message(
-                            "Error: Invalid input, expected format 'pump_number:reg:power_pin:direction_pin:initial_power_pin_value:initial_direction_pin_value:initial_power_status:initial_direction_status'"
-                        )
-                elif command == "time":
-                    # Get current RTC time
-                    get_time()
-                elif command == "stime":
-                    if (
-                        len(parts) == 9
-                    ):  # Adjust the length to accommodate the day_of_week
-                        year = int(parts[2])
-                        month = int(parts[3])
-                        day = int(parts[4])
-                        day_of_week = int(parts[5])
-                        hour = int(parts[6])
-                        minute = int(parts[7])
-                        second = int(parts[8])
-                        set_time(year, month, day, day_of_week, hour, minute, second)
-                    else:
-                        write_message(
-                            "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
-                        )
-                elif pump_num == 0:
-                    if command == "st":
-                        send_status(0)
-                    elif command == "info":
-                        send_info(0)
-                    elif command == "clr":
-                        clear_pumps(0)
-                    elif command == "shutdown":
-                        emergency_shutdown()
-                    elif command == "save":
-                        save_pumps()
-                    elif command in commands:
-                        if command == "ping":
-                            ping()
-                        elif command == "reset":
-                            hard_reset()
+                            register_pump(
+                                pump_num,
+                                power_pin,
+                                direction_pin,
+                                initial_power_pin_value,
+                                initial_direction_pin_value,
+                                initial_power,
+                                initial_direction,
+                            )
                         else:
-                            for pump in pumps.values():
+                            write_message(
+                                "Error: Invalid input, expected format 'pump_number:reg:power_pin:direction_pin:initial_power_pin_value:initial_direction_pin_value:initial_power_status:initial_direction_status'"
+                            )
+                    elif command == "time":
+                        # Get current RTC time
+                        get_time()
+                    elif command == "stime":
+                        if (
+                            len(parts) == 9
+                        ):  # Adjust the length to accommodate the day_of_week
+                            year = int(parts[2])
+                            month = int(parts[3])
+                            day = int(parts[4])
+                            day_of_week = int(parts[5])
+                            hour = int(parts[6])
+                            minute = int(parts[7])
+                            second = int(parts[8])
+                            set_time(
+                                year, month, day, day_of_week, hour, minute, second
+                            )
+                        else:
+                            write_message(
+                                "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
+                            )
+                    elif pump_num == 0:
+                        if command == "st":
+                            send_status(0)
+                        elif command == "info":
+                            send_info(0)
+                        elif command == "clr":
+                            clear_pumps(0)
+                        elif command == "shutdown":
+                            emergency_shutdown()
+                        elif command == "save":
+                            save_pumps()
+                        elif command in commands:
+                            if command == "ping":
+                                ping()
+                            elif command == "reset":
+                                hard_reset()
+                            else:
+                                for pump in pumps.values():
+                                    method = getattr(pump, commands[command], None)
+                                    if method:
+                                        method()
+                        else:
+                            write_message(
+                                f"Error: Invalid command for pump 0 '{command}', available commands are: "
+                                + commands_mapping_string
+                            )
+
+                    elif pump_num in pumps:
+                        # get the pump instance
+                        pump = pumps[pump_num]
+
+                        # check if the command is valid
+                        if command in commands:
+                            if command == "st":
+                                send_status(pump_num)
+                            elif command == "info":
+                                send_info(pump_num)
+                            elif command == "clr":
+                                clear_pumps(pump_num)
+                            elif command == "save":
+                                save_pumps(pump_num)
+                            else:
                                 method = getattr(pump, commands[command], None)
                                 if method:
                                     method()
-                    else:
-                        write_message(
-                            f"Error: Invalid command for pump 0 '{command}', available commands are: "
-                            + commands_mapping_string
-                        )
-
-                elif pump_num in pumps:
-                    # get the pump instance
-                    pump = pumps[pump_num]
-
-                    # check if the command is valid
-                    if command in commands:
-                        if command == "st":
-                            send_status(pump_num)
-                        elif command == "info":
-                            send_info(pump_num)
-                        elif command == "clr":
-                            clear_pumps(pump_num)
-                        elif command == "save":
-                            save_pumps(pump_num)
+                                else:
+                                    write_message(
+                                        f"Error: No corresponding method for command '{command}'"
+                                    )
                         else:
-                            method = getattr(pump, commands[command], None)
-                            if method:
-                                method()
-                            else:
-                                write_message(
-                                    f"Error: No corresponding method for command '{command}'"
-                                )
+                            write_message(
+                                f"Error: Invalid command for pump '{pump_num}', available commands are: "
+                                + commands_mapping_string
+                            )
                     else:
                         write_message(
-                            f"Error: Invalid command for pump '{pump_num}', available commands are: "
-                            + commands_mapping_string
+                            f"Error: Invalid pump number '{pump_num}', available pumps are: "
+                            + ", ".join(map(str, pumps.keys()))
                         )
-                else:
-                    write_message(
-                        f"Error: Invalid pump number '{pump_num}', available pumps are: "
-                        + ", ".join(map(str, pumps.keys()))
-                    )
+                except Exception as cmd_error:
+                    write_message(f"Error: {cmd_error}")
         except Exception as e:
+            emergency_shutdown()
             write_message(f"Error: {e}")
+            write_message("Error: critical error, emergency shutdown.")
 
 
 # Run the main loop
