@@ -65,6 +65,9 @@ class PicoController:
         self.pause_duration = 0
         self.scheduled_task = None
 
+        # time stamp for the RTC time query
+        self.last_time_query = time.monotonic_ns()
+
         # define pumps per row in the manual control frame
         self.pumps_per_row = 3
 
@@ -321,12 +324,35 @@ class PicoController:
             row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
 
+        # RTC time frame
+        self.rtc_time_frame = ttk.Labelframe(
+            self.master,
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+        )
+        self.rtc_time_frame.grid(
+            row=5,
+            column=0,
+            columnspan=4,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+
+        # first row in the rtc_time_frame, containing the current rtc time from the Pico
+        self.current_time_label = ttk.Label(
+            self.rtc_time_frame, text="RTC Time: --:--:--"
+        )
+        self.current_time_label.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSW"
+        )
+
     def main_loop(self):
         try:
             self.refresh_ports()
             self.read_serial()
             self.send_command()
             self.update_progress()
+            self.query_rtc_time()
             self.master.after(self.main_loop_interval, self.main_loop)
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -392,6 +418,9 @@ class PicoController:
                     "Connection Status", f"Successfully connected to {parsed_port}"
                 )
 
+                # Sync the RTC time with the PC
+                self.sync_rtc_with_pc_time()
+
                 # issue a pump info query
                 self.query_pump_info()
 
@@ -408,6 +437,43 @@ class PicoController:
                 self.status_label.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def sync_rtc_with_pc_time(self):
+        """Synchronize the Pico's RTC with the PC's time."""
+        try:
+            now = datetime.now()
+            day_of_week = (
+                now.weekday() + 1
+            ) % 7  # Python's weekday: Mon=0, Pico: Sun=0
+            sync_command = (
+                f"0:stime:{now.year}:{now.month}:{now.day}:"
+                f"{day_of_week}:{now.hour}:{now.minute}:{now.second}"
+            )
+            self.send_command_queue.put(sync_command)
+        except Exception as e:
+            logging.error(f"Error synchronizing RTC with PC time: {e}")
+
+    def query_rtc_time(self):
+        """Send a request to the Pico to get the current RTC time every second."""
+        current_time = time.monotonic_ns()
+        if current_time - self.last_time_query >= 1_000_000_000:
+            if self.serial_port:
+                self.send_command_queue.put("0:time")
+                self.last_time_query = current_time
+
+    def update_rtc_time_display(self, response):
+        try:
+            match = re.search(
+                r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+) \((\w+)\)", response
+            )
+            if match:
+                rtc_time = match.group(1)
+                day_name = match.group(2)
+                self.current_time_label.config(
+                    text=f"RTC Time: {rtc_time} ({day_name})"
+                )
+        except Exception as e:
+            logging.error(f"Error updating RTC time display: {e}")
 
     # a helper function to enable/disable the buttons
     def enable_disable_pumps_buttons(self, state):
@@ -640,9 +706,14 @@ class PicoController:
                     self.add_pump_widgets(response)
                 elif "Status" in response:
                     self.update_pump_status(response)
+                elif "RTC Time" in response:
+                    self.update_rtc_time_display(response)
                 elif "Success" in response:
-                    # don't display the emergency shutdown success message
-                    if "Emergency Shutdown" not in response:
+                    # don't display the emergency shutdown success message or the RTC time sync success message
+                    if (
+                        "Emergency Shutdown" not in response
+                        or "RTC Time" not in response
+                    ):
                         messagebox.showinfo("Success", response)
                 elif "Error" in response:
                     messagebox.showerror("Error", response)

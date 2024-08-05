@@ -257,30 +257,18 @@ def load_pumps():
 # function to get the current RTC time
 def get_time():
     try:
-        year, month, day, day_of_week, hour, minute, second, _ = rtc.datetime()
-        day_names = [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-        ]
-        day_name = day_names[day_of_week]
-        write_message(
-            f"RTC Time: {year}-{month}-{day} {hour}:{minute}:{second} ({day_name})"
-        )
+        year, month, day, _, hour, minute, second, _ = rtc.datetime()
+        write_message(f"RTC Time: {year}-{month}-{day} {hour}:{minute}:{second}")
     except Exception as e:
         write_message(f"Error: Could not get RTC time, {e}")
 
 
 # function to set the RTC time
-def set_time(year, month, day, day_of_week, hour, minute, second):
+def set_time(year, month, day, hour, minute, second):
     try:
-        rtc.datetime((year, month, day, day_of_week, hour, minute, second, 0))
+        rtc.datetime((year, month, day, 0, hour, minute, second, 0))
         write_message(
-            f"Success: RTC time set to {year}-{month}-{day} (Day of Week: {day_of_week}) {hour}:{minute}:{second}"
+            f"Success: RTC time set to {year}-{month}-{day} {hour}:{minute}:{second}"
         )
     except Exception as e:
         write_message(f"Error: Could not set RTC time, {e}")
@@ -391,19 +379,14 @@ def main():
                         # Get current RTC time
                         get_time()
                     elif command == "stime":
-                        if (
-                            len(parts) == 9
-                        ):  # Adjust the length to accommodate the day_of_week
+                        if len(parts) == 8:  # Adjusted length
                             year = int(parts[2])
                             month = int(parts[3])
                             day = int(parts[4])
-                            day_of_week = int(parts[5])
-                            hour = int(parts[6])
-                            minute = int(parts[7])
-                            second = int(parts[8])
-                            set_time(
-                                year, month, day, day_of_week, hour, minute, second
-                            )
+                            hour = int(parts[5])
+                            minute = int(parts[6])
+                            second = int(parts[7])
+                            set_time(year, month, day, hour, minute, second)
                         else:
                             write_message(
                                 "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
