@@ -1,6 +1,8 @@
 from machine import Pin, SPI, ADC
 import time
+import utime
 from AD5761 import AD5761, ad5761r_dev, AD5761R_RANGES, AD5761R_SCALES
+import gc
 
 # Define pin connections
 start_stop_pin = Pin(0, Pin.OUT)
@@ -88,8 +90,43 @@ def toggle_prime():
     print(f"Motor Running: {'Yes' if motor_running_pin.value() == 0 else 'No'}")
 
 
+# Class to handle pulse counting using interrupts
+class PulseCounterInterrupt:
+    def __init__(self, pin):
+        self.pin = pin
+        self.last_time = 0
+        self.current_time = utime.ticks_us()
+        self.time_diff = 0
+
+        self.counter = 0
+        self.pin.irq(trigger=Pin.IRQ_FALLING, handler=self.callback)
+
+    def callback(self, pin):
+        # we only record time every 10 pulses to reduce the overhead
+        self.counter += 1
+        if self.counter == 20:
+            self.last_time = self.current_time
+            self.current_time = utime.ticks_us()
+            self.counter = 0
+
+    def get_frequency(self):
+        self.time_diff = utime.ticks_diff(self.current_time, self.last_time)
+        if self.time_diff > 0:
+            return 2e7 / self.time_diff  # Convert microseconds to Hz
+        else:
+            return 0.0
+
+    def deinit(self):
+        self.pin.irq(handler=None)
+
+
+# Initialize the pulse counter
+pulse_counter_interrupt = PulseCounterInterrupt(tach_output_pin)
+
+
 # Print summary of inputs
 def print_summary():
+    global pulse_counter_interrupt
     motor_running = motor_running_pin.value() == 0
     open_head_sensor = open_head_sensor_pin.value() == 0
     general_alarm = general_alarm_pin.value() == 0
@@ -97,22 +134,13 @@ def print_summary():
     local_remote_input = local_remote_input_pin.value() == 0
 
     # Read Tach Output and convert to RPM
-    pulse_count = 0
-
-    def count_pulse(pin):
-        nonlocal pulse_count
-        pulse_count += 1
-
-    tach_output_pin.irq(trigger=Pin.IRQ_RISING, handler=count_pulse)
-    time.sleep(1)
-    tach_output_pin.irq(handler=None)  # Disable IRQ after counting
-    rpm = pulse_count * 6  # Since 10 Hz per RPM
+    pulse_count = pulse_counter_interrupt.get_frequency()
 
     # Read Speed Signal Voltage and convert to mV and percentage
     speed_signal_voltage = speed_signal_voltage_adc.read_u16()
     voltage_mV = (
         speed_signal_voltage / 65535
-    ) * 2500  # Convert 0-65535 ADC value to 0-2500 mV
+    ) * 3300  # Convert 0-65535 ADC value to 0-3300mV range
     voltage_percentage = (
         voltage_mV / 2500
     ) * 100  # Convert mV to percentage of 0-2.5V range
@@ -123,7 +151,7 @@ def print_summary():
     print(f"General Alarm: {'On' if general_alarm else 'Off'}")
     print(f"Local/Remote Output: {'Remote' if local_remote_output else 'Local'}")
     print(f"Local/Remote Input: {'Remote' if local_remote_input else 'Local'}")
-    print(f"Tach Output (RPM): {rpm}")
+    print(f"Tach Output Frequency: {pulse_count:.2f} Hz ({pulse_count * 60:.2f} RPM)")
     print(f"Speed Signal Voltage: {voltage_mV:.2f} mV ({voltage_percentage:.2f}%)")
 
 
@@ -133,27 +161,27 @@ def main():
     write_and_update_dac(0x0000)
     voltage = 0.0
     step = 1.0
-    
+
     while True:
         # toggle_start_stop()
         toggle_start_stop()
         time.sleep(5)
         toggle_start_stop()
-        
+
         # toggle_cw_ccw()
         toggle_cw_ccw()
         time.sleep(5)
         toggle_cw_ccw()
-        
+
         # toggle_prime()
         toggle_prime()
         time.sleep(5)
         toggle_prime()
-        
+
         # print summary
         toggle_start_stop()
         print_summary()
-        
+
         # setting a DAC value, incrementing by 0.1V every 5 seconds
         if voltage <= 10.0:
             set_dac_voltage(voltage)  # Set DAC to the specified voltage
