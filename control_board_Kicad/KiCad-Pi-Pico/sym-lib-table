@@ -5,4 +5,5 @@
   (lib (name "SC0915")(type "KiCad")(uri "${KIPRJMOD}/Libraries/SC0915/SC0915.kicad_sym")(options "")(descr ""))
   (lib (name "2024-07-30_06-03-02")(type "KiCad")(uri "${KIPRJMOD}/Libraries/LM285MX_NOPB/2024-07-30_06-03-02.kicad_sym")(options "")(descr ""))
   (lib (name "2N7002")(type "KiCad")(uri "${KIPRJMOD}/Libraries/2N7002/2N7002.kicad_sym")(options "")(descr ""))
+  (lib (name "PCN2-S5-S12-S")(type "KiCad")(uri "${KIPRJMOD}/Libraries/PCN2_S5_S12_S/PCN2-S5-S12-S.kicad_sym")(options "")(descr ""))
 )

@@ -6,4 +6,5 @@
   (lib (name "LM285MX_NOPB")(type "KiCad")(uri "${KIPRJMOD}/Libraries/LM285MX_NOPB")(options "")(descr ""))
   (lib (name "2N7002")(type "KiCad")(uri "${KIPRJMOD}/Libraries/2N7002")(options "")(descr ""))
   (lib (name "RPi_Pico")(type "KiCad")(uri "${KIPRJMOD}/Libraries/VGA-KiCAD/VGA/RPi_Pico.pretty")(options "")(descr ""))
+  (lib (name "PCN2_S5_S12_S")(type "KiCad")(uri "${KIPRJMOD}/Libraries/PCN2_S5_S12_S")(options "")(descr ""))
 )
