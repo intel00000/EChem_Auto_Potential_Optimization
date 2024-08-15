@@ -136,10 +136,9 @@ class PulseCounter:
         )
 
     def callback(self, sm):
-        print(f"Callback")
         # reinit the timing pulse signal
         TIMING_PULSE_PIN_PWM.deinit()
-        timing_pulse_generator()
+        timing_pulse_generator(message=False)
 
     def read_pulse_count(self):
         if self.pulse_counter_pio_sm.rx_fifo() == 0:
@@ -171,13 +170,15 @@ def timing_pulse_generator(
     timing_pulse=TIMING_PULSE_PIN_PWM,
     timing_pulse_frequency=TIMING_PULSE_FREQUENCY,
     timing_pulse_ratio=TIMING_PULSE_RATIO,
+    message=True,
 ):
     timing_pulse.freq(timing_pulse_frequency)
     timing_pulse.duty_u16(32768)
     timing_interval_ms = 1000 / timing_pulse_frequency * timing_pulse_ratio
-    print(
-        f"Timing Pulse Frequency: {timing_pulse_frequency} Hz, Timing Interval: {timing_interval_ms} ms"
-    )
+    if message:
+        print(
+            f"Timing Pulse Frequency: {timing_pulse_frequency} Hz, Timing Interval: {timing_interval_ms} ms"
+        )
     return timing_interval_ms
 
 

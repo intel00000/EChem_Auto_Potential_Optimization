@@ -65,11 +65,11 @@ def main():
     try:
         # Generate testing PWM signal
         pwm_testing = PWM(Pin(PWM_OUTPUT_PIN, Pin.OUT))
-        pwm_testing.freq(1000)  # Set the desired frequency in Hz
+        pwm_testing.freq(20)  # Set the desired frequency in Hz
         pwm_testing.duty_u16(32768)  # Set duty cycle to 50%
 
         # Set up the timer to periodically read the counter
-        timer = Timer(period=5000, mode=Timer.PERIODIC, callback=timer_callback_timer)
+        timer = Timer(period=1000, mode=Timer.PERIODIC, callback=timer_callback_timer)
 
         while True:
             time.sleep(1)
