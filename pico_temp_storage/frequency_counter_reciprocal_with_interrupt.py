@@ -1,5 +1,6 @@
 from machine import Pin, PWM, freq
 from rp2 import asm_pio, StateMachine, PIO
+import gc
 
 # Pin to generate the PWM signal, connect this pin to the INPUT_PULSE_PIN_ABSOLUTE pin
 PWM_OUTPUT_PIN_ABSOLUTE = 0
@@ -183,6 +184,8 @@ def timing_pulse_generator(
 
 
 def main():
+    # run a gc.collect() to free up memory
+    gc.collect()
     try:
         # clear all state machines
         StateMachine(TIMING_PULSE_SM_ID).active(0)
@@ -193,7 +196,7 @@ def main():
 
         # Generate test PWM signal on PWM_OUTPUT_PIN
         pwm_test_signal = PWM(PWM_OUTPUT_PIN)
-        pwm_test_signal.freq(1000000)  # Set the frequency of the PWM signal
+        pwm_test_signal.freq(2500000)  # Set the frequency of the PWM signal
         # pwm_test_signal.freq(20)  # Set the frequency of the PWM signal
         pwm_test_signal.duty_u16(32768)  # Set duty cycle to 50%
 
@@ -215,9 +218,22 @@ def main():
             timing_pulse_count = pulse_counter.read_timing_count()
             if timing_pulse_count == 1:
                 pulse_count = pulse_counter.read_pulse_count()
-                print(
-                    f"Generated PWM Frequency: {pwm_test_signal.freq()} Hz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count / timing_interval_ms * 1000} Hz"
-                )
+                if (
+                    pulse_count > 1_000_000
+                ):  # change to MHz if the frequency is too high
+                    pulse_count_m = pulse_count / 1_000_000
+                    print(
+                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1_000_000} MHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count_m / timing_interval_ms * 1000} MHz"
+                    )
+                elif pulse_count > 1000:  # change to kHz if the frequency is too high
+                    pulse_count_k = pulse_count / 1000
+                    print(
+                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1000} kHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count_k / timing_interval_ms * 1000} kHz"
+                    )
+                else:
+                    print(
+                        f"Generated PWM Frequency: {pwm_test_signal.freq()} Hz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count / timing_interval_ms * 1000} Hz"
+                    )
             elif timing_pulse_count == -1:
                 continue
             else:
