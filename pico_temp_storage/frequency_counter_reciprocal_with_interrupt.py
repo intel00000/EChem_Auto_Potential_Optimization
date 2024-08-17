@@ -6,17 +6,18 @@ import gc
 PWM_OUTPUT_PIN_ABSOLUTE = 0
 PWM_OUTPUT_PIN = Pin(PWM_OUTPUT_PIN_ABSOLUTE, Pin.OUT)
 # Pin to measure the frequency of the PWM signal
-INPUT_PULSE_PIN_ABSOLUTE = 22
+INPUT_PULSE_PIN_ABSOLUTE = 2
 INPUT_PULSE_PIN = Pin(INPUT_PULSE_PIN_ABSOLUTE, Pin.IN, Pin.PULL_DOWN)
 # Pin to generate the timing pulses
-TIMING_PULSE_PIN_ABSOLUTE = 20
+TIMING_PULSE_PIN_ABSOLUTE = 3
 TIMING_PULSE_PIN = Pin(TIMING_PULSE_PIN_ABSOLUTE, Pin.OUT)
 TIMING_PULSE_PIN_PWM = PWM(TIMING_PULSE_PIN_ABSOLUTE)
 # Pin to set the side-set pin
-SIDESET_PIN_ABSOLUTE = 2
+SIDESET_PIN_ABSOLUTE = 1
 SIDESET_PIN = Pin(SIDESET_PIN_ABSOLUTE, Pin.OUT)
 
-CPU_FREQUENCY = 125_000_000  # 125 MHz
+CPU_DEFAULT_FREQUENCY = 125_000_000  # 125 MHz
+CPU_TARGET_FREQUENCY = 125_000_000  # 125 MHz
 TIMING_PULSE_RATIO = 0x8  # 8 timing pulses for 1 gate time
 TIMING_PULSE_FREQUENCY = 8  # 8 Hz
 
@@ -191,8 +192,8 @@ def main():
         StateMachine(TIMING_PULSE_SM_ID).active(0)
         StateMachine(PULSE_COUNTER_SM_ID).active(0)
 
-        freq(CPU_FREQUENCY)  # Set the CPU frequency
-        print(f"cpu frequency set to: {CPU_FREQUENCY} Hz")
+        freq(CPU_TARGET_FREQUENCY)  # Set the CPU frequency
+        print(f"cpu frequency set to: {freq() / 1_000_000} MHz")
 
         # Generate test PWM signal on PWM_OUTPUT_PIN
         pwm_test_signal = PWM(PWM_OUTPUT_PIN)
@@ -213,31 +214,31 @@ def main():
         pulse_counter.reset()
         pulse_counter.start()
 
-        # Just print the timing pulse count
+        # print the timing pulse count
         while True:
             timing_pulse_count = pulse_counter.read_timing_count()
             if timing_pulse_count == 1:
                 pulse_count = pulse_counter.read_pulse_count()
+                frequency = pulse_count / timing_interval_ms * 1000
                 if (
                     pulse_count > 1_000_000
                 ):  # change to MHz if the frequency is too high
-                    pulse_count_m = pulse_count / 1_000_000
                     print(
-                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1_000_000} MHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count_m / timing_interval_ms * 1000} MHz"
+                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1_000_000} MHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {frequency / 1_000_000} MHz"
                     )
                 elif pulse_count > 1000:  # change to kHz if the frequency is too high
-                    pulse_count_k = pulse_count / 1000
                     print(
-                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1000} kHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count_k / timing_interval_ms * 1000} kHz"
+                        f"Generated PWM Frequency: {pwm_test_signal.freq() / 1000} kHz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {frequency / 1000} kHz"
                     )
                 else:
                     print(
-                        f"Generated PWM Frequency: {pwm_test_signal.freq()} Hz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {pulse_count / timing_interval_ms * 1000} Hz"
+                        f"Generated PWM Frequency: {pwm_test_signal.freq()} Hz, Gate Time: {timing_interval_ms} ms, PIO raw count: {pulse_count}, Frequency: {frequency} Hz"
                     )
             elif timing_pulse_count == -1:
                 continue
             else:
-                print(f"Timing Pulse Count: {timing_pulse_count}")
+                # print(f"Timing Pulse Count: {timing_pulse_count}")
+                continue
 
     except KeyboardInterrupt:
         pulse_counter.stop()
