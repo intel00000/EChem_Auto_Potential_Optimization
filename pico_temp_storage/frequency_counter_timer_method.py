@@ -3,7 +3,7 @@ from rp2 import asm_pio, StateMachine
 import time
 
 PWM_OUTPUT_PIN = 0
-PULSE_INPUT_PIN = 22
+PULSE_INPUT_PIN = 2
 
 
 # PIO program to count pulses
@@ -65,7 +65,7 @@ def main():
     try:
         # Generate testing PWM signal
         pwm_testing = PWM(Pin(PWM_OUTPUT_PIN, Pin.OUT))
-        pwm_testing.freq(20)  # Set the desired frequency in Hz
+        pwm_testing.freq(100)  # Set the desired frequency in Hz
         pwm_testing.duty_u16(32768)  # Set duty cycle to 50%
 
         # Set up the timer to periodically read the counter
@@ -74,7 +74,7 @@ def main():
         while True:
             time.sleep(1)
             print(
-                f"Generated PWM Frequency: {pwm_testing.freq()} Hz, PIO Pulse frequency: {pulse_frequency_pio} Hz"
+                f"Generated PWM Frequency: {pwm_testing.freq()} Hz, Measured frequency: {pulse_frequency_pio} Hz"
             )
     except KeyboardInterrupt:
         global pulse_counter_pio

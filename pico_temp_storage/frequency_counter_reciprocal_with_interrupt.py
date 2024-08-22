@@ -24,7 +24,7 @@ TIMING_PULSE_FREQUENCY = 8  # 8 Hz
 TIMING_PULSE_SM_ID = 0
 PULSE_COUNTER_SM_ID = 1
 
-
+# pi_pico_pio_pwm_frequency_measurement
 # PIO program to count pulses, the gate time is controlled a side-set pin set by another PIO program
 @asm_pio()
 def pulse_counter_pio(
@@ -197,7 +197,7 @@ def main():
 
         # Generate test PWM signal on PWM_OUTPUT_PIN
         pwm_test_signal = PWM(PWM_OUTPUT_PIN)
-        pwm_test_signal.freq(2500000)  # Set the frequency of the PWM signal
+        pwm_test_signal.freq(6000)  # Set the frequency of the PWM signal
         # pwm_test_signal.freq(20)  # Set the frequency of the PWM signal
         pwm_test_signal.duty_u16(32768)  # Set duty cycle to 50%
 

@@ -3,7 +3,7 @@ import utime
 import gc
 
 PWM_OUTPUT_PIN = 0
-PULSE_INPUT_PIN = 22
+PULSE_INPUT_PIN = 2
 
 
 # Class to handle pulse counting using interrupts
@@ -45,13 +45,13 @@ def main():
     try:
         # Generate testing PWM signal
         pwm_testing = PWM(Pin(PWM_OUTPUT_PIN, Pin.OUT))
-        pwm_testing.freq(20)  # Set the desired frequency in Hz
+        pwm_testing.freq(100)  # Set the desired frequency in Hz
         pwm_testing.duty_u16(32768)  # Set duty cycle to 50%
 
         while True:
             utime.sleep(1)
             print(
-                f"Generated PWM Frequency: {pwm_testing.freq()} Hz, PIO Frequency: {pulse_counter_interrupt.get_frequency()} Hz"
+                f"Generated PWM Frequency: {pwm_testing.freq()} Hz, Measured Frequency: {pulse_counter_interrupt.get_frequency()} Hz"
             )
     except KeyboardInterrupt:
         pulse_counter_interrupt.deinit()
