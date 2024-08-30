@@ -74,7 +74,7 @@ It is recommended to use a Python virtual environment for better dependency mana
    In bash, run the following commands (assuming using apt)
 
    ```sh
-   apt-get install python-venv
+   sudo apt-get install python-venv
    python3 -m venv venv
    ```
 
