@@ -1,9 +1,11 @@
+<!-- @format -->
 
 # MasterFlex Pump Controller
 
 This repository contains a MasterFlex Pump Controller implemented in Python, utilizing a Raspberry Pi Pico for hardware control and a PC-side GUI for pumps automation and operations.
 
 ## Table of Contents
+
 - [Requirements](#requirements)
 - [Setup](#setup)
   - [Native Installation](#native-installation)
@@ -23,18 +25,18 @@ This repository contains a MasterFlex Pump Controller implemented in Python, uti
 ### 1. Native Installation
 
 1. Clone the repository:
-    ```sh
-    git clone https://github.com/intel00000/EChem_Auto_Potential_Optimization.git
-    cd EChem_Auto_Potential_Optimization
-    ```
+   ```sh
+   git clone https://github.com/intel00000/EChem_Auto_Potential_Optimization.git
+   cd EChem_Auto_Potential_Optimization
+   ```
 2. Install required Python libraries:
-    ```sh
-    pip install -r requirements.txt
-    ```
+   ```sh
+   pip install -r requirements.txt
+   ```
 3. Run the Pump Controller Demo with the following command:
-    ```sh
-    python pump_control.py
-    ```
+   ```sh
+   python pump_control.py
+   ```
 
 ### 2. Using a Python Virtual Environment (Recommended)
 
@@ -44,47 +46,50 @@ It is recommended to use a Python virtual environment for better dependency mana
 
 1. Open a Windows Powershell and navigate to the project directory.
 2. Create a virtual environment:
-    ```sh
-    python -m venv venv
-    ```
+   ```sh
+   python -m venv venv
+   ```
 3. Activate the virtual environment:
-    ```sh
-    .\venv\Scripts\Activate.ps1
-    ```
-    If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
-    ```sh
-    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
-    ```
-5. Install the required packages:
-    ```sh
-    pip install -r requirements.txt
-    ```
-6. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
-    ```sh
-    python pump_control.py
-    ```
+   ```sh
+   .\venv\Scripts\Activate.ps1
+   ```
+   If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
+   ```sh
+   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
+   ```
+4. Install the required packages:
+   ```sh
+   pip install -r requirements.txt
+   ```
+5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
+   ```sh
+   python pump_control.py
+   ```
 
 #### Linux & MacOS (Untested)
 
 1. Open a terminal and navigate to the project directory.
 2. Create a virtual environment:
 
-    In Powershell, run the following commands:
-    ```sh
-    python3 -m venv venv
-    ```
+   In bash, run the following commands (assuming using apt)
+
+   ```sh
+   sudo apt-get install python-venv
+   python3 -m venv venv
+   ```
+
 3. Activate the virtual environment:
-    ```sh
-    source ./venv/bin/activate
-    ```
+   ```sh
+   source ./venv/bin/activate
+   ```
 4. Install the required packages:
-    ```sh
-    pip install -r requirements.txt
-    ```
+   ```sh
+   pip install -r requirements.txt
+   ```
 5. To run the Pump Controller Demo, activated the virtual environment first and use the following command:
-    ```sh
-    python3 pump_control.py
-    ```
+   ```sh
+   python3 pump_control.py
+   ```
 
 ## Compiling to an Executable
 
@@ -94,13 +99,13 @@ To compile the application to a standalone executable using PyInstaller, it is r
 
 1. Create and activate a virtual environment as described above.
 2. Install PyInstaller if you haven't already:
-    ```sh
-    pip install pyinstaller
-    ```
+   ```sh
+   pip install pyinstaller
+   ```
 3. Run PyInstaller to compile the executable:
-    ```sh
-    pyinstaller --onefile --windowed --console --paths . pump_control.py
-    ```
+   ```sh
+   pyinstaller --onefile --windowed --console --paths . pump_control.py
+   ```
 4. After the process completes, you will find the executable in the `dist` directory.
 
 ## Usage
@@ -120,7 +125,9 @@ To compile the application to a standalone executable using PyInstaller, it is r
 - `pump_control.py`: The Python script for the PC-side GUI, allowing users to interact with the pumps, load recipes, and monitor progress.
 
 ### Example Recipe File
+
 An example of a recipe file structure (CSV or Excel):
+
 ```csv
 Time point (min),Pump 1,Pump 2,Pump 3,Valve 1,Valve 2,Valve 3,Notes
 0,On,Off,Off,CW,CW,CW,Start initial fill with reaction solution
