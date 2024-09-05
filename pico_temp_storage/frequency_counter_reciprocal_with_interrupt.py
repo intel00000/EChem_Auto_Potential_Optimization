@@ -197,7 +197,7 @@ def main():
 
         # Generate test PWM signal on PWM_OUTPUT_PIN
         pwm_test_signal = PWM(PWM_OUTPUT_PIN)
-        pwm_test_signal.freq(6000)  # Set the frequency of the PWM signal
+        pwm_test_signal.freq(10000000)  # Set the frequency of the PWM signal
         # pwm_test_signal.freq(20)  # Set the frequency of the PWM signal
         pwm_test_signal.duty_u16(32768)  # Set duty cycle to 50%
 
