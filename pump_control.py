@@ -23,13 +23,13 @@ import pandas as pd
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
 
-global_pad_x = 3
-global_pad_y = 3
+global_pad_x = 2
+global_pad_y = 2
 
-global_pad_N = 5
-global_pad_S = 5
-global_pad_W = 5
-global_pad_E = 5
+global_pad_N = 3
+global_pad_S = 3
+global_pad_W = 3
+global_pad_E = 3
 
 NANOSECONDS_PER_DAY = 24 * 60 * 60 * 1_000_000_000
 NANOSECONDS_PER_HOUR = 60 * 60 * 1_000_000_000
@@ -97,60 +97,105 @@ class PicoController:
         self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def create_widgets(self):
-        # Select port frame
-        self.select_port_frame = ttk.Labelframe(
+        # Port selection frame
+        self.port_select_frame = ttk.Labelframe(
             self.master,
             text="Select Port",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
-        self.select_port_frame.grid(
+        self.port_select_frame.grid(
             row=0,
             column=0,
-            columnspan=4,
-            rowspan=2,
+            columnspan=5,
+            rowspan=3,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
 
-        # first row in the select_port_frame
-        self.port_label = ttk.Label(self.select_port_frame, text="Select COM Port:")
-        self.port_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y)
+        # first row in the port_select_frame
+        self.port_label = ttk.Label(
+            self.port_select_frame, text="Pump Controller Port:"
+        )
+        self.port_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.port_combobox = ttk.Combobox(
-            self.select_port_frame, state="readonly", width=30
+            self.port_select_frame, state="readonly", width=30
         )
         self.port_combobox.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y)
         self.connect_button = ttk.Button(
-            self.select_port_frame, text="Connect", command=self.connect_to_pico
+            self.port_select_frame, text="Connect", command=self.connect_to_pico
         )
         self.connect_button.grid(row=0, column=2, padx=global_pad_x, pady=global_pad_y)
         self.disconnect_button = ttk.Button(
-            self.select_port_frame, text="Disconnect", command=self.disconnect_pico
+            self.port_select_frame, text="Disconnect", command=self.disconnect_pico
         )
         self.disconnect_button.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button.config(state=tk.DISABLED)
+        self.reset_button = ttk.Button(
+            self.port_select_frame, text="Hard reset", command=self.reset_pico
+        )
+        self.reset_button.grid(
+            row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.reset_button.config(state=tk.DISABLED)
 
-        # second row in the select_port_frame
+        # second row in the port_select_frame
+        self.port_label_as = ttk.Label(
+            self.port_select_frame, text="Autosampler Port:"
+        )
+        self.port_label_as.grid(row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
+        self.port_combobox_as = ttk.Combobox(
+            self.port_select_frame, state="readonly", width=30
+        )
+        self.port_combobox_as.grid(
+            row=1, column=1, padx=global_pad_x, pady=global_pad_y
+        )
+        self.connect_button_as = ttk.Button(
+            self.port_select_frame, text="Connect", command=self.connect_to_pico
+        )
+        self.connect_button_as.grid(
+            row=1, column=2, padx=global_pad_x, pady=global_pad_y
+        )
+        self.disconnect_button_as = ttk.Button(
+            self.port_select_frame, text="Disconnect", command=self.disconnect_pico
+        )
+        self.disconnect_button_as.grid(
+            row=1, column=3, padx=global_pad_x, pady=global_pad_y
+        )
+        self.disconnect_button_as.config(state=tk.DISABLED)
+        self.reset_button_as = ttk.Button(
+            self.port_select_frame, text="Hard reset", command=self.reset_pico
+        )
+        self.reset_button_as.grid(
+            row=1, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.reset_button_as.config(state=tk.DISABLED)
+
+        # third row in the port_select_frame
         self.status_label = ttk.Label(
-            self.select_port_frame, text="Status: Not connected"
+            self.port_select_frame, text="Pump Controller Status: Not connected"
         )
         self.status_label.grid(
-            row=1,
+            row=2,
             column=0,
             padx=global_pad_x,
             pady=global_pad_y,
             columnspan=2,
             sticky="W",
         )
-        self.reset_button = ttk.Button(
-            self.select_port_frame, text="Hard reset", command=self.reset_pico
+        self.status_label_as = ttk.Label(
+            self.port_select_frame, text="Autosampler Controller Status: Not connected"
         )
-        self.reset_button.grid(
-            row=1, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        self.status_label_as.grid(
+            row=2,
+            column=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            columnspan=3,
+            sticky="W",
         )
-        self.reset_button.config(state=tk.DISABLED)
 
         # Manual control frame
         self.manual_control_frame = ttk.Labelframe(
@@ -159,9 +204,9 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.manual_control_frame.grid(
-            row=2,
+            row=3,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -172,7 +217,7 @@ class PicoController:
         self.manual_control_frame_buttons.grid(
             row=0,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -217,7 +262,7 @@ class PicoController:
         self.pumps_frame.grid(
             row=1,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -230,9 +275,9 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.recipe_frame.grid(
-            row=3,
+            row=4,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -243,7 +288,7 @@ class PicoController:
         self.recipe_frame_buttons.grid(
             row=0,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -282,7 +327,7 @@ class PicoController:
         self.recipe_table_frame.grid(
             row=1,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -300,9 +345,9 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.progress_frame.grid(
-            row=4,
+            row=5,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -347,9 +392,9 @@ class PicoController:
             padding=(0, 0, 0, 0),
         )
         self.rtc_time_frame.grid(
-            row=5,
+            row=6,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=0,
             pady=0,
             sticky="NSE",
@@ -399,11 +444,14 @@ class PicoController:
                     logging.error(f"Error: {e}")
 
             self.port_combobox["values"] = ports
+            self.port_combobox_as["values"] = ports
             if len(ports) > 0:
                 self.port_combobox.current(0)  # Default to the first returned port
+                self.port_combobox_as.current(0)  # Default to the first returned port
             else:
                 # clear the port combobox
                 self.port_combobox.set("")
+                self.port_combobox_as.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
 
     def connect_to_pico(self):
@@ -429,7 +477,7 @@ class PicoController:
             try:
                 self.serial_port = serial.Serial(parsed_port, timeout=self.timeout)
                 self.current_port = selected_port
-                self.status_label.config(text=f"Status: Connected to {parsed_port}")
+                self.status_label.config(text=f"Pump Controller Status: Connected to {parsed_port}")
 
                 logging.info(f"Connected to {selected_port}")
                 messagebox.showinfo(
@@ -446,13 +494,13 @@ class PicoController:
                 self.enable_disable_pumps_buttons(tk.NORMAL)
 
             except serial.SerialException as e:
-                self.status_label.config(text="Status: Not connected")
+                self.status_label.config(text="Pump Controller Status: Not connected")
                 logging.error(f"Error: {e}")
                 messagebox.showerror(
                     "Connection Status", f"Failed to connect to {selected_port}"
                 )
             except Exception as e:
-                self.status_label.config(text="Status: Not connected")
+                self.status_label.config(text="Pump Controller Status: Not connected")
                 logging.error(f"Error: {e}")
                 messagebox.showerror("Error", f"An error occurred: {e}")
 
@@ -505,7 +553,7 @@ class PicoController:
                     self.scheduled_task = None
 
                 # update UI
-                self.status_label.config(text="Status: Not connected")
+                self.status_label.config(text="Pump Controller Status: Not connected")
 
                 # clear the pumps widgets
                 self.clear_pumps_widgets()
@@ -921,7 +969,7 @@ class PicoController:
         self.pumps_frame.grid(
             row=1,
             column=0,
-            columnspan=4,
+            columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
