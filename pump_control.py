@@ -56,8 +56,15 @@ class PicoController:
         self.serial_port = None
         self.current_port = None
 
+        # instance field for the autosampler serial port
+        self.serial_port_as = None
+        self.current_port_as = None
+
         # a queue to store commands to be sent to the Pico
         self.send_command_queue = Queue()
+
+        # a queue to store commands to be sent to the autosampler
+        self.send_command_queue_as = Queue()
 
         # Dictionary to store pump information
         self.pumps = {}
@@ -97,6 +104,8 @@ class PicoController:
         self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def create_widgets(self):
+        current_row = 0
+
         # Port selection frame
         self.port_select_frame = ttk.Labelframe(
             self.master,
@@ -104,7 +113,7 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.port_select_frame.grid(
-            row=0,
+            row=current_row,
             column=0,
             columnspan=5,
             rowspan=3,
@@ -112,12 +121,13 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-
         # first row in the port_select_frame
         self.port_label = ttk.Label(
             self.port_select_frame, text="Pump Controller Port:"
         )
-        self.port_label.grid(row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
+        self.port_label.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
         self.port_combobox = ttk.Combobox(
             self.port_select_frame, state="readonly", width=30
         )
@@ -140,12 +150,11 @@ class PicoController:
             row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.reset_button.config(state=tk.DISABLED)
-
         # second row in the port_select_frame
-        self.port_label_as = ttk.Label(
-            self.port_select_frame, text="Autosampler Port:"
+        self.port_label_as = ttk.Label(self.port_select_frame, text="Autosampler Port:")
+        self.port_label_as.grid(
+            row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.port_label_as.grid(row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W")
         self.port_combobox_as = ttk.Combobox(
             self.port_select_frame, state="readonly", width=30
         )
@@ -153,26 +162,18 @@ class PicoController:
             row=1, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_as = ttk.Button(
-            self.port_select_frame, text="Connect", command=self.connect_to_pico
+            self.port_select_frame, text="Connect", command=self.connect_to_pico_as
         )
         self.connect_button_as.grid(
             row=1, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as = ttk.Button(
-            self.port_select_frame, text="Disconnect", command=self.disconnect_pico
+            self.port_select_frame, text="Disconnect", command=self.disconnect_pico_as
         )
         self.disconnect_button_as.grid(
             row=1, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as.config(state=tk.DISABLED)
-        self.reset_button_as = ttk.Button(
-            self.port_select_frame, text="Hard reset", command=self.reset_pico
-        )
-        self.reset_button_as.grid(
-            row=1, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        self.reset_button_as.config(state=tk.DISABLED)
-
         # third row in the port_select_frame
         self.status_label = ttk.Label(
             self.port_select_frame, text="Pump Controller Status: Not connected"
@@ -196,22 +197,23 @@ class PicoController:
             columnspan=3,
             sticky="W",
         )
+        # update the current row
+        current_row += self.port_select_frame.grid_size()[1]
 
-        # Manual control frame
+        # Pump Manual Control frame
         self.manual_control_frame = ttk.Labelframe(
             self.master,
-            text="Manual Control",
+            text="Pump Manual Control",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.manual_control_frame.grid(
-            row=3,
+            row=current_row,
             column=0,
             columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
-
         # first row in the manual control frame, containing all the buttons
         self.manual_control_frame_buttons = ttk.Frame(self.manual_control_frame)
         self.manual_control_frame_buttons.grid(
@@ -256,7 +258,6 @@ class PicoController:
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.emergency_shutdown_button.config(state=tk.DISABLED)
-
         # second row in the manual control frame, containing the pumps widgets
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
         self.pumps_frame.grid(
@@ -267,6 +268,67 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
+        # update the current row
+        current_row += self.manual_control_frame.grid_size()[1]
+        
+        # Autosampler Manual Control frame
+        self.manual_control_frame_as = ttk.Labelframe(
+            self.master,
+            text="Autosampler Manual Control",
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+        )
+        self.manual_control_frame_as.grid(
+            row=current_row,
+            column=0,
+            columnspan=5,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        # first row in the manual control frame, containing all the buttons
+        self.manual_control_frame_buttons_as = ttk.Frame(self.manual_control_frame_as)
+        self.manual_control_frame_buttons_as.grid(
+            row=0,
+            column=0,
+            columnspan=5,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        # first button will be a start button to start the autosampler
+        self.start_as_button = ttk.Button(
+            self.manual_control_frame_buttons_as, text="Start", command=self.start_autosampler
+        )
+        self.start_as_button.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.start_as_button.config(state=tk.DISABLED)
+        # second button will be a stop button to stop the autosampler
+        self.stop_as_button = ttk.Button(
+            self.manual_control_frame_buttons_as, text="Stop", command=self.stop_autosampler
+        )
+        self.stop_as_button.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.stop_as_button.config(state=tk.DISABLED)
+        # third button will be direction button to change the direction of the autosampler
+        self.direction_as_button = ttk.Button(
+            self.manual_control_frame_buttons_as, text="Change Direction", command=self.change_direction_autosampler
+        )
+        self.direction_as_button.grid(
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.direction_as_button.config(state=tk.DISABLED)
+        # fourth button will be a reset button to reset the autosampler to its initial position
+        self.reset_as_button = ttk.Button(
+            self.manual_control_frame_buttons_as, text="Reset", command=self.reset_autosampler
+        )
+        self.reset_as_button.grid(
+            row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.reset_as_button.config(state=tk.DISABLED)
+        # update the current row
+        current_row += self.manual_control_frame_as.grid_size()[1]
 
         # Recipe frame
         self.recipe_frame = ttk.Labelframe(
@@ -275,14 +337,13 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.recipe_frame.grid(
-            row=4,
+            row=current_row,
             column=0,
             columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
-
         # first row in the recipe frame, containing the buttons
         self.recipe_frame_buttons = ttk.Frame(self.recipe_frame)
         self.recipe_frame_buttons.grid(
@@ -321,7 +382,6 @@ class PicoController:
         )
         self.continue_button.grid(row=0, column=4, padx=global_pad_x, pady=global_pad_y)
         self.continue_button.config(state=tk.DISABLED)
-
         # second row in the recipe frame, containing the recipe table
         self.recipe_table_frame = ttk.Frame(self.recipe_frame)
         self.recipe_table_frame.grid(
@@ -337,6 +397,8 @@ class PicoController:
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
         self.scrollbar = ttk.Scrollbar()
+        # update the current row
+        current_row += self.recipe_frame.grid_size()[1]
 
         # Progress frame
         self.progress_frame = ttk.Labelframe(
@@ -345,14 +407,13 @@ class PicoController:
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.progress_frame.grid(
-            row=5,
+            row=current_row,
             column=0,
             columnspan=5,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
-
         # first row in the progress frame, containing the progress bar
         self.total_progress_label = ttk.Label(
             self.progress_frame, text="Total Progress:"
@@ -385,6 +446,8 @@ class PicoController:
         self.end_time_value.grid(
             row=1, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
+        # update the current row
+        current_row += self.progress_frame.grid_size()[1]
 
         # RTC time frame
         self.rtc_time_frame = ttk.Frame(
@@ -392,17 +455,16 @@ class PicoController:
             padding=(0, 0, 0, 0),
         )
         self.rtc_time_frame.grid(
-            row=6,
+            row=current_row,
             column=0,
             columnspan=5,
             padx=0,
             pady=0,
             sticky="NSE",
         )
-
         # first row in the rtc_time_frame, containing the current rtc time from the Pico
         self.current_time_label = ttk.Label(
-            self.rtc_time_frame, text="RTC Time: --:--:--"
+            self.rtc_time_frame, text="MCU Time: --:--:--"
         )
         self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
 
@@ -477,19 +539,18 @@ class PicoController:
             try:
                 self.serial_port = serial.Serial(parsed_port, timeout=self.timeout)
                 self.current_port = selected_port
-                self.status_label.config(text=f"Pump Controller Status: Connected to {parsed_port}")
+                self.status_label.config(
+                    text=f"Pump Controller Status: Connected to {parsed_port}"
+                )
 
                 logging.info(f"Connected to {selected_port}")
                 messagebox.showinfo(
                     "Connection Status", f"Successfully connected to {parsed_port}"
                 )
-
                 # Sync the RTC time with the PC
                 self.sync_rtc_with_pc_time()
-
                 # issue a pump info query
                 self.query_pump_info()
-
                 # enable the buttons
                 self.enable_disable_pumps_buttons(tk.NORMAL)
 
@@ -503,6 +564,110 @@ class PicoController:
                 self.status_label.config(text="Pump Controller Status: Not connected")
                 logging.error(f"Error: {e}")
                 messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def connect_to_pico_as(self):
+        selected_port = self.port_combobox_as.get()
+        if selected_port:
+            parsed_port = selected_port.split("(")[0].strip()
+            # Check if already connected
+            if self.serial_port_as:
+                # if already connected, pop a confirmation message before disconnecting
+                if (
+                    messagebox.askyesno(
+                        "Disconnect",
+                        f"Disconnect from current port {parsed_port}?",
+                    )
+                    == tk.YES
+                ):
+                    # suppress the message for the disconnect
+                    self.disconnect_pico_as(show_message=False)
+                else:
+                    return
+
+            # Attempt to connect to the selected port
+            try:
+                self.serial_port_as = serial.Serial(parsed_port, timeout=self.timeout)
+                self.current_port_as = selected_port
+                self.status_label_as.config(
+                    text=f"Autosampler Controller Status: Connected to {parsed_port}"
+                )
+
+                # enable the disconnect button
+                self.disconnect_button_as.config(state=tk.NORMAL)
+                
+                # enable the manual control buttons
+                self.start_as_button.config(state=tk.NORMAL)
+                self.stop_as_button.config(state=tk.NORMAL)
+                self.direction_as_button.config(state=tk.NORMAL)
+                self.reset_as_button.config(state=tk.NORMAL)
+
+                logging.info(f"Connected to {selected_port}")
+                messagebox.showinfo(
+                    "Connection Status", f"Successfully connected to {parsed_port}"
+                )
+            except serial.SerialException as e:
+                self.status_label_as.config(
+                    text="Autosampler Controller Status: Not connected"
+                )
+                logging.error(f"Error: {e}")
+                messagebox.showerror(
+                    "Connection Status", f"Failed to connect to {selected_port}"
+                )
+            except Exception as e:
+                self.status_label_as.config(
+                    text="Autosampler Controller Status: Not connected"
+                )
+                logging.error(f"Error: {e}")
+                messagebox.showerror("Error", f"An error occurred: {e}")
+
+    def disconnect_pico_as(self, show_message=True):
+        if self.serial_port_as:
+            try:
+                # close the serial port connection
+                self.serial_port_as.close()
+                self.serial_port_as = None
+                self.current_port_as = None
+
+                # update UI
+                self.status_label_as.config(
+                    text="Autosampler Controller Status: Not connected"
+                )
+
+                # disable the disconnect button
+                self.disconnect_button_as.config(state=tk.DISABLED)
+                self.start_as_button.config(state=tk.DISABLED)
+                self.stop_as_button.config(state=tk.DISABLED)
+                self.direction_as_button.config(state=tk.DISABLED)
+                self.reset_as_button.config(state=tk.DISABLED)
+
+                # refresh the port list immediately
+                self.refresh_ports()
+
+                logging.info("Disconnected from Autosampler")
+                if show_message:
+                    messagebox.showinfo(
+                        "Connection Status", "Disconnected from Autosampler"
+                    )
+            except serial.SerialException as e:
+                logging.error(f"Error: {e}")
+                messagebox.showerror(
+                    "Connection Status", "Failed to disconnect from Autosampler"
+                )
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                messagebox.showerror("Error", f"An error occurred: {e}")
+                
+    def start_autosampler(self):
+        pass
+    
+    def stop_autosampler(self):
+        pass
+    
+    def change_direction_autosampler(self):
+        pass
+    
+    def reset_autosampler(self):
+        pass
 
     def sync_rtc_with_pc_time(self):
         """Synchronize the Pico's RTC with the PC's time."""
@@ -526,7 +691,7 @@ class PicoController:
             match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
             if match:
                 rtc_time = match.group(1)
-                self.current_time_label.config(text=f"RTC Time: {rtc_time}")
+                self.current_time_label.config(text=f"MCU Time: {rtc_time}")
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
