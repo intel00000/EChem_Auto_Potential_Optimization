@@ -48,10 +48,9 @@ class Autosampler:
         # time interval between steps in milliseconds
         self.time_interval_between_steps_ms = 5
 
-        # RTC setup
-        self.rtc = machine.RTC()
-        # version of the autosampler control program
-        self.version = "0.01"
+        self.rtc = machine.RTC()  # RTC setup
+
+        self.version = "0.01"  # version of the autosampler control program
 
         # Load configuration and status
         self.load_config()
@@ -65,7 +64,10 @@ class Autosampler:
         self.write_message(f"{status}")
 
     def send_config(self) -> None:
-        self.write_message(f"Autosampler Configuration: {self.autosampler_config}")
+        # assemble in json format
+        self.write_message(
+            f"Autosampler Configuration: {json.dumps(self.autosampler_config)}"
+        )
 
     def ping(self) -> None:
         self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
@@ -74,12 +76,11 @@ class Autosampler:
         self.write_message("Success: Performing hard reset.")
         machine.reset()
 
-    def save_status(self) -> None:
+    def save_status(self, write_message=True) -> None:
         try:
             with open(STATUS_FILE, "w") as f:
                 output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
                 f.write(output)
-            self.write_message(f"Success: Status saved: {output}")
         except Exception as e:
             self.write_message(f"Error: Could not save status, {e}")
 
@@ -154,10 +155,9 @@ class Autosampler:
     def move_auto_sampler(self, steps) -> None:
         try:
             if steps > 0:
-                # if steps is positive, move to the left
-                self.current_direction = 1
+                self.current_direction = 1  # move to the left
             else:
-                self.current_direction = 0
+                self.current_direction = 0  # move to the right
             self.direction.value(self.current_direction)
 
             self.is_power_on = True
@@ -181,6 +181,7 @@ class Autosampler:
             self.is_power_on = False
 
     def move_to_position(self, position) -> None:
+        position = int(position)
         # position cannot be negative or exceed MAX_POSITION
         if position < 0 or position > MAX_POSITION:
             self.write_message(
@@ -188,11 +189,11 @@ class Autosampler:
             )
             return
 
-        self.move_auto_sampler(position - self.current_position)
         print(
             f"move_to_position(): relative position: {position - self.current_position}"
         )
-        self.write_message(f"Success: Autosampler moved to position {position}")
+        self.move_auto_sampler(position - self.current_position)
+        self.write_message(f"Info: Autosampler moved to position {position}")
 
     def move_to_slot(self, slot) -> None:
         if slot not in self.autosampler_config:
@@ -200,7 +201,12 @@ class Autosampler:
             return
         position = int(self.autosampler_config[slot])
         self.move_to_position(position)
-        self.write_message(f"Success: Autosampler moved to slot {slot}")
+        self.write_message(f"Info: Autosampler moved to slot {slot}")
+
+    def move_to_fail_safe(self) -> None:
+        self.write_message("Moving to fail-safe position.")
+        position = int(self.fail_safe_position)
+        self.move_to_position(position)
 
     def toggle_direction(self) -> None:
         self.current_direction = 1 - self.current_direction
@@ -212,7 +218,7 @@ class Autosampler:
     def shutdown(self) -> None:
         self.move_auto_sampler(-self.current_position)
         self.current_position = 0
-        self.write_message("Success: Autosampler position reset to 0")
+        self.write_message("Success: Autosampler position reset to initial position.")
 
 
 def main():
@@ -251,6 +257,9 @@ def main():
         "time": "get_time",
         "stime": "set_time",
     }
+    commands_mapping_string = ", ".join(
+        [f"{key} - {value}" for key, value in commands.items()]
+    )
 
     while True:
         try:
@@ -264,9 +273,11 @@ def main():
                 if not data or data == "":
                     autosampler.write_message("Error: Empty input.")
                     continue
-                print(f"Received: {data}")
 
                 parts = data.split(":")
+                # if the first item is a digit, then it's in format digit:command..., we don't care about the digit
+                if parts[0].isdigit() and len(parts) > 1:
+                    parts = parts[1:]
                 command = parts[0].strip().lower()
 
                 if command in commands:
@@ -278,10 +289,12 @@ def main():
                             method()
                     else:
                         autosampler.write_message(
-                            f"Error: Command '{command}' not found."
+                            f"Warning: Command '{command}' not found."
                         )
                 else:
-                    autosampler.write_message("Error: Invalid command.")
+                    autosampler.write_message(
+                        f"Warning: Invalid command, available commands: {commands_mapping_string}"
+                    )
         except Exception as e:
             autosampler.write_message(f"Error: An exception occurred - {str(e)}")
 
