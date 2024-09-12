@@ -2,5 +2,3 @@ openpyxl
 pandas
 pyinstaller
 pyserial
-PyQt6
-PySide6
