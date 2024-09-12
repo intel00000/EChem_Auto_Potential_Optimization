@@ -47,11 +47,11 @@ It is recommended to use a Python virtual environment for better dependency mana
 1. Open a Windows Powershell and navigate to the project directory.
 2. Create a virtual environment:
    ```sh
-   python -m venv venv
+   python -m venv .venv
    ```
 3. Activate the virtual environment:
    ```sh
-   .\venv\Scripts\Activate.ps1
+   .\.venv\Scripts\Activate.ps1
    ```
    If this fail, you might need to run this command first, see https://stackoverflow.com/questions/54776324/powershell-bug-execution-of-scripts-is-disabled-on-this-system
    ```sh
@@ -75,12 +75,12 @@ It is recommended to use a Python virtual environment for better dependency mana
 
    ```sh
    sudo apt-get install python-venv
-   python3 -m venv venv
+   python3 -m venv .venv
    ```
 
 3. Activate the virtual environment:
    ```sh
-   source ./venv/bin/activate
+   source ./.venv/bin/activate
    ```
 4. Install the required packages:
    ```sh
