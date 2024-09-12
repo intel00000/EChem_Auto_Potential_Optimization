@@ -162,7 +162,6 @@ class Autosampler:
 
             self.is_power_on = True
             self.enable.value(0)
-
             for _ in range(abs(steps)):
                 self.pulse.value(0)
                 self.pulse.value(1)
@@ -171,7 +170,6 @@ class Autosampler:
                 time.sleep_ms(self.time_interval_between_steps_ms)
                 if not self.is_power_on:
                     break
-
             self.save_status()
             self.enable.value(1)
             self.is_power_on = False
@@ -189,19 +187,27 @@ class Autosampler:
             )
             return
 
-        print(
-            f"move_to_position(): relative position: {position - self.current_position}"
-        )
+        initial_position = self.current_position
+        start_time = time.ticks_us()
         self.move_auto_sampler(position - self.current_position)
-        self.write_message(f"Info: Autosampler moved to position {position}")
+        end_time = time.ticks_us()
+        self.write_message(
+            f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+        )
 
     def move_to_slot(self, slot) -> None:
         if slot not in self.autosampler_config:
             self.write_message(f"Error: Slot {slot} not found in the configuration")
             return
         position = int(self.autosampler_config[slot])
+
+        initial_position = self.current_position
+        start_time = time.ticks_us()
         self.move_to_position(position)
-        self.write_message(f"Info: Autosampler moved to slot {slot}")
+        end_time = time.ticks_us()
+        self.write_message(
+            f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+        )
 
     def move_to_fail_safe(self) -> None:
         self.write_message("Moving to fail-safe position.")

@@ -467,7 +467,6 @@ class PicoController:
             self.master.after(self.main_loop_interval_ms, self.main_loop)
         except Exception as e:
             logging.error(f"Error: {e}")
-            messagebox.showerror("Error", f"An error occurred: {e}")
             # we will continue the main loop even if an error occurs
             self.master.after(self.main_loop_interval_ms, self.main_loop)
 
@@ -993,7 +992,8 @@ class PicoController:
                         )
                         self.disconnect_pico_as()
                 elif "Error" in response:
-                    messagebox.showerror("Error", response)
+                    if "Slot" not in response:
+                        messagebox.showerror("Error", response)
                 elif "Success" in response:
                     messagebox.showinfo("Success", response)
 
@@ -1009,11 +1009,12 @@ class PicoController:
             logging.error(f"Error: {e}")
             messagebox.showerror("Error", f"Read_serial_as: An error occurred: {e}")
 
-    def goto_position_as(self):
+    def goto_position_as(self, position=None):
         if self.serial_port_as:
             try:
-                position = self.position_entry_as.get().strip()
-                if position.isdigit():
+                if position is None:
+                    position = self.position_entry_as.get().strip()
+                if position and position.isdigit():
                     command = f"position:{position}"
                     self.send_command_queue_as.put(command)
                     logging.info(f"Autosampler command sent: {command}")
@@ -1025,10 +1026,11 @@ class PicoController:
                 logging.error(f"Error: {e}")
                 messagebox.showerror("Error", f"An error occurred: {e}")
 
-    def goto_slot_as(self):
+    def goto_slot_as(self, slot=None):
         if self.serial_port_as:
             try:
-                slot = self.slot_combobox_as.get().strip()
+                if slot is None:
+                    slot = self.slot_combobox_as.get().strip()
                 if slot:
                     command = f"slot:{slot}"
                     self.send_command_queue_as.put(command)
@@ -1428,9 +1430,6 @@ class PicoController:
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to execute.")
             return
-        if not self.serial_port:
-            messagebox.showerror("Error", "Not connected to Pico.")
-            return
 
         logging.info("Starting procedure...")
 
@@ -1476,9 +1475,6 @@ class PicoController:
         if self.recipe_df is None or self.recipe_df.empty:
             messagebox.showerror("Error", "No recipe file loaded.")
             logging.error("No recipe data to execute.")
-            return
-        if not self.serial_port:
-            messagebox.showerror("Error", "Not connected to Pico.")
             return
 
         try:
@@ -1533,15 +1529,36 @@ class PicoController:
             valve_actions = {
                 col: row[col] for col in row.index if col.startswith("Valve")
             }
+            auto_sampler_actions_slots = {
+                col: row[col] for col in row.index if col.startswith("Autosampler_slot")
+            }
+            auto_sampler_actions_positions = {
+                col: row[col]
+                for col in row.index
+                if col.startswith("Autosampler_position")
+            }
 
             # issue a one-time status update
             self.update_status()
-            self.execute_actions(index, pump_actions, valve_actions)
+            self.execute_actions(
+                index,
+                pump_actions,
+                valve_actions,
+                auto_sampler_actions_slots,
+                auto_sampler_actions_positions,
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
             messagebox.showerror("Error", f"An error occurred: {e}")
 
-    def execute_actions(self, index, pump_actions, valve_actions):
+    def execute_actions(
+        self,
+        index,
+        pump_actions,
+        valve_actions,
+        auto_sampler_actions_slots,
+        auto_sampler_actions_positions,
+    ):
         for pump, action in pump_actions.items():
             if pd.isna(action) or action == "":
                 continue
@@ -1572,6 +1589,22 @@ class PicoController:
                         f"At index {index}, valve_id {valve_id} status: {self.pumps[valve_id]['direction_status']}, intended status: {action}, toggling direction."
                     )
                     self.toggle_direction(valve_id, update_status=False)
+
+        for _, slot in auto_sampler_actions_slots.items():
+            if pd.isna(slot) or slot == "":
+                continue
+            self.goto_slot_as(str(slot))
+
+        for _, position in auto_sampler_actions_positions.items():
+            if pd.isna(position) or position == "":
+                continue
+            # check if the position is a number
+            if position.isdigit():
+                self.goto_position_as(int(position))
+            else:
+                logging.error(
+                    f"Warning: Invalid autosampler position: {position} at index {index}"
+                )
 
         # issue a one-time status update
         self.update_status()
