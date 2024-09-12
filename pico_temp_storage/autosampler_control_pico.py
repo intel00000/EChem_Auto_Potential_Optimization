@@ -93,7 +93,7 @@ class Autosampler:
             self.write_message(
                 f"Success: Status loaded: {self.current_position}, {self.current_direction}"
             )
-        except FileNotFoundError:
+        except OSError:
             # create a new status file
             with open(STATUS_FILE, "w") as f:
                 f.write("")
@@ -123,7 +123,7 @@ class Autosampler:
             self.write_message(
                 f"Success: Configuration loaded: {self.autosampler_config}"
             )
-        except FileNotFoundError:
+        except OSError:
             with open(CONFIG_FILE, "w") as f:
                 json.dump({}, f)
             self.autosampler_config = {}
@@ -286,6 +286,19 @@ def main():
                     parts = parts[1:]
                 command = parts[0].strip().lower()
 
+                if command == "stime":
+                    if len(parts) == 7:  # Adjusted length
+                        year = int(parts[1])
+                        month = int(parts[2])
+                        day = int(parts[3])
+                        hour = int(parts[4])
+                        minute = int(parts[5])
+                        second = int(parts[6])
+                        autosampler.set_time(year, month, day, hour, minute, second)
+                    else:
+                        autosampler.write_message(
+                            "Error: Invalid input, expected format 'stime:year:month:day:hour:minute:second'"
+                        )
                 if command in commands:
                     method = getattr(autosampler, commands[command], None)
                     if method:
