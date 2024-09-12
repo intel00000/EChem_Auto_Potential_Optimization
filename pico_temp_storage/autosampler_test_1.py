@@ -33,7 +33,7 @@ for i in range(5):
     for k in range(time_sleep_in_between):
         print(f"seconds left: {time_sleep_in_between-k}")
         time.sleep(1)
-    
+
 # go all the way back
 direction.value(1)
 
@@ -54,7 +54,7 @@ for i in range(5):
     for k in range(time_sleep_in_between):
         print(f"seconds left: {time_sleep_in_between-k}")
         time.sleep(1)
-    
-    
+
+
 # disable the motor
 enable.value(1)
