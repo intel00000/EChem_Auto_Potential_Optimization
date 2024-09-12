@@ -299,7 +299,7 @@ def main():
                         autosampler.write_message(
                             "Error: Invalid input, expected format 'stime:year:month:day:hour:minute:second'"
                         )
-                if command in commands:
+                elif command in commands:
                     method = getattr(autosampler, commands[command], None)
                     if method:
                         if len(parts) > 1:
