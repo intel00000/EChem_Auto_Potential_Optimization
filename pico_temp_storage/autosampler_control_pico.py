@@ -1,206 +1,238 @@
-from machine import Pin, reset, RTC
-from uctypes import addressof, struct, UINT32
-import pwm_dma_fade_onetime
-import array
+import machine
+import json
 import sys
 import select
-import gc
-import json
-import os
 import time
+import array
+from uctypes import addressof
+import pwm_dma_fade_onetime
 
 # this is a program to control a stepper motor
-# define pins
-pulse = machine.Pin(12, machine.Pin.OUT, machine.Pin.PULL_UP, value=0)
-direction = machine.Pin(14, machine.Pin.OUT, machine.Pin.PULL_UP, value=0)
-enable = machine.Pin(15, machine.Pin.OUT, machine.Pin.PULL_UP, value=1)
-
-# a dictionary to store the status of the autosampler
-rtc = RTC()
-version = "0.01"
-time_interval_between_steps_ms = 5
-autosampler_config = {}
-# the autosampler_config is a dictionary that stores a predefined set of positions for the autosampler
-# the key is the position number and the value is the position in steps
-# for example, autosampler_config = {1: 1000, 2: 2000, 3: 3000}
+MAX_POSITION = 16000
 CONFIG_FILE = "autosampler_config.json"
-# the current_position is just a number that stores the current position of the autosampler
-current_position = -1
-# direction value 1 is to the left, 0 is to the right, current_position = 0 is the rightmost position
-direction_map = {0: "Right", 1: "Left"}
-# default direction is to the left
-current_direction = 1
-STATUS_FILE = "autosampler_status.json"
-is_power_on = False
+STATUS_FILE = "autosampler_status.txt"
+PULSE_PIN = 12
+DIRECTION_PIN = 14
+ENABLE_PIN = 15
 
-print(list(direction_map.keys()))
 
-def write_message(message):
-    sys.stdout.write(f"{message}\n")
-
-# functions to assemble and send status of the autosampler, currently we will send the current position
-def send_status():
-    global current_position
-    status = f"Autosampler Status: position: {current_position}, direction: {direction_map[current_direction]}"
-    write_message(f"{status}")
-
-# functions to send the configuration of the autosampler, basically sending all the positions and the current position
-def send_config():
-    global autosampler_config
-    config = f"Autosampler Configuration: {autosampler_config}"
-    write_message(f"{config}")
-
-# function to return the version of the script
-def ping():
-    global version
-    write_message(f"Ping: Pico Autosampler Control Version {version}")
-
-# a function to reset the device, equivalent to a hard reset
-def hard_reset():
-    write_message("Success: Performing hard reset.")
-    reset()
-
-# function to save the current status of the autosampler, it will be one line with the format
-# "current_position, current_direction"
-def save_status():
-    global current_position, current_direction
-    try:
-        with open(STATUS_FILE, "w") as f:
-            print(f"current_position: {current_position}, current_direction: {current_direction}")
-            output = f"{current_position}, {current_direction}, {direction_map[current_direction]}"
-            f.write(output)
-        write_message(f"Success: Status saved: {output}")
-    except Exception as e:
-        write_message(f"Error: Could not save status, {e}")
-def load_status():
-    global current_position, current_direction
-    try:
-        with open(STATUS_FILE, "r") as f:
-            # just read the first line, split by comma and assign to the variables
-            first_line = f.readline().strip().split(",")
-            current_position = int(first_line[0])
-            current_direction = int(first_line[1])
-        write_message(f"Success: Status loaded: {current_position}, {current_direction}")
-    except Exception as e:
-        write_message(f"Error: Could not load status, {e}")
-# function to save the predefined positions of the autosampler
-def save_config():
-    global autosampler_config
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(autosampler_config, f)
-        write_message(f"Success: Configuration saved: {autosampler_config}")
-    except Exception as e:
-        write_message(f"Error: Could not save configuration, {e}")
-def load_config():
-    global autosampler_config
-    try:
-        with open(CONFIG_FILE, "r") as f:
-            autosampler_config = json.load(f)
-        write_message(f"Success: Configuration loaded: {autosampler_config}")
-    except Exception as e:
-        write_message(f"Error: Could not load configuration, {e}")
-
-# function to get the current RTC time
-def get_time():
-    try:
-        year, month, day, _, hour, minute, second, _ = rtc.datetime()
-        write_message(f"RTC Time: {year}-{month}-{day} {hour}:{minute}:{second}")
-    except Exception as e:
-        write_message(f"Error: Could not get RTC time, {e}")
-# function to set the RTC time
-def set_time(year, month, day, hour, minute, second):
-    try:
-        rtc.datetime((year, month, day, 0, hour, minute, second, 0))
-        write_message(
-            f"Success: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
+class Autosampler:
+    def __init__(self, pulse_pin, direction_pin, enable_pin):
+        # Initialize pins
+        self.pulse = machine.Pin(
+            pulse_pin, machine.Pin.OUT, machine.Pin.PULL_UP, value=0
         )
-    except Exception as e:
-        write_message(f"Error: Could not set RTC time, {e}")
+        self.direction = machine.Pin(
+            direction_pin, machine.Pin.OUT, machine.Pin.PULL_UP, value=0
+        )
+        self.enable = machine.Pin(
+            enable_pin, machine.Pin.OUT, machine.Pin.PULL_UP, value=1
+        )
 
-def move_auto_sampler(steps):
-    global current_position, pulse, direction, enable, is_power_on, current_direction
-    if steps > 0:
-        # we move to the left
-        current_direction = 1
-    else:
-        current_direction = 0
-    direction.value(current_direction)
-    
-    # set the power on
-    is_power_on = True
-    # redefine pulse pin
-    pulse = machine.Pin(12, machine.Pin.OUT, machine.Pin.PULL_UP)
-    enable.value(0)
-    
-    for i in range(abs(steps)):
-        pulse.value(0)
-        pulse.value(1)
-        current_position -= 1 * (1 - 2 * current_direction)
-        time.sleep_ms(time_interval_between_steps_ms)
-        if not is_power_on:
-            break
+        # Initialize autosampler state
+        # current position of the autosampler, current_position = 0 is the rightmost position
+        self.current_position = -1
+        # fail safe position of the autosampler
+        self.fail_safe_position = 0
 
-    save_status()
-    enable.value(1)
-    is_power_on = False
-    
-# a function to move the autosampler to a specific position
-def move_to_position(position):
-    global current_position, autosampler_config
-    # position cannot be negative
-    if position < 0:
-        write_message(f"Error: Position cannot be negative, you are trying to move to {position}")
-        return
-    
-    print(f"relative position: {position - current_position}")
-    move_auto_sampler(position - current_position)
-    print(f"Success: Autosampler moved to position {position}")
-        
-# function to toggle the direction of the autosampler
-def toggle_direction():
-    global current_direction
-    current_direction = 1 - current_direction
-    save_status()
-    write_message(f"Success: Direction toggled to {direction_map[current_direction]}")
-    
-# function to reset position of the autosampler to 0
-def reset_position():
-    global current_position
-    # move the autosampler to the 0 position
-    move_auto_sampler(-current_position)
-    write_message("Success: Autosampler position reset to 0")
+        # direction value 1 is to the left, 0 is to the right, default is to the left
+        self.current_direction = 1
+        # direction value 1 is to the left, 0 is to the right, current_position = 0 is the rightmost position
+        self.direction_map = {0: "Right", 1: "Left"}
 
+        # the autosampler_config is a dictionary that stores a predefined set of positions for the autosampler
+        self.autosampler_config = {}
+        # power status of the autosampler
+        self.is_power_on = False
 
-# Define a dictionary for the commands
-commands = {
-    "position": "move_to_position",
-    "direction": "toggle_direction",
-    
-    "send_position": "send_position",
-    "config": "send_config",
-    
-    "shutdown": "reset_position",
-    
-    
-    "reset": "hard_reset",
-    "ping": "ping",
-    "save": "save_config",
-    "time": "get_time",
-    "stime": "set_time",
-}
+        # time interval between steps in milliseconds
+        self.time_interval_between_steps_ms = 5
 
-# Create a poll object to monitor stdin, which will block until there is input for reading
-poll_obj = select.poll()
-poll_obj.register(sys.stdin, select.POLLIN)
+        self.rtc = machine.RTC()  # RTC setup
+
+        self.version = "0.01"  # version of the autosampler control program
+
+        # Load configuration and status
+        self.load_config()
+        self.load_status()
+
+    def write_message(self, message) -> None:
+        sys.stdout.write(f"{message}\n")
+
+    def send_status(self) -> None:
+        status = f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}"
+        self.write_message(f"{status}")
+
+    def send_config(self) -> None:
+        # assemble in json format
+        self.write_message(
+            f"Autosampler Configuration: {json.dumps(self.autosampler_config)}"
+        )
+
+    def ping(self) -> None:
+        self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
+
+    def hard_reset(self) -> None:
+        self.write_message("Success: Performing hard reset.")
+        machine.reset()
+
+    def save_status(self, write_message=True) -> None:
+        try:
+            with open(STATUS_FILE, "w") as f:
+                output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
+                f.write(output)
+        except Exception as e:
+            self.write_message(f"Error: Could not save status, {e}")
+
+    def load_status(self) -> None:
+        try:
+            with open(STATUS_FILE, "r") as f:
+                first_line = f.readline().strip().split(",")
+                self.current_position = int(first_line[0])
+                self.current_direction = int(first_line[1])
+            self.write_message(
+                f"Success: Status loaded: {self.current_position}, {self.current_direction}"
+            )
+        except OSError:
+            # create a new status file
+            with open(STATUS_FILE, "w") as f:
+                f.write("")
+            self.current_position = -1
+            self.current_direction = 1
+            self.write_message(
+                f"Warning: Status file not found. Initialized with defaults."
+            )
+        except Exception as e:
+            self.write_message(f"Error: Could not load status, {e}")
+
+    def save_config(self) -> None:
+        try:
+            with open(CONFIG_FILE, "w") as f:
+                json.dump(self.autosampler_config, f)
+            self.write_message(
+                f"Success: Configuration saved: {self.autosampler_config}"
+            )
+        except Exception as e:
+            self.write_message(f"Error: Could not save configuration, {e}")
+
+    def load_config(self) -> None:
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                self.autosampler_config = json.load(f)
+                self.fail_safe_position = self.autosampler_config.get("fail_safe", 0)
+            self.write_message(
+                f"Success: Configuration loaded: {self.autosampler_config}"
+            )
+        except OSError:
+            with open(CONFIG_FILE, "w") as f:
+                json.dump({}, f)
+            self.autosampler_config = {}
+            self.fail_safe_position = 0
+            self.write_message(
+                f"Warning: Config file not found. Initialized with defaults."
+            )
+        except Exception as e:
+            self.write_message(f"Error: Could not load configuration, {e}")
+
+    def get_time(self) -> None:
+        try:
+            year, month, day, _, hour, minute, second, _ = self.rtc.datetime()
+            self.write_message(
+                f"RTC Time: {year}-{month}-{day} {hour}:{minute}:{second}"
+            )
+        except Exception as e:
+            self.write_message(f"Error: Could not get RTC time, {e}")
+
+    def set_time(self, year, month, day, hour, minute, second) -> None:
+        try:
+            self.rtc.datetime((year, month, day, 0, hour, minute, second, 0))
+            self.write_message(
+                f"Success: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
+            )
+        except Exception as e:
+            self.write_message(f"Error: Could not set RTC time, {e}")
+
+    def move_auto_sampler(self, steps) -> None:
+        try:
+            if steps > 0:
+                self.current_direction = 1  # move to the left
+            else:
+                self.current_direction = 0  # move to the right
+            self.direction.value(self.current_direction)
+
+            self.is_power_on = True
+            self.enable.value(0)
+            for _ in range(abs(steps)):
+                self.pulse.value(0)
+                self.pulse.value(1)
+
+                self.current_position -= 1 * (1 - 2 * self.current_direction)
+                time.sleep_ms(self.time_interval_between_steps_ms)
+                if not self.is_power_on:
+                    break
+            self.save_status()
+            self.enable.value(1)
+            self.is_power_on = False
+        except Exception as e:
+            self.write_message(f"Error: move_auto_sampler, {e}")
+            self.enable.value(1)
+            self.is_power_on = False
+
+    def move_to_position(self, position) -> None:
+        position = int(position)
+        # position cannot be negative or exceed MAX_POSITION
+        if position < 0 or position > MAX_POSITION:
+            self.write_message(
+                f"Error: Position cannot be negative or exceed {MAX_POSITION}."
+            )
+            return
+
+        initial_position = self.current_position
+        start_time = time.ticks_us()
+        self.move_auto_sampler(position - self.current_position)
+        end_time = time.ticks_us()
+        self.write_message(
+            f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+        )
+
+    def move_to_slot(self, slot) -> None:
+        if slot not in self.autosampler_config:
+            self.write_message(f"Error: Slot {slot} not found in the configuration")
+            return
+        position = int(self.autosampler_config[slot])
+
+        initial_position = self.current_position
+        start_time = time.ticks_us()
+        self.move_to_position(position)
+        end_time = time.ticks_us()
+        self.write_message(
+            f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+        )
+
+    def move_to_fail_safe(self) -> None:
+        self.write_message("Moving to fail-safe position.")
+        position = int(self.fail_safe_position)
+        self.move_to_position(position)
+
+    def toggle_direction(self) -> None:
+        self.current_direction = 1 - self.current_direction
+        self.save_status()
+        self.write_message(
+            f"Success: Direction toggled to {self.direction_map[self.current_direction]}"
+        )
+
+    def shutdown(self) -> None:
+        self.move_auto_sampler(-self.current_position)
+        self.current_position = 0
+        self.write_message("Success: Autosampler position reset to initial position.")
 
 
 def main():
-    # assemble a mapping from key to value in the commands dictionary
-    commands_mapping_string = ", ".join(
-        [f"'{key}': '{value}'" for key, value in commands.items()]
+    autosampler = Autosampler(
+        pulse_pin=PULSE_PIN, direction_pin=DIRECTION_PIN, enable_pin=ENABLE_PIN
     )
 
+    # DMA setup for fading LED
     fade_buffer = array.array(
         "I",
         [(i * i) << 16 for i in range(0, 256, 1)],
@@ -212,74 +244,79 @@ def main():
         secondary_config_data_addr=addressof(secondary_config_data),
         frequency=10240,
     )
-    # Load the configuration and status
-    load_config()
-    load_status()
+
+    # Create a poll object to monitor stdin, which will block until there is input for reading
+    poll_obj = select.poll()
+    poll_obj.register(sys.stdin, select.POLLIN)
+
+    commands = {
+        "position": "move_to_position",
+        "slot": "move_to_slot",
+        "direction": "toggle_direction",
+        "status": "send_status",
+        "config": "send_config",
+        "save_config": "save_config",
+        "save_status": "save_status",
+        "shutdown": "shutdown",
+        "reset": "hard_reset",
+        "ping": "ping",
+        "time": "get_time",
+        "stime": "set_time",
+    }
+    commands_mapping_string = ", ".join(
+        [f"{key} - {value}" for key, value in commands.items()]
+    )
 
     while True:
-        # Wait for input on stdin
-        poll_results = poll_obj.poll()
+        try:
+            # Wait for input on stdin
+            poll_results = poll_obj.poll()
 
-        if poll_results:
-            # Read the data from stdin (PC console input) and strip the newline character
-            data = sys.stdin.readline().strip()
-            dma_secondary.active(1)
+            if poll_results:
+                data = sys.stdin.readline().strip()
+                dma_secondary.active(1)
 
-            # Validate the input data
-            if not data or data == "":
-                write_message("Error: Empty input.")
-                continue
-            # Split the data by semicolon, there semicolumn might not be present in a valid command
-            print(f"Received: {data}")
-            
-            parts = data.split(":")
-            command = parts[0].strip().lower()
+                if not data or data == "":
+                    autosampler.write_message("Error: Empty input.")
+                    continue
 
-            # check the input and call the appropriate function
-            if command == "time":
-                # Get current RTC time
-                get_time()
-            elif command == "stime":
-                if len(parts) == 8:  # Adjusted length
-                    year = int(parts[2])
-                    month = int(parts[3])
-                    day = int(parts[4])
-                    hour = int(parts[5])
-                    minute = int(parts[6])
-                    second = int(parts[7])
-                    set_time(year, month, day, hour, minute, second)
+                parts = data.split(":")
+                # if the first item is a digit, then it's in format digit:command..., we don't care about the digit
+                if parts[0].isdigit() and len(parts) > 1:
+                    parts = parts[1:]
+                command = parts[0].strip().lower()
+
+                if command == "stime":
+                    if len(parts) == 7:  # Adjusted length
+                        year = int(parts[1])
+                        month = int(parts[2])
+                        day = int(parts[3])
+                        hour = int(parts[4])
+                        minute = int(parts[5])
+                        second = int(parts[6])
+                        autosampler.set_time(year, month, day, hour, minute, second)
+                    else:
+                        autosampler.write_message(
+                            "Error: Invalid input, expected format 'stime:year:month:day:hour:minute:second'"
+                        )
+                elif command in commands:
+                    method = getattr(autosampler, commands[command], None)
+                    if method:
+                        if len(parts) > 1:
+                            method(*parts[1:])
+                        else:
+                            method()
+                    else:
+                        autosampler.write_message(
+                            f"Warning: Command '{command}' not found."
+                        )
                 else:
-                    write_message(
-                        "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
+                    autosampler.write_message(
+                        f"Warning: Invalid command, available commands: {commands_mapping_string}"
                     )
-            elif command == "position":
-                if len(parts) == 2:
-                    position = int(parts[1])
-                    move_to_position(position)
-                else:
-                    write_message(
-                        "Error: Invalid input, expected format '0:position:position'"
-                    )
-            elif command == "direction":
-                toggle_direction()
-            elif command == "send_position":
-                send_status()
-            elif command == "config":
-                send_config()
-            elif command == "shutdown":
-                reset_position()
-            elif command == "reset":
-                hard_reset()
-            elif command == "ping":
-                ping()
-            elif command == "save":
-                save_config()
-            else:
-                write_message(
-                    f"Error: Invalid command, available commands: {commands_mapping_string}"
-                )
+        except Exception as e:
+            autosampler.write_message(f"Error: An exception occurred - {str(e)}")
 
 
-# Run the main loop
 if __name__ == "__main__":
     main()

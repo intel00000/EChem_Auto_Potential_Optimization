@@ -6,6 +6,7 @@ logs/*
 
 # ignore python virtual environment
 venv/*
+.venv/*
 env/*
 Lib/*
 Scripts/*

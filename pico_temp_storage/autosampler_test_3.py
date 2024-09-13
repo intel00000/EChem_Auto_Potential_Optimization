@@ -3,6 +3,7 @@ import time
 
 time_sleep_in_between = 5
 
+
 # now we will start from one end, make five stops, each equal distance and stop for 5 seconds
 def main():
     # this is a program to control a stepper motor
@@ -14,7 +15,7 @@ def main():
     # enable the motor
     enable.value(0)
     direction.value(0)
-    
+
     print("Starting the motor")
     start_time = time.ticks_ms()
     print("break point")
@@ -27,8 +28,8 @@ def main():
 
     # disable the motor
     enable.value(1)
-    
-    
+
+
 # Run the main loop
 if __name__ == "__main__":
     main()

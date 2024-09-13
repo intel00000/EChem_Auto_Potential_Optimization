@@ -30,7 +30,7 @@ for i in range(100):
     current_position += 1
 end_time = time.ticks_ms()
 print(f"Time taken for this step: {time.ticks_diff(end_time, start_time)}")
-    
+
 # disable the motor
 enable.value(1)
 
@@ -45,7 +45,7 @@ for i in range(100):
     pulse.value(1)
     time.sleep_ms(time_interval_between_steps)
     current_position -= 1
-    
+
 end_time = time.ticks_ms()
 
 print(f"Time taken for this step: {time.ticks_diff(end_time, start_time)}")
