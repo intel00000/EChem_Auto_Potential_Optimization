@@ -104,7 +104,7 @@ To compile the application to a standalone executable using PyInstaller, it is r
    ```
 3. Run PyInstaller to compile the executable:
    ```sh
-   pyinstaller --onefile --windowed --console --add-data "icons-black.ico;." --add-data "icons-white.ico;." --add-data "icons-red.ico;." --paths . pump_control.py
+   pyinstaller --onefile --windowed --console --add-data "icons-black.ico;." --add-data "icons-white.ico;." --add-data "icons-red.ico;." --icon=icons-red.ico --paths . pump_control.py
    ```
 4. After the process completes, you will find the executable in the `dist` directory.
 

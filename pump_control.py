@@ -14,6 +14,7 @@ from PIL import Image, ImageDraw
 # other library
 import os
 import re
+import sys
 import time
 import json
 import logging
@@ -92,8 +93,8 @@ class PicoController:
         self.pumps_per_row = 3
 
         # define window behavior
-        self.image_red = Image.open("icons-red.ico")
-        self.image_white = Image.open("icons-white.ico")
+        self.image_red = Image.open(resource_path("icons-red.ico"))
+        self.image_white = Image.open(resource_path("icons-white.ico"))
         self.first_close = True
 
         # Set up logging
@@ -1898,8 +1899,19 @@ class PicoController:
             self.non_blocking_messagebox("Error", f"An error occurred: {e}")
 
 
+def resource_path(relative_path):
+    """Get the absolute path to the resource, works for dev and PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 root = tk.Tk()
-root.iconbitmap("icons-red.ico")
+root.iconbitmap(resource_path("icons-red.ico"))
 app = PicoController(root)
 root.protocol("WM_DELETE_WINDOW", app.on_closing)
 root.mainloop()
