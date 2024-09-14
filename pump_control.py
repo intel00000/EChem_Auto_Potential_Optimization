@@ -7,6 +7,9 @@ import serial.tools.list_ports
 # gui imports
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
+import tkinterDnD
+import pystray
+from PIL import Image, ImageDraw
 
 # other library
 import os
@@ -87,6 +90,11 @@ class PicoController:
 
         # define pumps per row in the manual control frame
         self.pumps_per_row = 3
+
+        # define window behavior
+        self.image_red = Image.open("icons-red.ico")
+        self.image_white = Image.open("icons-white.ico")
+        self.first_close = True
 
         # Set up logging
         runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1837,7 +1845,61 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
 
+    # on closing, minimize the window to the system tray
+    def on_closing(self) -> None:
+        # pop a message box to confirm exit the first time
+        if self.first_close:
+            if messagebox.askokcancel(
+                "Quit", "Do you want to quit or minimize to tray?"
+            ):
+                self.first_close = False
+                self.exit(icon=None)
+            else:
+                self.first_close = False
+                self.minimize_to_tray_icon()
+        else:
+            self.minimize_to_tray_icon()
+            return
+
+    def exit(self, icon) -> None:
+        if icon is not None:
+            icon.stop()
+        # stop the procedure if it is running
+        self.stop_procedure()
+        # close the serial ports
+        if self.serial_port:
+            self.disconnect_pico()
+        if self.serial_port_as:
+            self.disconnect_pico_as()
+        root.quit()
+
+    def show_window(self, icon) -> None:
+        icon.stop()
+        root.deiconify()
+
+    # A system tray icon which have two menu options: "show window" and "exit", when hovered over the icon, it will display the remaining procedure time if the procedure is running, else display "Pico Controller", the main loop of the program will still be running in the background
+    def minimize_to_tray_icon(self) -> None:
+        try:
+            # hide the window
+            root.withdraw()
+            menu = (
+                pystray.MenuItem("Show", self.show_window),
+                pystray.MenuItem("Exit", self.exit),
+            )
+            icon = pystray.Icon(
+                name="Pico EChem Automation Controller",
+                icon=self.image_white,
+                title="Pico EChem Automation Controller",
+                menu=menu,
+            )
+            icon.run_detached()
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            self.non_blocking_messagebox("Error", f"An error occurred: {e}")
+
 
 root = tk.Tk()
+root.iconbitmap("icons-red.ico")
 app = PicoController(root)
+root.protocol("WM_DELETE_WINDOW", app.on_closing)
 root.mainloop()
