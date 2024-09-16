@@ -27,5 +27,10 @@
     "[markdown]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
-    "micropico.autoConnect": false
+    "micropico.autoConnect": false,
+    "github.copilot.enable": {
+        "plaintext": true,
+        "markdown": true,
+        "scminput": true
+    }
 }

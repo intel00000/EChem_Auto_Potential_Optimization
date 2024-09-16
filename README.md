@@ -4,6 +4,10 @@
 
 This repository contains a MasterFlex Pump Controller implemented in Python, utilizing a Raspberry Pi Pico for hardware control and a PC-side GUI for pumps automation and operations.
 
+<p align="center">
+  <img src=images/pump_control_gui.png alt="Pump Controller GUI"/>
+</p>
+
 ## Table of Contents
 
 - [Requirements](#requirements)
@@ -74,7 +78,7 @@ It is recommended to use a Python virtual environment for better dependency mana
    In bash, run the following commands (assuming using apt)
 
    ```sh
-   sudo apt-get install python-venv
+   sudo apt-get install python3-venv
    python3 -m venv .venv
    ```
 

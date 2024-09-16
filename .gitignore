@@ -3,13 +3,10 @@ Source Code/*
 build/*
 dist/*
 logs/*
+.vscode/*
 
 # ignore python virtual environment
-venv/*
 .venv/*
-env/*
-Lib/*
-Scripts/*
 pyvenv.cfg
 
 # exclude by extension
