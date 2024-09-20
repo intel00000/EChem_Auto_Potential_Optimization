@@ -25,7 +25,6 @@ CMD_SW_FULL_RESET = 0xF
 
 # Define the pins for SPI connection
 ad5761_sdo = Pin(4)
-ad5761_sync = Pin(5, Pin.OUT, value=1)
 ad5761_sclk = Pin(6)
 ad5761_sdi = Pin(7)
 
@@ -39,40 +38,48 @@ ad5761_alert = Pin(12, Pin.IN, Pin.PULL_UP)
 # Set up the SPI interface
 spi = SPI(
     id=0,
-    baudrate=5000000,
+    baudrate=250_000,
     polarity=1,
-    phase=1,
+    phase=0,
+    firstbit=1,
     sck=ad5761_sclk,
     mosi=ad5761_sdi,
     miso=ad5761_sdo,
-    firstbit=SPI.MSB,
 )
 
-print(f"SPI: {spi}")
-# read the alert pin
-print(f"Alert: {ad5761_alert.value()}")
+ad5761_sync = Pin(5, Pin.OUT, value=1)
 
-time.sleep(1)
-
+# this method adapter to the actual timing of the AD5761
+def write_spi(tx: bytes):
+    ad5761_sync(0)
+    spi.write(tx)
+    ad5761_sync(1)
+    
+def read_into_spi(rx: bytearray):
+    ad5761_sync(0)
+    spi.readinto(rx)
+    ad5761_sync(1)
 
 def print_binary(data):
     # Convert each byte to a binary string with 8 bits, then separate the middle 4 bits with a space
     return " ".join(f"{byte:08b}"[:4] + " " + f"{byte:08b}"[4:] for byte in data)
 
+print(f"SPI: {spi}, Alert: {ad5761_alert.value()}")
+
+time.sleep(1)
 
 # Step 1: Perform a Software Full Reset
 # reset command: 0xEF 00 00
 # Assembling the reset command
 reset_cmd = bytearray(3)
 reset_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_SW_FULL_RESET
-ad5761_sync.off()  # Bring SYNC low to start the communication
-spi.write(reset_cmd)  # Write 24 bits
-ad5761_sync.on()  # Bring SYNC high to end the communication
+write_spi(reset_cmd)  # Write 24 bits
 
 # Print the reset buffer to see the content in full binary
-print(f"Assembled Reset Command: {print_binary(reset_cmd)}")
-print("Software Full Reset Issued")
-print(f"Alert pin: {ad5761_alert.value()}")
+print("------------------------------------")
+print(f"Software Full Reset Issued, Reset Command: {print_binary(reset_cmd)}, Alert pin: {ad5761_alert.value()}")
+
+time.sleep(1)
 
 # Step 2: Write to the control register
 # Format: DB[23:21] DB20 DB[19:16] DB[15:11] DB[10:9] DB8 DB7 DB6 DB5 DB[4:3]   DB[2:0]
@@ -95,39 +102,105 @@ write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_WR_CTRL_REG
 write_cmd[1] = 0x06
 write_cmd[2] = 0x59
 
-ad5761_sync.off()  # Bring SYNC low to start the communication
-spi.write(write_cmd)  # Write 24 bits
-ad5761_sync.on()  # Bring SYNC high to end the communication
+# Write to the control register
+write_spi(write_cmd)  # Write 24 bits
 
 # Print the write buffer to see the content in full binary
-print(f"Assembled Write Command: {print_binary(write_cmd)}")
-print("Write to Control Register")
-print(f"Alert pin: {ad5761_alert.value()}")
+print("------------------------------------")
+print(f"Write to Control Register, Command: {print_binary(write_cmd)}, Alert pin: {ad5761_alert.value()}")
 
+time.sleep(1)
+
+# Step 3: Readback the control register
+# Assembling the read command, which is 0000 1100 0000 0000 0000 0000
+write_cmd = bytearray(3)
+write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_RD_CTRL_REG
+read_buf = bytearray(3)  # Buffer for reading back
+
+# first method, we write the read command and then read the response
+write_spi(write_cmd)  # Write 24 bits
+# Read 24 bits while writing 0x00 which is NOP
+read_into_spi(read_buf)  # Read 24 bits
+
+# Print the read buffer to see the content in full binary
+print("------------------------------------")
+print(f"Read Control Register, Sent: {print_binary(write_cmd)}, Received: {print_binary(read_buf)}, Alert pin: {ad5761_alert.value()}")
+
+time.sleep(1)
+
+# step 4, write and update the DAC register, the value is 16bit
+# Assembling the write command
+write_cmd = bytearray(3)
+write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_WR_UPDATE_DAC_REG
+# the percentage define the percentage of the voltage output
+percentage = 25
+# convert the percentage to 16bit
+value = int(0xFFFF * percentage / 100)
+write_cmd[1] = value >> 8
+write_cmd[2] = value & 0xFF
+
+# Write to the control register
+write_spi(write_cmd)  # Write 24 bits
+
+# Print the write buffer to see the content in full binary
+print("------------------------------------")
+print(f"Write to DAC Register with {percentage}% of the voltage, command: {print_binary(write_cmd)}, Alert pin: {ad5761_alert.value()}")
+
+time.sleep(1)
+
+# step 5, read back the DAC register
+# Assembling the read command, which is 0000 1011 0000 0000 0000 0000
+write_cmd = bytearray(3)
+write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_RD_DAC_REG
+read_buf = bytearray(3)  # Buffer for reading back
+
+# first method, we write the read command and then read the response
+write_spi(write_cmd)  # Write 24 bits
+# Read 24 bits while writing 0x00 which is NOP
+read_into_spi(read_buf)  # Read 24 bits
+# converted the read buffer to 16bit
+read_value = (read_buf[1] << 8) | read_buf[2]
+
+# Print the read buffer to see the content in full binary
+print("------------------------------------")
+print(f"Read DAC Register, Sent: {print_binary(write_cmd)}, Received: {print_binary(read_buf)}, Alert: {ad5761_alert.value()}")
+print(f"Read Value: {read_value}, percentage: {read_value / 0xFFFF * 100}%")
+
+time.sleep(1)
+
+
+# now we will loop from 0 to 100% in 10% increment every 3 seconds, read the DAC register and print the value
 while True:
-    # Step 3: Readback the control register
-    # Assembling the read command, which is 0000 1100 0000 0000 0000 0000
-    write_cmd = bytearray(3)
-    write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_RD_CTRL_REG
-    read_buf = bytearray(3)  # Buffer for reading back
+    for percentage in range(0, 101, 1):
+        # Assembling the write command
+        write_cmd = bytearray(3)
+        write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_WR_UPDATE_DAC_REG
+        # the percentage define the percentage of the voltage output
+        value = int(0xFFFF * percentage / 100)
+        write_cmd[1] = value >> 8
+        write_cmd[2] = value & 0xFF
 
-    # first method, we write the read command and then read the response
-    ad5761_sync.off()  # Bring SYNC low to start the communication
-    spi.write(write_cmd)  # Write 24 bits
-    ad5761_sync.on()  # Bring SYNC high to end the communication
+        # Write to the control register
+        write_spi(write_cmd)  # Write 24 bits
 
-    time.sleep_us(1)  # Wait for the data to be ready
+        # Print the write buffer to see the content in full binary
+        print("------------------------------------")
+        print(f"Assembled Write Command: {print_binary(write_cmd)}")
+        print(f"Write to DAC Register with {percentage}% of the voltage")
 
-    ad5761_sync.off()  # Bring SYNC low to start the communication
-    spi.readinto(read_buf, 0x00)  # Read 24 bits while writing 0x00 which is NOP
-    ad5761_sync.on()  # Bring SYNC high to end the communication
+        # Assembling the read command, which is 0000 1011 0000 0000 0000 0000
+        write_cmd = bytearray(3)
+        write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_RD_DAC_REG
+        read_buf = bytearray(3)  # Buffer for reading back
 
-    # Print the read buffer to see the content in full binary
-    print("------------------------------------")
-    print("Read Control Register, 1st method")
-    print("Sent: ", print_binary(write_cmd))
-    print("Received: ", print_binary(read_buf))
-    print(f"Alert: {ad5761_alert.value()}")
-    print("------------------------------------")
+        # first method, we write the read command and then read the response
+        write_spi(write_cmd)  # Write 24 bits
+        # Read 24 bits while writing 0x00 which is NOP
+        read_into_spi(read_buf)  # Read 24 bits
+        # converted the read buffer to 16bit
+        read_value = (read_buf[1] << 8) | read_buf[2]
 
-    time.sleep(1)
+        # Print the read buffer to see the content in full binary
+        print("------------------------------------")
+        print(f"Read DAC Register, Sent: {print_binary(write_cmd)}, Received: {print_binary(read_buf)}, Alert: {ad5761_alert.value()}")
+        print(f"Read Value: {read_value}, percentage: {read_value / 0xFFFF * 100}%")
