@@ -168,6 +168,15 @@ Time point (min)	Pump 1	Pump 2	Pump 3	Valve 1	Valve 2	Valve 3	Notes
 
 Ensure the `Time point (min)` column is sorted in ascending order.
 
+## PCB Design
+
+Inside the control_board_Kicad folder, there is a KiCad project for the control board. The control board is designed to plug into a pump with a DB25 connector which allow one pico to control one pump respectively.
+Using a PCB enable secure and reliable connection between the pump and the pico, and also allow for easy expansion of the system.
+
+<p align="center">
+  <img src=images/PCB_3D_model.png alt="PCB 3D Model"/>
+</p>
+
 ## Contact
 
 For any issues or contributions, please open an issue or pull request on GitHub.
