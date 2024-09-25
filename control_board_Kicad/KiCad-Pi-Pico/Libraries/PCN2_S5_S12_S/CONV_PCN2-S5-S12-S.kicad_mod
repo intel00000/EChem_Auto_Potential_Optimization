@@ -1,5 +1,5 @@
 
-(footprint CONV_PCN2-S5-S12-S (layer F.Cu) (tedit 66BD2196)
+(module CONV_PCN2-S5-S12-S (layer F.Cu) (tedit 66F3887F)
   (descr "")
   (fp_text reference REF** (at 0.67636 -2.89081 0) (layer F.SilkS)
     (effects (font (size 1.00201574803 1.00201574803) (thickness 0.15)))
