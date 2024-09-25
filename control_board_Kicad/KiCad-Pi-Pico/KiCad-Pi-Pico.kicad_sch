@@ -6,9 +6,10 @@
 	(paper "USLegal")
 	(title_block
 		(title "Pi Pico Masterflex pump DB25 control board")
-		(date "2024-07-22")
-		(rev "0.1")
-		(company "UW-Madison")
+		(date "2024-09-25")
+		(rev "1.0")
+		(company "UW-Madison Chemistry Department Stahl Group")
+		(comment 1 "Made by Tom Tan")
 	)
 	(lib_symbols
 		(symbol "AD5761RBRUZ:AD5761RBRUZ"
@@ -8672,7 +8673,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Button_Switch_SMD:SW_Tactile_SPST_NO_Straight_CK_PTS636Sx25SMTRLFS"
 			(at 119.38 80.01 0)
 			(effects
 				(font
@@ -9488,7 +9489,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "C_Small"
+		(property "Value" "4.7 µF"
 			(at 326.39 99.0535 0)
 			(effects
 				(font
@@ -9497,7 +9498,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric_Pad0.74x0.62mm_HandSolder"
 			(at 323.85 97.79 0)
 			(effects
 				(font
@@ -9628,7 +9629,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "C_Small"
+		(property "Value" "4.7 µF"
 			(at 326.39 81.2862 0)
 			(effects
 				(font
@@ -9637,7 +9638,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric_Pad0.74x0.62mm_HandSolder"
 			(at 323.85 80.01 0)
 			(effects
 				(font
@@ -10683,9 +10684,10 @@
 				(font
 					(size 1.27 1.27)
 				)
+				(hide yes)
 			)
 		)
-		(property "Value" "SC0915"
+		(property "Value" "Raspberry Pi Pico"
 			(at 177.8 29.21 0)
 			(effects
 				(font
