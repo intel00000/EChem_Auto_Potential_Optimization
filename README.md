@@ -170,7 +170,7 @@ Ensure the `Time point (min)` column is sorted in ascending order.
 
 ## PCB Design
 
-Inside the control_board_Kicad folder, there is a KiCad project for the control board. The control board is designed to plug into a pump with a DB25 connector which allow one pico to control one pump respectively.
+Inside the control_board_Kicad folder is a KiCad project for the control board design. The control board is designed to plug into a pump with a DB25 connector which allow one pico to control one pump respectively.
 Using a PCB enable secure and reliable connection between the pump and the pico, and also allow for easy expansion of the system.
 
 <p align="center">
