@@ -9,5 +9,6 @@
   (lib (name "PCN2_S5_S12_S")(type "KiCad")(uri "${KIPRJMOD}/Libraries/PCN2_S5_S12_S")(options "")(descr ""))
   (lib (name "LM285LPR_2_5")(type "KiCad")(uri "${KIPRJMOD}/Libraries/LM285LPR_2_5/KiCADv6/footprints.pretty")(options "")(descr ""))
   (lib (name "LM4132BMF_2_5_NOPB")(type "KiCad")(uri "${KIPRJMOD}/Libraries/LM4132BMF_2_5_NOPB/KiCADv6/footprints.pretty")(options "")(descr ""))
+  (lib (name "TE_3_1825910_5")(type "KiCad")(uri "${KIPRJMOD}/Libraries/TE_3_1825910_5/KiCADv6/footprints.pretty")(options "")(descr ""))
   (lib (name "UW-Madison Logo")(type "KiCad")(uri "${KIPRJMOD}/Libraries/UW-Madison Logo")(options "")(descr ""))
 )
