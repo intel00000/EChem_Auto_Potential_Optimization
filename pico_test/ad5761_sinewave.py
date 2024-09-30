@@ -69,6 +69,36 @@ print(f"SPI: {spi}, Alert: {ad5761_alert.value()}")
 
 time.sleep(1)
 
+# Step 2: Write to the control register
+# Format: DB[23:21] DB20 DB[19:16] DB[15:11] DB[10:9] DB8 DB7 DB6 DB5 DB[4:3]   DB[2:0]
+#         XXX       0    0100      XXXXX     CV[1:0]  OVR B2C ETS 0   PV[1:0]   RA[2:0]
+# X mean don't care
+# CV[1:0] CLEAR voltage selection, 00: zero scale, 01: midscale, 10 or 11: full scale.
+# OVR 5% overrange, 0: 5% overrange disabled, 1: 5% overrange enabled.
+# B2C Bipolar range. 0: DAC input for bipolar output range is straight binary coded., 1: DAC input for bipolar output range is twos complement coded
+# ETS Thermal shutdown alert. The alert may not work correctly if the device powers on with temperature conditions >150°C (greater than the maximum rating of the device). 0: internal digital supply does not power down if die temperature exceeds 150°C. 1: internal digital supply powers down if die temperature exceeds 150°C.
+# PV[1:0] Power-up voltage. 00: zero scale, 01: midscale, 10, 11: full scale.
+# RA[2:0] Output range. Before an output range configuration, the device must be reset.
+# 000: −10 V to +10 V. 001: 0 V to +10 V. 010: −5 V to +5 V. 011: 0 V to 5 V. 100: −2.5 V to +7.5 V. 101: −3 V to +3 V. 110: 0 V to 16 V. 111: 0 V to 20 V.
+
+# we want full scale, no overrange, straight binary, thermal shutdown, full scale power-up, and 0 to 10V output range
+# 0b 0000 0100 0000 0110 0101 1001
+# which is 0x040659
+# Assembling the write command
+write_cmd = bytearray(3)
+write_cmd[0] = CMD_FIRST_4_BITS << 4 | CMD_WR_CTRL_REG
+write_cmd[1] = 0x06
+write_cmd[2] = 0x59
+
+# Write to the control register
+write_spi(write_cmd)  # Write 24 bits
+
+# Print the write buffer to see the content in full binary
+print("------------------------------------")
+print(f"Write to Control Register, Command: {print_binary(write_cmd)}, Alert pin: {ad5761_alert.value()}")
+
+time.sleep(1)
+
 # sine wave parameters
 frequency = 1  # Frequency in Hz
 amplitude = 0.5  # Amplitude of the sine wave (0.5 for half the DAC range)
