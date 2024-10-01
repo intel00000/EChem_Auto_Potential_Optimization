@@ -107,13 +107,17 @@ To compile the application to a standalone executable using PyInstaller, it is r
    pip install pyinstaller
    ```
 3. Run PyInstaller to compile the executable:
+
    ```sh
    pyinstaller pump_control_console.spec
    ```
+
    OR
+
    ```sh
    pyinstaller pump_control_noconsole.spec
    ```
+
 4. After the process completes, you will find the executable in the `dist` directory.
 
 ## Usage
