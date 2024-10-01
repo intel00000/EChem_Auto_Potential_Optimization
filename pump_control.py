@@ -1291,9 +1291,7 @@ class PicoController:
         )
         if file_path:
             try:
-                # first shutdown the procedure if it is running
                 self.stop_procedure()
-                # clear the recipe table
                 self.clear_recipe()
                 if file_path.endswith(".csv"):
                     self.recipe_df = pd.read_csv(
@@ -1311,15 +1309,13 @@ class PicoController:
                     raise ValueError("Unsupported file format.")
 
                 # Clean the data frame
-                # Search for any cell containing the keyword "time"
                 time_cells = [
                     (row_idx, col_idx, cell)
                     for row_idx, row in self.recipe_df.iterrows()
                     for col_idx, cell in enumerate(row)
                     if isinstance(cell, str) and "time" in cell.lower()
-                ]
-                # we need at least one "time" cell as the anchor
-                if len(time_cells) == 0:
+                ]  # Search for any cell containing the keyword "time"
+                if len(time_cells) == 0:  # need at least one "time" cell as the anchor
                     raise ValueError("No cell containing the keyword 'time'.")
                 elif len(time_cells) == 1:
                     # if we only have one "time" cell, we use it as the anchor
@@ -1343,17 +1339,20 @@ class PicoController:
                     # Choose the first relevant "Time (min)" cell as the primary one
                     time_row_idx, time_col_idx, _ = relevant_time_cells[0]
 
-                # Trim the DataFrame
+                # Trim the DataFrame to set the anchor cell as the first cell
                 self.recipe_df = self.recipe_df.iloc[time_row_idx:, time_col_idx:]
+                # check the first row, drop column where the first row cell is empty
+                self.recipe_df = self.recipe_df.loc[
+                    :, self.recipe_df.iloc[0].astype(str).str.strip() != ""
+                ]
                 # Set the first row as column names
                 self.recipe_df.columns = self.recipe_df.iloc[0]
                 # Remove the first row
                 self.recipe_df = self.recipe_df[1:].reset_index(drop=True)
 
-                # drop rows where "Time point (min)" column has NaN
-                self.recipe_df.dropna(subset=[self.recipe_df.columns[0]], inplace=True)
-                # drop rows where "Time point (min)" column is empty
-                self.recipe_df = self.recipe_df[self.recipe_df.iloc[:, 0] != ""]
+                # drop rows where time column has NaN
+                time_col = self.recipe_df.columns[0]
+                self.recipe_df.dropna(subset=[time_col], inplace=True)
 
                 self.recipe_df[self.recipe_df.columns[0]] = self.recipe_df[
                     self.recipe_df.columns[0]
@@ -1366,7 +1365,6 @@ class PicoController:
                     raise ValueError(
                         "Time points are required in monotonically increasing order."
                     )
-
                 # check if there is duplicate time points
                 if self.recipe_df[self.recipe_df.columns[0]].duplicated().any():
                     raise ValueError("Duplicate time points are not allowed.")
@@ -1478,13 +1476,9 @@ class PicoController:
         logging.info("Starting procedure...")
 
         try:
-            # enable the stop button
             self.stop_button.config(state=tk.NORMAL)
-            # enable the pause button
             self.pause_button.config(state=tk.NORMAL)
-            # disable the continue button
             self.continue_button.config(state=tk.DISABLED)
-            # disable the disconnect button
             self.disconnect_button.config(state=tk.DISABLED)
 
             # clear the stop time and pause time
@@ -1495,9 +1489,9 @@ class PicoController:
                 self.master.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
 
-            # calculate the total procedure time
+            # calculate the total procedure time, max time point in the first column
             self.total_procedure_time_ns = self.convert_minutes_to_ns(
-                float(self.recipe_df["Time point (min)"].max())
+                float(self.recipe_df[self.recipe_df.columns[0]].max())
             )
 
             # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
@@ -1542,7 +1536,7 @@ class PicoController:
 
             self.current_index = index
             row = self.recipe_df.iloc[index]
-            target_time_ns = self.convert_minutes_to_ns(float(row["Time point (min)"]))
+            target_time_ns = self.convert_minutes_to_ns(float(row.iloc[0]))
 
             elapsed_time_ns = (
                 time.monotonic_ns() - self.start_time_ns - self.pause_duration_ns
@@ -1692,7 +1686,7 @@ class PicoController:
         # Update the recipe table with individual progress and remaining time
         for i, child in self.recipe_rows:
             time_stamp_ns = self.convert_minutes_to_ns(
-                float(self.recipe_df.iloc[i]["Time point (min)"])
+                float(self.recipe_df.iloc[i].iloc[0])
             )
 
             # if the time stamp is in the future, break the loop
@@ -1703,7 +1697,7 @@ class PicoController:
                 if i < len(self.recipe_df) - 1:
                     next_row = self.recipe_df.iloc[i + 1]
                     next_time_stamp_ns = self.convert_minutes_to_ns(
-                        float(next_row["Time point (min)"])
+                        float(next_row.iloc[0])
                     )
                     time_interval = next_time_stamp_ns - time_stamp_ns
                     if time_interval > 0:
@@ -1987,8 +1981,8 @@ root.withdraw()
 check_lock_file()
 root.iconbitmap(resource_path("icons-red.ico"))
 app = PicoController(root)
-root.protocol("WM_DELETE_WINDOW", app.on_closing)
 root.deiconify()
 root.geometry(f"+{root.winfo_screenwidth()//8}+{root.winfo_screenheight()//8}")
+root.protocol("WM_DELETE_WINDOW", app.on_closing)
 root.mainloop()
 remove_lock_file()
