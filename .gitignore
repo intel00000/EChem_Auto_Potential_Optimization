@@ -9,11 +9,14 @@ logs/*
 .venv/*
 pyvenv.cfg
 
+# ignore MicroPico extension idenity file
+.micropico
+
 # exclude by extension
 *.pyc
 *.pyo
 *.log
-*.spec
-.micropico
 *.lck
 *.zip
+*.exe
+*.spec
