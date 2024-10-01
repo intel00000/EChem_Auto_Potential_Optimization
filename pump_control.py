@@ -18,18 +18,13 @@ import time
 import json
 import psutil
 import logging
-
-# from decimal import Decimal
-from datetime import datetime, timedelta
-from decimal import Decimal
-from queue import Queue
 import pandas as pd
+from queue import Queue
+from datetime import datetime, timedelta
 
-# Define Pi Pico vendor ID
-pico_vid = 0x2E8A
 
-# Lock file path (to identify a running instance)
-LOCK_FILE = ".pico_controller.lock"
+pico_vid = 0x2E8A  # Pi Pico vendor ID
+LOCK_FILE = ".pico_controller.lock"  # Lock file path (to identify a running instance)
 
 global_pad_x = 2
 global_pad_y = 2
@@ -1341,19 +1336,17 @@ class PicoController:
 
                 # Trim the DataFrame to set the anchor cell as the first cell
                 self.recipe_df = self.recipe_df.iloc[time_row_idx:, time_col_idx:]
-                # check the first row, drop column where the first row cell is empty
+                # drop column where their first row cell is empty
                 self.recipe_df = self.recipe_df.loc[
                     :, self.recipe_df.iloc[0].astype(str).str.strip() != ""
                 ]
-                # Set the first row as column names
                 self.recipe_df.columns = self.recipe_df.iloc[0]
-                # Remove the first row
                 self.recipe_df = self.recipe_df[1:].reset_index(drop=True)
 
                 # drop rows where time column has NaN
                 time_col = self.recipe_df.columns[0]
                 self.recipe_df.dropna(subset=[time_col], inplace=True)
-
+                # convert the time column to float
                 self.recipe_df[self.recipe_df.columns[0]] = self.recipe_df[
                     self.recipe_df.columns[0]
                 ].apply(float)
@@ -1395,11 +1388,11 @@ class PicoController:
                     self.recipe_table.column(col, width=100, anchor="center")
 
                 for index, row in self.recipe_df.iterrows():
-                    # Convert all cells to strings, preserving precision for numbers
+                    # Convert all cells to strings, allow up to 15 significant figures for floats
                     values = [
                         (
                             f"{cell:.15g}"
-                            if isinstance(cell, (float, Decimal))
+                            if isinstance(cell, (int, float))
                             else str(cell)
                         )
                         for cell in row
@@ -1495,7 +1488,7 @@ class PicoController:
             )
 
             # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
-            for i, child in self.recipe_rows:
+            for _, child in self.recipe_rows:
                 self.recipe_table.set(child, "Progress Bar", "")
                 self.recipe_table.set(child, "Remaining Time", "")
 
