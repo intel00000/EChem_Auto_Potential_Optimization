@@ -5,7 +5,7 @@ a = Analysis(
     ['pump_control.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('/icons/icons-black.ico', '.'), ('/icons/icons-white.ico', '.'), ('/icons/icons-red.ico', '.')],
+    datas=[('icons/icons-black.ico', '.'), ('icons/icons-white.ico', '.'), ('icons/icons-red.ico', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['/icons/icons-red.ico'],
+    icon=['icons/icons-red.ico'],
 )
