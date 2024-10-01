@@ -19,4 +19,3 @@ pyvenv.cfg
 *.lck
 *.zip
 *.exe
-*.spec
