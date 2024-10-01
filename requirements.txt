@@ -1,5 +1,6 @@
 openpyxl
 pandas
+psutil
 pyinstaller
 pyserial
 python-tkdnd

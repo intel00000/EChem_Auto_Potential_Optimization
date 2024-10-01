@@ -7,9 +7,8 @@ import serial.tools.list_ports
 # gui imports
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
-import tkinterDnD
 import pystray
-from PIL import Image, ImageDraw
+from PIL import Image
 
 # other library
 import os
@@ -17,6 +16,7 @@ import re
 import sys
 import time
 import json
+import psutil
 import logging
 
 # from decimal import Decimal
@@ -27,6 +27,9 @@ import pandas as pd
 
 # Define Pi Pico vendor ID
 pico_vid = 0x2E8A
+
+# Lock file path (to identify a running instance)
+LOCK_FILE = ".pico_controller.lock"
 
 global_pad_x = 2
 global_pad_y = 2
@@ -1832,35 +1835,78 @@ class PicoController:
         try:
             top = tk.Toplevel()
             top.title(title)
-
+            top.iconbitmap(resource_path("icons-red.ico"))
             label = ttk.Label(top, text=message)
             label.grid(row=0, column=0, padx=10, pady=10)
 
             button = ttk.Button(top, text="OK", command=top.destroy)
             button.grid(row=1, column=0, padx=10, pady=10)
-
-            top.geometry(f"+{top.winfo_screenwidth()//2}+{top.winfo_screenheight()//2}")
-
             top.attributes("-topmost", True)
             top.grab_release()
+            top.update_idletasks()
+            top.wait_visibility()
+            top.geometry(
+                f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
 
-    # on closing, minimize the window to the system tray
+    def non_blocking_custom_messagebox(
+        self, title, message, button1, button2, button3, callback
+    ):
+        top = tk.Toplevel()
+
+        top.title(title)
+        top.iconbitmap(resource_path("icons-red.ico"))
+        label = ttk.Label(top, text=message)
+        label.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
+
+        def handle_click(response):  # handle button click
+            top.destroy()  # Close the message box
+            callback(response)  # Pass the response to the callback
+
+        # Three buttons with custom labels
+        button1_widget = ttk.Button(
+            top, text=button1, command=lambda: handle_click(button1)
+        )
+        button2_widget = ttk.Button(
+            top, text=button2, command=lambda: handle_click(button2)
+        )
+        button3_widget = ttk.Button(
+            top, text=button3, command=lambda: handle_click(button3)
+        )
+        button1_widget.grid(row=1, column=0, padx=10, pady=10)
+        button2_widget.grid(row=1, column=1, padx=10, pady=10)
+        button3_widget.grid(row=1, column=2, padx=10, pady=10)
+        top.attributes("-topmost", True)  # Make sure it stays on top
+        top.grab_release()  # Non-blocking behavior
+        top.update_idletasks()
+        top.wait_visibility()
+        top.geometry(
+            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+        )
+
+    # on closing, minimize window to the system tray
     def on_closing(self) -> None:
-        # pop a message box to confirm exit the first time
         if self.first_close:
-            if messagebox.askokcancel(
-                "Quit", "Do you want to quit or minimize to tray?"
-            ):
-                self.first_close = False
-                self.exit(icon=None)
-            else:
-                self.first_close = False
-                self.minimize_to_tray_icon()
+            # pop a message box to confirm exit the first time
+            self.non_blocking_custom_messagebox(
+                "Quit",
+                "Do you want to quit or minimize to tray?",
+                "Quit",
+                "Minimize",
+                "Cancel",
+                self.on_closing_handle,
+            )
         else:
             self.minimize_to_tray_icon()
-            return
+
+    def on_closing_handle(self, response):
+        if response == "Quit":
+            self.exit(icon=None)
+        elif response == "Minimize":
+            self.first_close = False
+            self.minimize_to_tray_icon()
 
     def exit(self, icon) -> None:
         if icon is not None:
@@ -1899,8 +1945,34 @@ class PicoController:
             self.non_blocking_messagebox("Error", f"An error occurred: {e}")
 
 
-def resource_path(relative_path):
-    """Get the absolute path to the resource, works for dev and PyInstaller"""
+def check_lock_file() -> None:
+    if os.path.exists(LOCK_FILE):
+        with open(LOCK_FILE, "r") as f:
+            pid = int(f.read().strip())
+        if psutil.pid_exists(pid):
+            # If the process exists, show a message box and exit
+            messagebox.showwarning(
+                "Already Running",
+                "Another instance of this program is already running, check your taskbar!",
+            )
+            sys.exit(0)
+        else:
+            # If the process doesn't exist, the lock file is stale; remove it
+            os.remove(LOCK_FILE)
+    # If no valid lock file or stale lock file, create a new one
+    with open(LOCK_FILE, "w") as f:
+        f.write(str(os.getpid()))
+
+
+def remove_lock_file() -> None:
+    try:
+        if os.path.exists(LOCK_FILE):
+            os.remove(LOCK_FILE)
+    except Exception as e:
+        print(f"Error removing lock file: {e}")
+
+
+def resource_path(relative_path) -> str:
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
@@ -1911,7 +1983,12 @@ def resource_path(relative_path):
 
 
 root = tk.Tk()
+root.withdraw()
+check_lock_file()
 root.iconbitmap(resource_path("icons-red.ico"))
 app = PicoController(root)
 root.protocol("WM_DELETE_WINDOW", app.on_closing)
+root.deiconify()
+root.geometry(f"+{root.winfo_screenwidth()//8}+{root.winfo_screenheight()//8}")
 root.mainloop()
+remove_lock_file()
