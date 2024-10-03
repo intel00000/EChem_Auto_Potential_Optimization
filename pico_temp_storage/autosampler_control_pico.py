@@ -60,27 +60,27 @@ class Autosampler:
         sys.stdout.write(f"{message}\n")
 
     def send_status(self) -> None:
-        status = f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}"
-        self.write_message(f"{status}")
-
-    def send_config(self) -> None:
-        # assemble in json format
-        self.write_message(
-            f"Autosampler Configuration: {json.dumps(self.autosampler_config)}"
-        )
+        self.write_message(f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}")
 
     def ping(self) -> None:
         self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
+
+    def send_config(self) -> None:
+        self.write_message(
+            f"Autosampler Configuration: {json.dumps(self.autosampler_config)}"
+        )
 
     def hard_reset(self) -> None:
         self.write_message("Success: Performing hard reset.")
         machine.reset()
 
-    def save_status(self, write_message=True) -> None:
+    def save_status(self, write_console=False) -> None:
         try:
             with open(STATUS_FILE, "w") as f:
                 output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
                 f.write(output)
+            if write_console:
+                self.write_message(f"Success: Status saved: Position: {self.current_position}, Direction: {self.direction_map[self.current_direction]}")
         except Exception as e:
             self.write_message(f"Error: Could not save status, {e}")
 
@@ -178,7 +178,7 @@ class Autosampler:
             self.enable.value(1)
             self.is_power_on = False
 
-    def move_to_position(self, position) -> None:
+    def move_to_position(self, position, write_console=True) -> None:
         position = int(position)
         # position cannot be negative or exceed MAX_POSITION
         if position < 0 or position > MAX_POSITION:
@@ -191,9 +191,10 @@ class Autosampler:
         start_time = time.ticks_us()
         self.move_auto_sampler(position - self.current_position)
         end_time = time.ticks_us()
-        self.write_message(
-            f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
-        )
+        if write_console:
+            self.write_message(
+                f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+            )
 
     def move_to_slot(self, slot) -> None:
         if slot not in self.autosampler_config:
@@ -203,7 +204,7 @@ class Autosampler:
 
         initial_position = self.current_position
         start_time = time.ticks_us()
-        self.move_to_position(position)
+        self.move_to_position(position, write_console=False)
         end_time = time.ticks_us()
         self.write_message(
             f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
@@ -212,7 +213,7 @@ class Autosampler:
     def move_to_fail_safe(self) -> None:
         self.write_message("Moving to fail-safe position.")
         position = int(self.fail_safe_position)
-        self.move_to_position(position)
+        self.move_to_position(position, write_console=False)
 
     def toggle_direction(self) -> None:
         self.current_direction = 1 - self.current_direction
