@@ -28,8 +28,6 @@ class Autosampler:
         self.enable = machine.Pin(
             enable_pin, machine.Pin.OUT, machine.Pin.PULL_UP, value=1
         )
-
-        # Initialize autosampler state
         # current position of the autosampler, current_position = 0 is the rightmost position
         self.current_position = -1
         # fail safe position of the autosampler
@@ -42,14 +40,10 @@ class Autosampler:
 
         # the autosampler_config is a dictionary that stores a predefined set of positions for the autosampler
         self.autosampler_config = {}
-        # power status of the autosampler
-        self.is_power_on = False
-
-        # time interval between steps in milliseconds
-        self.time_interval_between_steps_ms = 5
+        self.is_power_on = False  # power status of the autosampler
+        self.time_interval_between_steps_ms = 3  # time interval between steps in ms
 
         self.rtc = machine.RTC()  # RTC setup
-
         self.version = "0.01"  # version of the autosampler control program
 
         # Load configuration and status
@@ -58,9 +52,6 @@ class Autosampler:
 
     def write_message(self, message) -> None:
         sys.stdout.write(f"{message}\n")
-
-    def send_status(self) -> None:
-        self.write_message(f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}")
 
     def ping(self) -> None:
         self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
@@ -71,16 +62,21 @@ class Autosampler:
         )
 
     def hard_reset(self) -> None:
+        self.save_status()
         self.write_message("Success: Performing hard reset.")
         machine.reset()
 
-    def save_status(self, write_console=False) -> None:
+    def send_status(self) -> None:
+        self.write_message(
+            f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}"
+        )
+
+    def save_status(self) -> None:
         try:
             with open(STATUS_FILE, "w") as f:
-                output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
-                f.write(output)
-            if write_console:
-                self.write_message(f"Success: Status saved: Position: {self.current_position}, Direction: {self.direction_map[self.current_direction]}")
+                f.write(
+                    f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
+                )
         except Exception as e:
             self.write_message(f"Error: Could not save status, {e}")
 
@@ -227,6 +223,61 @@ class Autosampler:
         self.current_position = 0
         self.write_message("Success: Autosampler position reset to initial position.")
 
+    def add_slot(self, name: str, position: str) -> None:
+        try:
+            if position.isdigit():
+                slot_position = int(position)
+            else:
+                raise ValueError("Position must be a positive integer.")
+            if slot_position < 0 or slot_position > MAX_POSITION:
+                self.write_message(
+                    f"Error: Slot position {slot_position} exceeds maximum {MAX_POSITION}."
+                )
+                return
+
+            slot_name = name.strip()
+            self.autosampler_config[slot_name] = slot_position
+            self.write_message(
+                f"Success: Slot '{slot_name}' added at position {slot_position}."
+            )
+        except Exception as e:
+            self.write_message(
+                f"Error: add_slot, {e}, command format: addslot:[slot_name:str]:[position:int]"
+            )
+
+    def remove_slot(self, name: str) -> None:
+        try:
+            slot_name = name.strip()
+            if slot_name in self.autosampler_config:
+                del self.autosampler_config[slot_name]
+                self.write_message(f"Success: Slot '{slot_name}' removed.")
+            else:
+                self.write_message(f"Error: Slot '{slot_name}' does not exist.")
+        except Exception as e:
+            self.write_message(
+                f"Error: remove_slot, {e}, command format: removeslot:slot_name"
+            )
+
+    def move_one_step(self, direction: str) -> None:
+        direction = direction.strip().lower()
+        if direction == "left":
+            self.current_direction = 1
+        elif direction == "right":
+            self.current_direction = 0
+        else:
+            self.write_message("Error: Invalid direction. Format: move:[left/right]")
+            return
+
+        self.direction.value(self.current_direction)
+        self.pulse.value(0)
+        self.pulse.value(1)
+        self.current_position -= 1 * (1 - 2 * self.current_direction)
+        time.sleep_ms(self.time_interval_between_steps_ms)
+        self.save_status()
+        self.write_message(
+            f"Success: Moved one step {self.direction_map[self.current_direction]}, current position: {self.current_position}"
+        )
+
 
 def main():
     autosampler = Autosampler(
@@ -257,12 +308,14 @@ def main():
         "status": "send_status",
         "config": "send_config",
         "save_config": "save_config",
-        "save_status": "save_status",
         "shutdown": "shutdown",
         "reset": "hard_reset",
         "ping": "ping",
         "time": "get_time",
         "stime": "set_time",
+        "move": "move_one_step",
+        "addslot": "add_slot",
+        "removeslot": "remove_slot",
     }
     commands_mapping_string = ", ".join(
         [f"{key} - {value}" for key, value in commands.items()]
