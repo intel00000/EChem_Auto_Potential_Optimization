@@ -262,8 +262,14 @@ class Autosampler:
         direction = direction.strip().lower()
         if direction == "left":
             self.current_direction = 1
+            if self.current_position == MAX_POSITION:
+                self.write_message("Error: Autosampler is already at the leftmost position.")
+                return
         elif direction == "right":
             self.current_direction = 0
+            if self.current_position == 0:
+                self.write_message("Error: Autosampler is already at the rightmost position.")
+                return
         else:
             self.write_message("Error: Invalid direction. Format: move:[left/right]")
             return
