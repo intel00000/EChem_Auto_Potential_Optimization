@@ -3,8 +3,8 @@ name: Generate Index Page
 on:
   push:
     paths:
-      - "docs/*.html" # Run when HTML files in the docs folder change
-      - "docs/generate_index.py" # Run when the script changes
+      - "docs/*.html"  # Run when HTML files in the docs folder change
+      - "docs/generate_index.py"  # Run when the script changes
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
       - name: Check for Changes
         id: check_changes
         run: |
-          git add index.html
+          git add -A  # Track both modified and untracked files
           if git diff --cached --quiet; then
             echo "No changes to commit" && exit 0
           fi
