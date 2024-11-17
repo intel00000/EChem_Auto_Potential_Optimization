@@ -6,7 +6,7 @@ import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog, filedialog
+from tkinter import N, ttk, messagebox, simpledialog, filedialog
 import pystray
 from PIL import Image
 
@@ -56,21 +56,21 @@ class PicoController:
         self.timeout = 1  # Serial port timeout in seconds
 
         # instance fields for the serial port and queue
-        self.serial_port = None
-        self.current_port = None
+        # we have multiple controller, the key is the id, the value is the serial port object
+        self.serial_port = {1: serial.Serial()}
+        self.port_to_widget_mapping = {}
 
         # instance field for the autosampler serial port
         self.serial_port_as = None
-        self.current_port_as = None
 
         # a queue to store commands to be sent to the Pico
+        # for the pump controller, the format will be "pump_id:command"
         self.send_command_queue = Queue()
-
-        # a queue to store commands to be sent to the autosampler
         self.send_command_queue_as = Queue()
 
         # Dictionary to store pump information
         self.pumps = {}
+        self.pumps_mapping_to_id = {}
 
         # Dataframe to store the recipe
         self.recipe_df = pd.DataFrame()
@@ -85,6 +85,9 @@ class PicoController:
         self.scheduled_task = None
 
         # time stamp for the RTC time query
+        # a dict to store the RTC time of each controller
+        self.rtc_time = {}
+        self.rtc_time_as = "Autosampler Time: --:--:--"
         self.last_time_query = time.monotonic_ns()
 
         # define pumps per row in the manual control frame
@@ -123,90 +126,64 @@ class PicoController:
         self.port_select_frame.grid(
             row=current_row,
             column=0,
-            columnspan=5,
+            columnspan=7,
             rowspan=3,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
-        # first row in the port_select_frame
-        self.port_label = ttk.Label(
-            self.port_select_frame, text="Pump Controller Port:"
-        )
-        self.port_label.grid(
-            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        self.port_combobox = ttk.Combobox(
-            self.port_select_frame, state="readonly", width=30
-        )
-        self.port_combobox.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y)
-        self.connect_button = ttk.Button(
-            self.port_select_frame, text="Connect", command=self.connect_to_pico
-        )
-        self.connect_button.grid(row=0, column=2, padx=global_pad_x, pady=global_pad_y)
-        self.disconnect_button = ttk.Button(
-            self.port_select_frame, text="Disconnect", command=self.disconnect_pico
-        )
-        self.disconnect_button.grid(
-            row=0, column=3, padx=global_pad_x, pady=global_pad_y
-        )
-        self.disconnect_button.config(state=tk.DISABLED)
-        self.reset_button = ttk.Button(
-            self.port_select_frame, text="Hard reset", command=self.reset_pico
-        )
-        self.reset_button.grid(
-            row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        self.reset_button.config(state=tk.DISABLED)
-        # second row in the port_select_frame
+        # first in the port_select_frame
+        # Create a row for each potential pump controller
+        for pump_id in range(1, 4):  # Assume we can have up to 3 pump controllers
+            self.add_pump_controller_widgets(pump_id)
+        current_row = self.port_select_frame.grid_size()[1]
+
+        # second in the port_select_frame
         self.port_label_as = ttk.Label(self.port_select_frame, text="Autosampler Port:")
         self.port_label_as.grid(
-            row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_as = ttk.Combobox(
             self.port_select_frame, state="readonly", width=30
         )
         self.port_combobox_as.grid(
-            row=1, column=1, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_as = ttk.Button(
-            self.port_select_frame, text="Connect", command=self.connect_to_pico_as
+            self.port_select_frame, text="Connect", command=self.connect_as
         )
         self.connect_button_as.grid(
-            row=1, column=2, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as = ttk.Button(
-            self.port_select_frame, text="Disconnect", command=self.disconnect_pico_as
+            self.port_select_frame, text="Disconnect", command=self.disconnect_as
         )
         self.disconnect_button_as.grid(
-            row=1, column=3, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as.config(state=tk.DISABLED)
-        # third row in the port_select_frame
-        self.status_label = ttk.Label(
-            self.port_select_frame, text="Pump Controller Status: Not connected"
+        self.reset_button = ttk.Button(
+            self.port_select_frame,
+            text="Reset",
+            command=lambda: self.reset_pico(pump_id),
         )
-        self.status_label.grid(
-            row=2,
-            column=0,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            columnspan=2,
-            sticky="W",
+        self.reset_button.grid(
+            row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
+        self.reset_button.config(state=tk.DISABLED)
         self.status_label_as = ttk.Label(
-            self.port_select_frame, text="Autosampler Controller Status: Not connected"
+            self.port_select_frame, text="Status: Not connected"
         )
         self.status_label_as.grid(
-            row=2,
+            row=5,
             column=2,
             padx=global_pad_x,
             pady=global_pad_y,
-            columnspan=3,
+            columnspan=1,
             sticky="W",
         )
         # update the current row
-        current_row += self.port_select_frame.grid_size()[1]
+        current_row = self.port_select_frame.grid_size()[1]
 
         # Pump Manual Control frame
         self.manual_control_frame = ttk.Labelframe(
@@ -462,9 +439,63 @@ class PicoController:
         )
         self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
         self.current_time_label_as = ttk.Label(
-            self.rtc_time_frame, text="Autosampler Controller Time: --:--:--"
+            self.rtc_time_frame, text=self.rtc_time_as
         )
         self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
+
+    def add_pump_controller_widgets(self, pump_id):
+        """Adds the combobox and buttons for selecting and connecting a pump controller."""
+        row = pump_id - 1  # Zero-indexed for row position
+        port_label = ttk.Label(
+            self.port_select_frame, text=f"Pump controller {pump_id}:"
+        )
+        port_label.grid(
+            row=row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        port_combobox = ttk.Combobox(self.port_select_frame, state="readonly", width=30)
+        port_combobox.grid(row=row, column=1, padx=global_pad_x, pady=global_pad_y)
+        connect_button = ttk.Button(
+            self.port_select_frame,
+            text="Connect",
+            command=lambda: self.connect(pump_id),
+        )
+        connect_button.grid(row=row, column=2, padx=global_pad_x, pady=global_pad_y)
+        disconnect_button = ttk.Button(
+            self.port_select_frame,
+            text="Disconnect",
+            command=lambda: self.disconnect(pump_id),
+        )
+        disconnect_button.grid(row=row, column=3, padx=global_pad_x, pady=global_pad_y)
+        disconnect_button.config(state=tk.DISABLED)
+        self.reset_button = ttk.Button(
+            self.port_select_frame,
+            text="Reset",
+            command=lambda: self.reset_pico(pump_id),
+        )
+        self.reset_button.grid(
+            row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.reset_button.config(state=tk.DISABLED)
+        status_label = ttk.Label(
+            self.port_select_frame,
+            text=f"Status: Not connected",
+        )
+        status_label.grid(
+            row=row,
+            column=5,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            columnspan=1,
+            sticky="W",
+        )
+        # Save references to widgets
+        self.port_to_widget_mapping[pump_id] = {
+            "combobox": port_combobox,
+            "connect_button": connect_button,
+            "disconnect_button": disconnect_button,
+            "reset_button": self.reset_button,
+            "status_label": status_label,
+        }
 
     def main_loop(self):
         try:
@@ -475,6 +506,7 @@ class PicoController:
             self.send_command_as()
             self.update_progress()
             self.query_rtc_time()
+            self.update_rtc_time_display()
             self.master.after(self.main_loop_interval_ms, self.main_loop)
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -483,7 +515,14 @@ class PicoController:
             self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def refresh_ports(self, instant=False):
-        if not self.serial_port or not self.serial_port_as:
+        # check if all serial objects in the self.serial_port dictionary are connected
+        pump_ctl_all_connected = all(
+            [
+                serial_port_obj and serial_port_obj.is_open
+                for serial_port_obj in self.serial_port.values()
+            ]
+        )
+        if not pump_ctl_all_connected or not self.serial_port_as:
             if (
                 time.monotonic_ns() - self.last_port_refresh_ns
                 < self.port_refresh_interval_ns
@@ -491,28 +530,22 @@ class PicoController:
             ):
                 return
             # filter by vendor id and ignore already connected ports
-            if self.serial_port:
-                pump_controller_port = self.serial_port.name.strip()
-            else:
-                pump_controller_port = None
+            # get a list of connected ports name from the serial_port dictionary
+            connected_ports = [
+                port.name for port in self.serial_port.values() if port and port.is_open
+            ]
             if self.serial_port_as:
-                autosampler_port = self.serial_port_as.name.strip()
-            else:
-                autosampler_port = None
+                connected_ports.append(self.serial_port_as.name)
 
             ports = [
                 port.device + " (SN:" + str(port.serial_number) + ")"
                 for port in serial.tools.list_ports.comports()
-                if port.vid == pico_vid
-                and port.name.strip() != pump_controller_port
-                and port.name.strip() != autosampler_port
+                if port.vid == pico_vid and port.name.strip() not in connected_ports
             ]
             ports_list = [
                 port
                 for port in serial.tools.list_ports.comports()
-                if port.vid == pico_vid
-                and port.name.strip() != pump_controller_port
-                and port.name.strip() != autosampler_port
+                if port.vid == pico_vid and port.name.strip() not in connected_ports
             ]
             # print detail information of the ports to the console
             for port in ports_list:
@@ -524,12 +557,15 @@ class PicoController:
                 except Exception as e:
                     logging.error(f"Error: {e}")
 
-            if not self.serial_port:
-                self.port_combobox["values"] = ports
-                if len(ports) > 0:
-                    self.port_combobox.current(0)
-                else:
-                    self.port_combobox.set("")  # clear the port combobox
+            # go through the pump controllers dictionary and update the comboboxes in the corresponding frame
+            for id, widgets in self.port_to_widget_mapping.items():
+                serial_port_obj = self.serial_port[id]
+                if serial_port_obj and not serial_port_obj.is_open:
+                    widgets["combobox"]["values"] = ports
+                    if len(ports) > 0:
+                        widgets["combobox"].current(0)
+                    else:
+                        widgets["combobox"].set("")
             if not self.serial_port_as:
                 self.port_combobox_as["values"] = ports
                 if len(ports) > 0:
@@ -538,8 +574,8 @@ class PicoController:
                     self.port_combobox_as.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
 
-    def connect_to_pico(self):
-        selected_port = self.port_combobox.get()
+    def connect(self, pump_id=None):
+        selected_port = self.port_to_widget_mapping[pump_id]["combobox"].get()
         if selected_port:
             parsed_port = selected_port.split("(")[0].strip()
             if self.serial_port:  # Check if already connected
@@ -551,37 +587,63 @@ class PicoController:
                     == tk.YES
                 ):
                     # suppress the message for the disconnect
-                    self.disconnect_pico(show_message=False)
+                    self.disconnect(pump_id=pump_id, show_message=False)
                 else:
                     return
 
             try:  # Attempt to connect to the selected port
-                self.serial_port = serial.Serial(parsed_port, timeout=self.timeout)
-                self.current_port = selected_port
+                serial_port_obj = self.serial_port[pump_id]
+                serial_port_widget = self.port_to_widget_mapping[pump_id]
+                serial_port_obj.port = parsed_port
+                serial_port_obj.timeout = self.timeout
+                serial_port_obj.open()
 
-                self.status_label.config(
-                    text=f"Pump Controller Status: Connected to {parsed_port}"
-                )
                 logging.info(f"Connected to {selected_port}")
-                self.send_command_queue.put("0:ping")  # ping to identify the Pico
-                self.refresh_ports(instant=True)  # refresh the ports immediately
+                serial_port_widget["status_label"].config(
+                    text=f"Status: Connected to {parsed_port}"
+                )
 
-                self.sync_rtc_with_pc_time(queue=self.send_command_queue)
-                self.query_pump_info()  # issue a pump info query
-                self.enable_disable_pumps_buttons(tk.NORMAL)  # enable the buttons
+                serial_port_obj.write("0:ping\n".encode())  # identify Pico type
+                response = serial_port_obj.readline().decode("utf-8").strip()
+                if "Pico Pump Control Version" not in response:
+                    self.disconnect(pump_id=pump_id, show_message=False)
+                    self.non_blocking_messagebox(
+                        "Error",
+                        "Connected to the wrong device. Please reconnect to continue.",
+                    )
+                    return
+                self.refresh_ports(instant=True)  # refresh the ports immediately
+                # synchronize the RTC with the PC time
+                now = datetime.now()
+                sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+                serial_port_obj.write(f"{sync_command}\n".encode())
+                response = serial_port_obj.readline().decode("utf-8").strip()
+
+                self.query_pump_info(pump_id=pump_id)  # query the pump info
+                # enable the buttons
+                serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
+                serial_port_widget["reset_button"].config(state=tk.NORMAL)
+                self.set_manual_control_buttons_state(tk.NORMAL)
+
             except serial.SerialException as e:
-                self.status_label.config(text="Pump Controller Status: Not connected")
+                serial_port_widget["status_label"].config(text=f"Status: Not connected")
                 logging.error(f"Error: {e}")
                 self.non_blocking_messagebox(
                     "Connection Status",
                     f"Failed to connect to {selected_port} with error: {e}",
                 )
             except Exception as e:
-                self.status_label.config(text="Pump Controller Status: Not connected")
+                serial_port_widget["status_label"].config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 self.non_blocking_messagebox("Error", f"An error occurred: {e}")
 
-    def connect_to_pico_as(self):
+    def set_manual_control_buttons_state(self, state) -> None:
+        self.add_pump_button.config(state=state)
+        self.clear_pumps_button.config(state=state)
+        self.save_pumps_button.config(state=state)
+        self.emergency_shutdown_button.config(state=state)
+
+    def connect_as(self):
         selected_port = self.port_combobox_as.get()
         if selected_port:
             parsed_port = selected_port.split("(")[0].strip()
@@ -593,137 +655,144 @@ class PicoController:
                     )
                     == tk.YES
                 ):
-                    self.disconnect_pico_as(show_message=False)
+                    self.disconnect_as(show_message=False)
                 else:
                     return
             try:
                 self.serial_port_as = serial.Serial(parsed_port, timeout=self.timeout)
-                self.current_port_as = selected_port
-                self.status_label_as.config(
-                    text=f"Autosampler Controller Status: Connected to {parsed_port}"
-                )
+                self.status_label_as.config(text=f"Status: Connected to {parsed_port}")
                 logging.info(f"Connected to Autosampler at {selected_port}")
-                self.send_command_queue_as.put("0:ping")  # Ping to identify the Pico
+
+                self.serial_port_as.write("0:ping\n".encode())  # identify Pico type
+                response = self.serial_port_as.readline().decode("utf-8").strip()
+                if "Pico Autosampler Control Version" not in response:
+                    self.disconnect_as(pump_id=pump_id, show_message=False)
+                    self.non_blocking_messagebox(
+                        "Error",
+                        "Connected to the wrong device. Please reconnect to continue.",
+                    )
+                    return
+                self.refresh_ports(instant=True)  # refresh the ports immediately
+                # synchronize the RTC with the PC time
+                now = datetime.now()
+                sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+                self.serial_port_as.write(f"{sync_command}\n".encode())
+                response = self.serial_port_as.readline().decode("utf-8").strip()
+
                 self.refresh_ports(instant=True)
-                self.enable_disable_autosampler_buttons(tk.NORMAL)
+                self.set_autosampler_buttons_state(tk.NORMAL)
                 self.send_command_queue_as.put("config")  # Populate the slots
-                self.sync_rtc_with_pc_time(queue=self.send_command_queue_as)
             except serial.SerialException as e:
-                self.status_label_as.config(
-                    text="Autosampler Controller Status: Not connected"
-                )
+                self.status_label_as.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 self.non_blocking_messagebox(
                     "Connection Status",
                     f"Failed to connect to {selected_port} with error: {e}",
                 )
             except Exception as e:
-                self.status_label_as.config(
-                    text="Autosampler Controller Status: Not connected"
-                )
+                self.status_label_as.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 self.non_blocking_messagebox("Error", f"An error occurred: {e}")
 
-    def enable_disable_autosampler_buttons(self, state) -> None:
+    def set_autosampler_buttons_state(self, state) -> None:
         self.disconnect_button_as.config(state=state)
         self.position_entry_as.config(state=state)
         self.goto_position_button_as.config(state=state)
         self.slot_combobox_as.config(state=state)
         self.goto_slot_button_as.config(state=state)
 
-    def sync_rtc_with_pc_time(self, queue: Queue) -> None:
-        """Synchronize the Pico's RTC with the PC's time."""
-        try:
-            now = datetime.now()
-            sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
-            queue.put(sync_command)
-        except Exception as e:
-            logging.error(f"Error synchronizing RTC with PC time: {e}")
-
     def query_rtc_time(self) -> None:
         """Send a request to the Pico to get the current RTC time every second."""
         current_time = time.monotonic_ns()
         if current_time - self.last_time_query >= NANOSECONDS_PER_SECOND:
-            if self.serial_port:
-                self.send_command_queue.put("0:time")
+            # send the command to each controller
+            for id, serial_port_obj in self.serial_port.items():
+                if serial_port_obj and serial_port_obj.is_open:
+                    self.send_command_queue.put(f"{id}:0:time")
             if self.serial_port_as:
-                self.send_command_queue_as.put("time")
+                self.send_command_queue_as.put("0:time")
             self.last_time_query = current_time
 
-    def update_rtc_time_display(self, response, is_Autosampler=False) -> None:
+    def parse_rtc_time(self, pump_id, response, is_Autosampler=False) -> None:
         try:
             match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
             if match and not is_Autosampler:
                 rtc_time = match.group(1)
-                self.current_time_label.config(text=f"Pump Controller Time: {rtc_time}")
+                # store the time in the dictionary
+                self.rtc_time[pump_id] = f"{pump_id}:{rtc_time}"
             if match and is_Autosampler:
                 rtc_time = match.group(1)
-                self.current_time_label_as.config(
-                    text=f"Autosampler Controller Time: {rtc_time}"
-                )
+                self.rtc_time_as = f"Autosampler Time: {rtc_time}"
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
-    # a helper function to enable/disable the buttons
-    def enable_disable_pumps_buttons(self, state):
-        self.disconnect_button.config(state=state)
-        self.reset_button.config(state=state)
-        self.add_pump_button.config(state=state)
-        self.clear_pumps_button.config(state=state)
-        self.save_pumps_button.config(state=state)
-        self.emergency_shutdown_button.config(state=state)
+    def update_rtc_time_display(self) -> None:
+        try:
+            # assemble the time string
+            rtc_time_str = "Pump Controllers Time: "
+            # sort the keys of the dictionary by the pump id, join the values and update the label
+            rtc_time_str += " | ".join(
+                [self.rtc_time[key] for key in sorted(self.rtc_time.keys())]
+            )
+            self.current_time_label.config(text=rtc_time_str)
+            self.current_time_label_as.config(text=self.rtc_time_as)
+        except Exception as e:
+            logging.error(f"Error updating RTC time display: {e}")
 
-    def disconnect_pico(self, show_message=True):
-        if self.serial_port:
-            try:
-                self.serial_port.close()  # close the serial port connection
-                self.serial_port = None
-                self.current_port = None
+    def disconnect(self, pump_id, show_message=True):
+        if self.serial_port[pump_id]:
+            serial_port_obj = self.serial_port[pump_id]
+            serial_port_widget = self.port_to_widget_mapping[pump_id]
+            if serial_port_obj.is_open:
+                try:
+                    serial_port_obj.close()  # close the serial port connection
 
-                # cancel the scheduled task if it exists
-                if self.scheduled_task:
-                    self.master.after_cancel(self.scheduled_task)
-                    self.scheduled_task = None
+                    # update UI
+                    serial_port_widget["status_label"].config(
+                        text="Status: Not connected"
+                    )  # update the status label
+                    self.clear_pumps_widgets(pump_id)  # clear the pump widgets
+                    serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
+                    serial_port_widget["reset_button"].config(state=tk.NORMAL)
+                    # only disable the manual control buttons if all controllers are disconnected
+                    if all([not port.is_open for port in self.serial_port.values()]):
+                        self.set_manual_control_buttons_state(tk.DISABLED)
+                        self.clear_recipe()  # clear the recipe table
+                        # also stop any running procedure
+                        self.stop_procedure(False)
 
-                # update UI
-                self.status_label.config(text="Pump Controller Status: Not connected")
+                    # go into the queue and remove any command that is meant for the disconnected controller
+                    while not self.send_command_queue.empty():
+                        command = self.send_command_queue.get()
+                        if int(command.split(":")[0]) != pump_id:
+                            self.send_command_queue.put(command)
 
-                self.clear_pumps_widgets()  # clear the pumps widgets
-                self.clear_recipe()  # clear the recipe table
-
-                self.enable_disable_pumps_buttons(tk.DISABLED)  # disable buttons
-
-                while not self.send_command_queue.empty():
-                    self.send_command_queue.get()  # empty the queue
-
-                self.refresh_ports(instant=True)  # refresh the ports immediately
-
-                logging.info("Disconnected from Pico")
-                if show_message:
+                    self.refresh_ports(instant=True)  # refresh the ports immediately
+                    logging.info(f"Disconnected from Pico {pump_id}")
+                    if show_message:
+                        self.non_blocking_messagebox(
+                            "Connection Status", "Disconnected from Pico"
+                        )
+                except serial.SerialException as e:
+                    logging.error(f"Error: {e}")
                     self.non_blocking_messagebox(
-                        "Connection Status", "Disconnected from Pico"
+                        "Connection Status", "Failed to disconnect from Pico"
                     )
-            except serial.SerialException as e:
-                logging.error(f"Error: {e}")
-                self.non_blocking_messagebox(
-                    "Connection Status", "Failed to disconnect from Pico"
-                )
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                self.non_blocking_messagebox("Error", f"An error occurred: {e}")
+                except Exception as e:
+                    logging.error(f"Error: {e}")
+                    self.non_blocking_messagebox("Error", f"An error occurred: {e}")
 
-    def disconnect_pico_as(self, show_message=True):
+    def disconnect_as(self, show_message=True):
         if self.serial_port_as:
             try:
                 self.serial_port_as.close()
                 self.serial_port_as = None
-                self.current_port_as = None
 
                 self.status_label_as.config(
                     text="Autosampler Controller Status: Not connected"
                 )
                 self.slot_combobox_as.set("")
-                self.enable_disable_autosampler_buttons(tk.DISABLED)
+                self.set_autosampler_buttons_state(tk.DISABLED)
 
                 while not self.send_command_queue_as.empty():  # empty the queue
                     self.send_command_queue_as.get()
@@ -912,7 +981,7 @@ class PicoController:
                 if "time" not in command:
                     logging.debug(f"PC -> Pico: {command}")
         except serial.SerialException as e:
-            self.disconnect_pico(False)
+            self.disconnect(False)
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Connection Error",
@@ -932,7 +1001,7 @@ class PicoController:
                 if "time" not in command:
                     logging.debug(f"PC -> Autosampler: {command}")
         except serial.SerialException as e:
-            self.disconnect_pico_as(False)
+            self.disconnect_as(False)
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Connection Error",
@@ -961,24 +1030,24 @@ class PicoController:
                             "Connection Error",
                             "Connected to the wrong device. Please reconnect to continue.",
                         )
-                        self.disconnect_pico(False)
+                        self.disconnect(False)
                 elif "Status" in response:
                     self.update_pump_status(response)
                 elif "RTC Time" in response:
-                    self.update_rtc_time_display(response)
+                    self.parse_rtc_time(response, is_Autosampler=False)
                 elif "Success" in response:
                     self.non_blocking_messagebox("Success", response)
                 elif "Error" in response:
                     self.non_blocking_messagebox("Error", response)
         except serial.SerialException as e:
-            self.disconnect_pico(False)
+            self.disconnect(False)
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Connection Error",
                 "Connection to Pico lost. Please reconnect to continue.",
             )
         except Exception as e:
-            self.disconnect_pico()
+            self.disconnect()
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Error", f"Read_serial: An error occurred: {e}"
@@ -1018,23 +1087,23 @@ class PicoController:
                             "Connection Error",
                             "Connected to the wrong device. Please reconnect to continue.",
                         )
-                        self.disconnect_pico_as()
+                        self.disconnect_as()
                 elif "RTC Time" in response:
-                    self.update_rtc_time_display(response, is_Autosampler=True)
+                    self.parse_rtc_time(response, is_Autosampler=True)
                 elif "Error" in response:
                     self.non_blocking_messagebox("Error", response)
                 elif "Success" in response:
                     self.non_blocking_messagebox("Success", response)
 
         except serial.SerialException as e:
-            self.disconnect_pico_as(False)
+            self.disconnect_as(False)
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Connection Error",
                 "Connection to Autosampler lost. Please reconnect to continue.",
             )
         except Exception as e:
-            self.disconnect_pico_as()
+            self.disconnect_as()
             logging.error(f"Error: {e}")
             self.non_blocking_messagebox(
                 "Error", f"Read_serial_as: An error occurred: {e}"
@@ -1902,9 +1971,9 @@ class PicoController:
         self.stop_procedure()
         # close the serial ports
         if self.serial_port:
-            self.disconnect_pico()
+            self.disconnect()
         if self.serial_port_as:
-            self.disconnect_pico_as()
+            self.disconnect_as()
         root.quit()
 
     def show_window(self, icon) -> None:
