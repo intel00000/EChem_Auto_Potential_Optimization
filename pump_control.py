@@ -32,6 +32,7 @@ from helper_functions import (
     resource_path,
     convert_minutes_to_ns,
     convert_ns_to_timestr,
+    process_pump_actions,
 )
 
 pico_vid = 0x2E8A  # Pi Pico vendor ID
@@ -558,7 +559,9 @@ class PicoController:
             # go through the pump controllers dictionary and update the comboboxes in the corresponding frame
             for id, widgets in self.pump_controllers_id_to_widget_map.items():
                 serial_port_obj = self.pump_controllers[id]
-                if serial_port_obj and not serial_port_obj.is_open: # don't update the combobox if the port is already connected
+                if (
+                    serial_port_obj and not serial_port_obj.is_open
+                ):  # don't update the combobox if the port is already connected
                     widgets["combobox"]["values"] = ports
                     if widgets["combobox"].get() not in ports:
                         if len(ports) > 0:
@@ -906,14 +909,14 @@ class PicoController:
 
     def toggle_power(self, pump_id, update_status=True):
         # find the controller id of the pump
-        controller_id = self.pump_ids_to_controller_ids[pump_id]
+        controller_id = self.pump_ids_to_controller_ids.get(pump_id)
         if self.pump_controllers[controller_id].is_open:
             self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
             if update_status:
                 self.update_status(controller_id=controller_id)
 
     def toggle_direction(self, pump_id, update_status=True):
-        controller_id = self.pump_ids_to_controller_ids[pump_id]
+        controller_id = self.pump_ids_to_controller_ids.get(pump_id)
         if self.pump_controllers[controller_id].is_open:
             # put the command in the queue
             self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:di")
@@ -1041,7 +1044,7 @@ class PicoController:
         return selected_pumps
 
     def pumps_shutdown(self, confirmation=False, all=True, controller_id=None):
-        if self.pump_controllers:
+        if any(self.pump_controllers_connected.values()):
             try:
                 if not confirmation or messagebox.askyesno(
                     "Shutdown All",
@@ -1803,16 +1806,16 @@ class PicoController:
             logging.error("No recipe data to execute.")
             return
         # require at least one MCU connection
-        if not self.pump_controllers and not self.autosamplers:
+        if not self.autosamplers and not any(self.pump_controllers_connected.values()):
             non_blocking_messagebox(
                 parent=self.master,
                 title="Error",
-                message="No pump controller connection. Please connect to at least one controller to continue.",
+                message="No controller connection. Please connect to at least one controller to continue.",
             )
             return
         # display warning if only one MCU is connected
-        if not self.autosamplers or not self.pump_controllers:
-            message = "Only one MCU connected. Are you sure you want to continue?"
+        if not any(self.pump_controllers_connected.values()) or not self.autosamplers:
+            message = "Only one type of controller connected. Continue?"
             if not messagebox.askyesno("Warning", message):
                 return
 
@@ -1885,7 +1888,7 @@ class PicoController:
                 non_blocking_messagebox(
                     parent=self.master,
                     title="Procedure Complete",
-                    message="The procedure has been completed.",
+                    message=f"The procedure has been completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 )
                 # disable the stop button
                 self.stop_button.config(state=tk.DISABLED)
@@ -1962,36 +1965,24 @@ class PicoController:
         auto_sampler_actions_slots,
         auto_sampler_actions_positions,
     ):
-        for pump, action in pump_actions.items():
-            if pd.isna(action) or action == "":
-                continue
-            match = re.search(r"\d+", pump)
-            if match:
-                pump_id = int(match.group())
-                if (
-                    pump_id in self.pumps
-                    and action.lower() != self.pumps[pump_id]["power_status"].lower()
-                ):
-                    logging.debug(
-                        f"At index {index}, pump_id {pump_id} status: {self.pumps[pump_id]['power_status']}, intended status: {action}, toggling power."
-                    )
-                    self.toggle_power(pump_id, update_status=False)
-
-        for valve, action in valve_actions.items():
-            if pd.isna(action) or action == "":
-                continue
-            match = re.search(r"\d+", valve)
-            if match:
-                valve_id = int(match.group())
-                if (
-                    valve_id in self.pumps
-                    and action.upper()
-                    != self.pumps[valve_id]["direction_status"].upper()
-                ):
-                    logging.debug(
-                        f"At index {index}, valve_id {valve_id} status: {self.pumps[valve_id]['direction_status']}, intended status: {action}, toggling direction."
-                    )
-                    self.toggle_direction(valve_id, update_status=False)
+        # Process power toggling
+        process_pump_actions(
+            pumps=self.pumps,
+            index=index,
+            actions=pump_actions,
+            action_type="power",
+            status_key="power_status",
+            toggle_function=self.toggle_power,
+        )
+        # Process direction toggling
+        process_pump_actions(
+            pumps=self.pumps,
+            index=index,
+            actions=valve_actions,
+            action_type="direction",
+            status_key="direction_status",
+            toggle_function=self.toggle_direction,
+        )
 
         for _, slot in auto_sampler_actions_slots.items():
             if pd.isna(slot) or slot == "":
@@ -2009,7 +2000,7 @@ class PicoController:
                     f"Warning: Invalid autosampler position: {position} at index {index}"
                 )
 
-        # issue a one-time status update for all pumps and autosampler
+        # update status for all pumps and autosampler
         for id, connection_status in self.pump_controllers_connected.items():
             if connection_status:
                 self.update_status(controller_id=id)
