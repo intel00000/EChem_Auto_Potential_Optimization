@@ -23,6 +23,8 @@ from tkinter_helpers import (
     non_blocking_messagebox,
     non_blocking_custom_messagebox,
     non_blocking_checklist,
+    non_blocking_single_select,
+    non_blocking_input_dialog,
 )
 from helper_functions import (
     check_lock_file,
@@ -76,8 +78,8 @@ class PicoController:
         # Dictionary to store pump information
         self.pumps = {}
         # a mapping from pump id to the controller id
-        self.pump_id_to_controller_id = {}
-        self.controller_id_to_pump_id = {}
+        self.pump_ids_to_controller_ids = {}
+        self.controller_ids_to_pump_ids = {}
         # define pumps per row in the manual control frame
         self.pumps_per_row = 3
 
@@ -215,16 +217,14 @@ class PicoController:
         self.add_pump_button.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.add_pump_button.config(state=tk.DISABLED)
         self.clear_pumps_button = ttk.Button(
             self.manual_control_frame_buttons,
             text="Clear All Pumps",
-            command=self.remove_pump,
+            command=lambda: self.remove_pump(remove_all=True),
         )
         self.clear_pumps_button.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.clear_pumps_button.config(state=tk.DISABLED)
         self.save_pumps_button = ttk.Button(
             self.manual_control_frame_buttons,
             text="Save Config",
@@ -233,16 +233,14 @@ class PicoController:
         self.save_pumps_button.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.save_pumps_button.config(state=tk.DISABLED)
         self.emergency_shutdown_button = ttk.Button(
             self.manual_control_frame_buttons,
-            text="Emergency Shutdown",
-            command=lambda: self.emergency_shutdown(True),
+            text="Shutdown All Pumps",
+            command=lambda: self.pumps_shutdown(confirmation=True),
         )
         self.emergency_shutdown_button.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.emergency_shutdown_button.config(state=tk.DISABLED)
         # second row in the manual control frame, containing the pumps widgets
         self.pumps_frame = ttk.Frame(self.manual_control_frame)
         self.pumps_frame.grid(
@@ -283,7 +281,6 @@ class PicoController:
         self.goto_position_button_as.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.goto_position_button_as.config(state=tk.DISABLED)
         # Dropdown and Button for Slots
         self.slot_combobox_as = ttk.Combobox(
             self.manual_control_frame_as, state="readonly", width=15
@@ -297,7 +294,6 @@ class PicoController:
         self.goto_slot_button_as.grid(
             row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.goto_slot_button_as.config(state=tk.DISABLED)
         # update the current row
         current_row += self.manual_control_frame_as.grid_size()[1]
 
@@ -443,6 +439,9 @@ class PicoController:
         )
         self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
 
+        self.set_manual_control_buttons_state(tk.DISABLED)
+        self.set_autosampler_buttons_state(tk.DISABLED)
+
     def add_pump_controller_widgets(self, controller_id):
         # update the pump_controllers dictionary
         self.pump_controllers[controller_id] = serial.Serial()
@@ -503,8 +502,8 @@ class PicoController:
     def main_loop(self):
         self.refresh_ports()
         self.read_serial()
-        self.send_command()
         self.read_serial_as()
+        self.send_command()
         self.send_command_as()
         self.update_progress()
         self.query_rtc_time()
@@ -754,6 +753,7 @@ class PicoController:
                 [
                     self.pump_controllers_rtc_time[key]
                     for key in sorted(self.pump_controllers_rtc_time.keys())
+                    if self.pump_controllers_connected[key]
                 ]
             )
             self.current_time_label.config(text=rtc_time_str)
@@ -774,11 +774,11 @@ class PicoController:
                     serial_port_widget["status_label"].config(
                         text="Status: Not connected"
                     )  # update the status label
+                    serial_port_widget["disconnect_button"].config(state=tk.DISABLED)
+                    serial_port_widget["reset_button"].config(state=tk.DISABLED)
                     self.remove_pumps_widgets(
                         remove_all=False, controller_id=controller_id
                     )
-                    serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
-                    serial_port_widget["reset_button"].config(state=tk.NORMAL)
                     # only disable the manual control buttons if all controllers are disconnected
                     if all(
                         [not port.is_open for port in self.pump_controllers.values()]
@@ -903,14 +903,14 @@ class PicoController:
 
     def toggle_power(self, pump_id, update_status=True):
         # find the controller id of the pump
-        controller_id = self.pump_id_to_controller_id[pump_id]
+        controller_id = self.pump_ids_to_controller_ids[pump_id]
         if self.pump_controllers[controller_id].is_open:
             self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
             if update_status:
                 self.update_status(controller_id=controller_id)
 
     def toggle_direction(self, pump_id, update_status=True):
-        controller_id = self.pump_id_to_controller_id[pump_id]
+        controller_id = self.pump_ids_to_controller_ids[pump_id]
         if self.pump_controllers[controller_id].is_open:
             # put the command in the queue
             self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:di")
@@ -941,28 +941,30 @@ class PicoController:
                     message=f"An error occurred in function register_pump: {e}",
                 )
 
-    def remove_pump(self, pump_id=0):
+    def remove_pump(self, remove_all=False, pump_id=None):
         try:
             # pop a message to confirm the clear
-            if pump_id == 0:  # 0 means clear all pumps
+            if remove_all:
                 if messagebox.askyesno("Clear Pumps", "Clear all pumps?") == tk.YES:
-                    self.pump_controllers_send_queue.put("0:0:clr")
-                    # remove all the pump widgets
-                    self.remove_pumps_widgets(remove_all=True)
                     # query the pump info for all the controllers
                     for (
                         id,
                         connection_status,
                     ) in self.pump_controllers_connected.items():
                         if connection_status:
+                            self.pump_controllers_send_queue.put(f"{id}:0:clr")
+                            self.remove_pumps_widgets(
+                                remove_all=False, controller_id=id
+                            )
                             self.query_pump_info(controller_id=id)
             else:
                 if (
                     messagebox.askyesno("Clear Pump", f"Clear pump {pump_id}?")
                     == tk.YES
+                    and pump_id
                 ):
                     # find the controller id of the pump
-                    controller_id = self.pump_id_to_controller_id[pump_id]
+                    controller_id = self.pump_ids_to_controller_ids[pump_id]
                     self.pump_controllers_send_queue.put(
                         f"{controller_id}:{pump_id}:clr"
                     )
@@ -977,20 +979,52 @@ class PicoController:
                 message=f"An error occurred in function remove_pump: {e}",
             )
 
-    #!pending
     def save_pump_config(self):
-        if all(self.pump_controllers_connected.values()):
+        if any(self.pump_controllers_connected.values()):
             try:
                 # pop a checklist message box to let user choose which pump to save
-                pump_id_list = list(self.pump_id_to_controller_id.keys())
-                pump_id_list.append(0)  # add the option to save all pumps
-                selected_pumps = dialog.askchecklist(
-                    "Save Pump Configuration",
-                    "Select the pumps to save the configuration:",
-                    pump_id_list,
-                )
-                self.pump_controllers_send_queue.put(f"0:{pump_id}:save")
-                logging.info(f"Signal sent to save pump {pump_id} configuration.")
+                pump_id_list = [
+                    f"Controller {id}"
+                    for id, connected in self.pump_controllers_connected.items()
+                    if connected
+                ]
+                if len(pump_id_list) > 1:
+                    pump_id_list.insert(0, "All")
+                result_var = tk.StringVar()
+                result_var.set("")  # Initialize as empty
+                non_blocking_checklist(
+                    parent=self.master,
+                    title="Select Controller to Save",
+                    items=pump_id_list,
+                    result_var=result_var,
+                )  # Trigger non-blocking checklist
+
+                # Trace the variable to act once the user makes a selection
+                def on_selection(*args):
+                    result = result_var.get()
+                    if result == "":  # check if empty
+                        result_var.trace_remove("write", trace_id)  # Untrace
+                        return
+                    selected_pumps = result.split(",")
+                    if "All" in selected_pumps:
+                        for id, connected in self.pump_controllers_connected.items():
+                            if connected:
+                                self.pump_controllers_send_queue.put(f"{id}:0:save")
+                                logging.info(
+                                    f"Signal sent to save pump {id} configuration."
+                                )
+                    else:
+                        for pump in selected_pumps:
+                            pump_id = int(pump.split(" ")[1])
+                            self.pump_controllers_send_queue.put(f"{pump_id}:0:save")
+                            logging.info(
+                                f"Signal sent to save pump {pump_id} configuration."
+                            )
+
+                    result_var.trace_remove("write", trace_id)  # Untrace
+
+                # trace the variable and call the on_selection when the user makes a selection
+                trace_id = result_var.trace_add("write", on_selection)
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -999,25 +1033,46 @@ class PicoController:
                     message=f"An error occurred in function save_pump_config: {e}",
                 )
 
-    def emergency_shutdown(self, confirmation=False):
+    def save_pump_config_callback(self, selected_pumps):
+        # just return the selected pumps list
+        return selected_pumps
+
+    def pumps_shutdown(self, confirmation=False, all=True, controller_id=None):
         if self.pump_controllers:
             try:
                 if not confirmation or messagebox.askyesno(
-                    "Emergency Shutdown",
-                    "Are you sure you want to perform an emergency shutdown?",
+                    "Shutdown All",
+                    "Are you sure you want to shutdown pumps on all controllers?",
                 ):
-                    self.pump_controllers_send_queue.put("0:shutdown")
-                    # update the status
-                    for id, connection_status in self.pump_controllers_connected.items():
-                        if connection_status:
-                            self.update_status(controller_id=id)
-                    logging.info("Signal sent for emergency shutdown.")
+                    if all:
+                        for (
+                            id,
+                            connection_status,
+                        ) in self.pump_controllers_connected.items():
+                            if connection_status:
+                                self.pump_controllers_send_queue.put(f"{id}:0:shutdown")
+                                self.update_status(controller_id=id)
+                                logging.info(
+                                    f"Signal sent for emergency shutdown of pump controller {id}."
+                                )
+                    else:
+                        if (
+                            controller_id
+                            and self.pump_controllers_connected[controller_id]
+                        ):
+                            self.pump_controllers_send_queue.put(
+                                f"{controller_id}:0:shutdown"
+                            )
+                            self.update_status(controller_id=controller_id)
+                            logging.info(
+                                f"Signal sent for emergency shutdown of pump controller {controller_id}."
+                            )
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
                     parent=self.master,
                     title="Error",
-                    message=f"An error occurred in function emergency_shutdown: {e}",
+                    message=f"An error occurred in function pumps_shutdown: {e}",
                 )
 
     def stop_procedure(self, message=False):
@@ -1031,7 +1086,7 @@ class PicoController:
             self.pause_timepoint_ns = -1
             self.pause_duration_ns = 0
             # call a emergency shutdown in case the power is still on
-            self.emergency_shutdown()
+            self.pumps_shutdown()
             # update the status
             for id, connection_status in self.pump_controllers_connected.items():
                 if connection_status:
@@ -1096,8 +1151,10 @@ class PicoController:
 
     # send_command will remove the first item from the queue and send it
     def send_command(self):
-        if not self.pump_controllers_send_queue.empty():
+        while not self.pump_controllers_send_queue.empty():
             command = self.pump_controllers_send_queue.get(block=False)
+            if "time" not in command:
+                logging.debug(f"From queue: {command}")
             controller_id = int(command.split(":")[0])
             try:
                 # assemble the command (everything after the first colon, the rest might also contain colons)
@@ -1211,7 +1268,7 @@ class PicoController:
             pump_id = int(pump_id)
             if pump_id in self.pumps:
                 # check the controller id of the pump
-                if self.pump_id_to_controller_id[pump_id] == controller_id:
+                if self.pump_ids_to_controller_ids[pump_id] == controller_id:
                     self.pumps[pump_id]["power_status"] = power_status
                     self.pumps[pump_id]["direction_status"] = direction_status
                     self.pumps[pump_id]["power_label"].config(
@@ -1222,12 +1279,12 @@ class PicoController:
                     )
                 else:
                     logging.error(
-                        f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_id_to_controller_id[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue."
+                        f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_ids_to_controller_ids[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue."
                     )
                     non_blocking_messagebox(
                         parent=self.master,
                         title="Error",
-                        message=f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_id_to_controller_id[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue.",
+                        message=f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_ids_to_controller_ids[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue.",
                     )
             else:
                 # This mean we somehow received a status update for a pump that does not exist
@@ -1373,10 +1430,10 @@ class PicoController:
                     pump_id not in self.pumps
                 ):  # pump does not exist, create a new pump frame
                     # update both mappings
-                    self.pump_id_to_controller_id[pump_id] = controller_id
-                    if controller_id not in self.controller_id_to_pump_id:
-                        self.controller_id_to_pump_id[controller_id] = []
-                    self.controller_id_to_pump_id[controller_id].append(pump_id)
+                    self.pump_ids_to_controller_ids[pump_id] = controller_id
+                    if controller_id not in self.controller_ids_to_pump_ids:
+                        self.controller_ids_to_pump_ids[controller_id] = []
+                    self.controller_ids_to_pump_ids[controller_id].append(pump_id)
                     pump_frame = ttk.Labelframe(
                         self.pumps_frame,
                         text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}",
@@ -1441,7 +1498,9 @@ class PicoController:
                     remove_button = ttk.Button(
                         pump_frame,
                         text="Remove",
-                        command=lambda pid=pump_id: self.remove_pump(pid),
+                        command=lambda pid=pump_id: self.remove_pump(
+                            remove_all=False, pump_id=pid
+                        ),
                     )
                     remove_button.grid(
                         row=2,
@@ -1475,7 +1534,7 @@ class PicoController:
                         "power_button": power_button,
                         "direction_button": direction_button,
                     }
-                elif self.pump_id_to_controller_id[pump_id] == controller_id:
+                elif self.pump_ids_to_controller_ids[pump_id] == controller_id:
                     self.pumps[pump_id].update(
                         {
                             "power_pin": power_pin,
@@ -1512,8 +1571,8 @@ class PicoController:
                 else:  # we have a pump with the same id but different controller
                     non_blocking_messagebox(
                         parent=self.master,
-                        title="Error",
-                        message=f"Pump {pump_id} in controller {controller_id} already exists in another controller {self.pump_id_to_controller_id[pump_id]}!\nDuplicate pump ids are not allow! Connect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue.",
+                        title="Error: Duplicate Pump Id",
+                        message=f"Pump {pump_id} in controller {controller_id} already exists in controller {self.pump_ids_to_controller_ids[pump_id]}!\nDuplicate pump ids are not allow!\nConnect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue.",
                     )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -1541,22 +1600,22 @@ class PicoController:
                 sticky="NSEW",
             )
             self.pumps.clear()
-            self.pump_id_to_controller_id.clear()
-            self.controller_id_to_pump_id.clear()
+            self.pump_ids_to_controller_ids.clear()
+            self.controller_ids_to_pump_ids.clear()
         else:
             if pump_id:  # we now remove a specific pump
                 if pump_id in self.pumps:
                     self.pumps[pump_id]["frame"].destroy()
                     self.pumps.pop(pump_id)
-                    controller_id = self.pump_id_to_controller_id.pop(pump_id)
-                    self.controller_id_to_pump_id[controller_id].remove(pump_id)
+                    controller_id = self.pump_ids_to_controller_ids.pop(pump_id)
+                    self.controller_ids_to_pump_ids[controller_id].remove(pump_id)
             elif controller_id:  # we now remove all pumps under a specific controller
-                if controller_id in self.controller_id_to_pump_id:
-                    for pump_id in self.controller_id_to_pump_id[controller_id]:
+                if controller_id in self.controller_ids_to_pump_ids:
+                    for pump_id in self.controller_ids_to_pump_ids[controller_id]:
                         self.pumps[pump_id]["frame"].destroy()
                         self.pumps.pop(pump_id)
-                        self.pump_id_to_controller_id.pop(pump_id)
-                    self.controller_id_to_pump_id.pop(controller_id)
+                        self.pump_ids_to_controller_ids.pop(pump_id)
+                    self.controller_ids_to_pump_ids.pop(controller_id)
 
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
@@ -1820,7 +1879,7 @@ class PicoController:
                 self.total_procedure_time_ns = -1
                 self.current_index = -1
                 # call a emergency shutdown in case the power is still on
-                self.emergency_shutdown()
+                self.pumps_shutdown()
                 logging.info("Procedure completed.")
                 non_blocking_messagebox(
                     parent=self.master,
@@ -2033,78 +2092,145 @@ class PicoController:
                 )
 
     def add_pump(self):
-        # only add a pump if connected to Pico
-        if not self.pump_controllers:
+        # if we have any connected pump controller, we can add a pump
+        if not any(self.pump_controllers_connected.values()):
             non_blocking_messagebox(
                 parent=self.master, title="Error", message="Not connected to Pico."
             )
             return
 
-        pump_id = len(self.pumps) + 1
-        self.add_pump_widgets(
-            f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW"
-        )
+        try:
+            controller_list = [
+                f"Controller {id}"
+                for id, connected in self.pump_controllers_connected.items()
+                if connected
+            ]
+            result_var = tk.StringVar()
+            result_var.set("")  # Initialize as empty
+            non_blocking_single_select(
+                parent=self.master,
+                title="Select Controller for Pump",
+                items=controller_list,
+                result_var=result_var,
+            )  # Trigger non-blocking selection dialog
 
-    def edit_pump(self, pump_id):
-        pump = self.pumps[pump_id]
-        power_pin = simpledialog.askinteger(
-            "Power Pin", "Enter power pin ID:", initialvalue=int(pump["power_pin"])
-        )
-        direction_pin = simpledialog.askinteger(
-            "Direction Pin",
-            "Enter direction pin ID:",
-            initialvalue=int(pump["direction_pin"]),
-        )
-        initial_power_pin_value = simpledialog.askinteger(
-            "Initial Power Pin Value",
-            "Enter initial power pin value (0/1):",
-            initialvalue=int(pump["initial_power_pin_value"]),
-            minvalue=0,
-            maxvalue=1,
-        )
-        initial_direction_pin_value = simpledialog.askinteger(
-            "Initial Direction Pin Value",
-            "Enter initial direction pin value (0/1):",
-            initialvalue=int(pump["initial_direction_pin_value"]),
-            minvalue=0,
-            maxvalue=1,
-        )
-        initial_power_status = simpledialog.askstring(
-            "Initial Power Status",
-            "Enter initial power status (ON/OFF):",
-            initialvalue=pump["power_status"],
-        )
-        initial_direction_status = simpledialog.askstring(
-            "Initial Direction Status",
-            "Enter initial direction status (CW/CCW):",
-            initialvalue=pump["direction_status"],
-        )
+            def on_selection(*args):
+                result = result_var.get()
+                if result == "":
+                    result_var.trace_remove("write", trace_id)
+                    return
+                selected_controller = result  # Get the selected controller
+                controller_id = int(selected_controller.split(" ")[1])
 
-        if (
-            power_pin is not None
-            and direction_pin is not None
-            and initial_power_pin_value is not None
-            and initial_direction_pin_value is not None
-            and initial_power_status in ["ON", "OFF"]
-            and initial_direction_status in ["CW", "CCW"]
-        ):
-            self.register_pump(
-                pump_id,
-                power_pin,
-                direction_pin,
-                initial_power_pin_value,
-                initial_direction_pin_value,
-                initial_power_status,
-                initial_direction_status,
-            )
-        else:
+                pump_id = max(self.pumps.keys(), default=0) + 1
+                self.add_pump_widgets(
+                    controller_id=controller_id,
+                    response=f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW",
+                )
+                non_blocking_messagebox(
+                    parent=self.master,
+                    title="Success",
+                    message=f"Pump {pump_id} added to {selected_controller}.",
+                )
+                result_var.trace_remove("write", trace_id)  # Untrace
+
+            trace_id = result_var.trace_add("write", on_selection)  # trace the variable
+        except Exception as e:
+            logging.error(f"Error adding pump: {e}")
             non_blocking_messagebox(
                 parent=self.master,
                 title="Error",
-                message="Invalid input for pump registration.",
+                message=f"An error occurred while adding the pump: {e}",
             )
+
+    def edit_pump(self, pump_id):
+        # Find the controller ID for the pump
+        controller_id = self.pump_ids_to_controller_ids[pump_id]
+        pump = self.pumps[pump_id]
+
+        # Define fields for the input dialog
+        fields = [
+            {
+                "label": "Power Pin",
+                "type": "text",
+                "initial_value": int(pump["power_pin"]),
+            },
+            {
+                "label": "Direction Pin",
+                "type": "text",
+                "initial_value": int(pump["direction_pin"]),
+            },
+            {
+                "label": "Initial Power Pin Value",
+                "type": "text",
+                "initial_value": int(pump["initial_power_pin_value"]),
+            },
+            {
+                "label": "Initial Direction Pin Value",
+                "type": "text",
+                "initial_value": int(pump["initial_direction_pin_value"]),
+            },
+            {
+                "label": "Initial Power Status",
+                "type": "dropdown",
+                "choices": ["ON", "OFF"],
+                "initial_value": pump["power_status"],
+            },
+            {
+                "label": "Initial Direction Status",
+                "type": "dropdown",
+                "choices": ["CW", "CCW"],
+                "initial_value": pump["direction_status"],
+            },
+        ]
+
+        # Result variable
+        result_var = tk.StringVar()
+        result_var.set("")  # Initialize as empty
+
+        def on_result(*args):
+            result = result_var.get()
+            if not result:
+                result_var.trace_remove("write", trace_id)  # Untrace on cancel
+                return
+
+            inputs = json.loads(result)
+            try:
+                self.register_pump(
+                    controller_id=controller_id,
+                    pump_id=pump_id,
+                    power_pin=int(inputs["Power Pin"]),
+                    direction_pin=int(inputs["Direction Pin"]),
+                    initial_power_pin_value=int(inputs["Initial Power Pin Value"]),
+                    initial_direction_pin_value=int(
+                        inputs["Initial Direction Pin Value"]
+                    ),
+                    initial_power_status=inputs["Initial Power Status"],
+                    initial_direction_status=inputs["Initial Direction Status"],
+                )
+                non_blocking_messagebox(
+                    parent=self.master,
+                    title="Success",
+                    message=f"Pump {pump_id} updated successfully on controller {controller_id}.",
+                )
+            except Exception as e:
+                logging.error(f"Error updating pump: {e}")
+                non_blocking_messagebox(
+                    parent=self.master,
+                    title="Error",
+                    message=f"An error occurred while updating the pump: {e}",
+                )
+            result_var.trace_remove("write", trace_id)  # Untrace after completion
+
+        trace_id = result_var.trace_add("write", on_result)  # Trace the variable
+        non_blocking_input_dialog(
+            parent=self.master,
+            title=f"Edit Pump {pump_id}",
+            fields=fields,
+            result_var=result_var,
+        )
         # update the pump info
-        self.query_pump_info()
+        self.query_pump_info(controller_id)
 
     # on closing, minimize window to the system tray
     def on_closing(self) -> None:
