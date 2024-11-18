@@ -1,7 +1,7 @@
 import os
 
 # Define the path dynamically
-icon_path = os.path.join("icons", "icon.ico")
+icon_path = os.path.join("icons", "icons-red.ico")
 
 a = Analysis(
     ['pump_control.py'],
