@@ -12,12 +12,9 @@ import pystray
 from PIL import Image
 
 # other library
-import os
-import re
-import sys
+import os, re, sys
 import time
 import json
-import psutil
 import logging
 import pandas as pd
 from queue import Queue
@@ -509,9 +506,9 @@ class PicoController:
         self.send_command()
         self.read_serial_as()
         self.send_command_as()
-        # self.update_progress()
-        # self.query_rtc_time()
-        # self.update_rtc_time_display()
+        self.update_progress()
+        self.query_rtc_time()
+        self.update_rtc_time_display()
         self.master.after(self.main_loop_interval_ms, self.main_loop)
 
     def refresh_ports(self, instant=False):
@@ -777,7 +774,9 @@ class PicoController:
                     serial_port_widget["status_label"].config(
                         text="Status: Not connected"
                     )  # update the status label
-                    self.clear_pumps_widgets(controller_id)  # clear the pump widgets
+                    self.remove_pumps_widgets(
+                        remove_all=False, controller_id=controller_id
+                    )
                     serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
                     serial_port_widget["reset_button"].config(state=tk.NORMAL)
                     # only disable the manual control buttons if all controllers are disconnected
@@ -790,10 +789,15 @@ class PicoController:
                         self.stop_procedure(False)
 
                     # go into the queue and remove any command that is meant for the disconnected controller
+                    # createa temporary queue to store the commands
+                    temp_queue = Queue()
                     while not self.pump_controllers_send_queue.empty():
                         command = self.pump_controllers_send_queue.get()
                         if int(command.split(":")[0]) != controller_id:
-                            self.pump_controllers_send_queue.put(command)
+                            temp_queue.put(command)
+                    # put the commands back to the original queue
+                    while not temp_queue.empty():
+                        self.pump_controllers_send_queue.put(temp_queue.get())
 
                     self.refresh_ports(instant=True)  # refresh the ports immediately
                     logging.info(f"Disconnected from Pico {controller_id}")
@@ -901,7 +905,7 @@ class PicoController:
         # find the controller id of the pump
         controller_id = self.pump_id_to_controller_id[pump_id]
         if self.pump_controllers[controller_id].is_open:
-            self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:po")
+            self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
             if update_status:
                 self.update_status(controller_id=controller_id)
 
@@ -937,20 +941,21 @@ class PicoController:
                     message=f"An error occurred in function register_pump: {e}",
                 )
 
-    # ! pending
     def remove_pump(self, pump_id=0):
         try:
             # pop a message to confirm the clear
             if pump_id == 0:  # 0 means clear all pumps
                 if messagebox.askyesno("Clear Pumps", "Clear all pumps?") == tk.YES:
                     self.pump_controllers_send_queue.put("0:0:clr")
-                    # query the all controllers ids
-                    for id in self.controller_id_to_pump_id.keys():
-                        self.clear_pumps_widgets(id)
-                    for id in [key for key in self.pump_id_to_controller_id.keys()]:
-                        self.clear_pumps_widgets(id)
-                    # issue a pump info query
-                    self.query_pump_info(controller_id)
+                    # remove all the pump widgets
+                    self.remove_pumps_widgets(remove_all=True)
+                    # query the pump info for all the controllers
+                    for (
+                        id,
+                        connection_status,
+                    ) in self.pump_controllers_connected.items():
+                        if connection_status:
+                            self.query_pump_info(controller_id=id)
             else:
                 if (
                     messagebox.askyesno("Clear Pump", f"Clear pump {pump_id}?")
@@ -961,10 +966,9 @@ class PicoController:
                     self.pump_controllers_send_queue.put(
                         f"{controller_id}:{pump_id}:clr"
                     )
-                    self.clear_pumps_widgets(controller_id)
-                    # issue a pump info query for all controllers
-                    for id in self.pump_controllers.keys():
-                        self.query_pump_info(id)
+                    self.remove_pumps_widgets(remove_all=False, pump_id=pump_id)
+                    # issue a pump info query for this specific controller
+                    self.query_pump_info(controller_id=controller_id)
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -973,6 +977,7 @@ class PicoController:
                 message=f"An error occurred in function remove_pump: {e}",
             )
 
+    #!pending
     def save_pump_config(self):
         if all(self.pump_controllers_connected.values()):
             try:
@@ -1003,7 +1008,9 @@ class PicoController:
                 ):
                     self.pump_controllers_send_queue.put("0:shutdown")
                     # update the status
-                    self.update_status()
+                    for id, connection_status in self.pump_controllers_connected.items():
+                        if connection_status:
+                            self.update_status(controller_id=id)
                     logging.info("Signal sent for emergency shutdown.")
             except Exception as e:
                 logging.error(f"Error: {e}")
@@ -1026,13 +1033,17 @@ class PicoController:
             # call a emergency shutdown in case the power is still on
             self.emergency_shutdown()
             # update the status
-            self.update_status()
+            for id, connection_status in self.pump_controllers_connected.items():
+                if connection_status:
+                    self.update_status(controller_id=id)
+                    # enable the disconnect button
+                    self.pump_controllers_id_to_widget_map[id][
+                        "disconnect_button"
+                    ].config(state=tk.NORMAL)
             # disable the buttons
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
             self.continue_button.config(state=tk.DISABLED)
-            # enable the disconnect button
-            self.disconnect_button.config(state=tk.NORMAL)
             logging.info("Procedure stopped.")
             if message:
                 non_blocking_messagebox(
@@ -1087,7 +1098,6 @@ class PicoController:
     def send_command(self):
         if not self.pump_controllers_send_queue.empty():
             command = self.pump_controllers_send_queue.get(block=False)
-            logging.debug(f"from Queue: {command}")
             controller_id = int(command.split(":")[0])
             try:
                 # assemble the command (everything after the first colon, the rest might also contain colons)
@@ -1097,7 +1107,7 @@ class PicoController:
                 ].is_open:  # check if the controller is connected
                     self.pump_controllers[controller_id].write(f"{command}\n".encode())
                     if "time" not in command:
-                        logging.debug(f"PC -> Pico{controller_id}: {command}")
+                        logging.debug(f"PC -> Pico {controller_id}: {command}")
                 else:
                     logging.error(
                         f"Error: Trying to send command to disconnected controller {controller_id}"
@@ -1189,6 +1199,46 @@ class PicoController:
                 title="Error",
                 message=f"An error occurred in function read_serial: {e}",
             )
+
+    def update_pump_status(self, controller_id, response):
+        status_pattern = re.compile(
+            r"Pump(\d+) Status: Power: (ON|OFF), Direction: (CW|CCW)"
+        )
+        matches = status_pattern.findall(response)
+
+        for match in matches:
+            pump_id, power_status, direction_status = match
+            pump_id = int(pump_id)
+            if pump_id in self.pumps:
+                # check the controller id of the pump
+                if self.pump_id_to_controller_id[pump_id] == controller_id:
+                    self.pumps[pump_id]["power_status"] = power_status
+                    self.pumps[pump_id]["direction_status"] = direction_status
+                    self.pumps[pump_id]["power_label"].config(
+                        text=f"Power Status: {power_status}"
+                    )
+                    self.pumps[pump_id]["direction_label"].config(
+                        text=f"Direction Status: {direction_status}"
+                    )
+                else:
+                    logging.error(
+                        f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_id_to_controller_id[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue."
+                    )
+                    non_blocking_messagebox(
+                        parent=self.master,
+                        title="Error",
+                        message=f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_id_to_controller_id[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue.",
+                    )
+            else:
+                # This mean we somehow received a status update for a pump that does not exist
+                # clear the pumps widgets and re-query the pump info
+                self.remove_pumps_widgets(remove_all=True)
+                for id, connection_status in self.pump_controllers_connected.items():
+                    if connection_status:
+                        self.query_pump_info(controller_id=id)
+                logging.error(
+                    f"We received a status update for a pump {pump_id} that does not exist from controller {controller_id}. Re-querying all pump info."
+                )
 
     def read_serial_as(self):
         try:
@@ -1463,7 +1513,7 @@ class PicoController:
                     non_blocking_messagebox(
                         parent=self.master,
                         title="Error",
-                        message=f"Pump {pump_id} in controller {controller_id} already exists in another controller {self.pump_id_to_controller_id[pump_id]}!\mDuplicate pump ids are not allow! Connect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue."
+                        message=f"Pump {pump_id} in controller {controller_id} already exists in another controller {self.pump_id_to_controller_id[pump_id]}!\nDuplicate pump ids are not allow! Connect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue.",
                     )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -1473,50 +1523,40 @@ class PicoController:
                 message=f"An error occurred in function add_pump_widgets: {e}",
             )
 
-    # a function to clear all pumps
-    def clear_pumps_widgets(self):
-        for widget in self.pumps_frame.winfo_children():
-            widget.destroy()
-        # destroy the pumps frame
-        self.pumps_frame.destroy()
-        # recreate pumps frame inside the manual control frame
-        self.pumps_frame = ttk.Frame(self.manual_control_frame)
-        self.pumps_frame.grid(
-            row=1,
-            column=0,
-            columnspan=5,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
-        self.pumps.clear()
-
-    def update_pump_status(self, controller_id, response):
-        status_pattern = re.compile(
-            r"Pump(\d+) Status: Power: (ON|OFF), Direction: (CW|CCW)"
-        )
-        matches = status_pattern.findall(response)
-
-        for match in matches:
-            pump_id, power_status, direction_status = match
-            pump_id = int(pump_id)
-            if pump_id in self.pumps:
-                self.pumps[pump_id]["power_status"] = power_status
-                self.pumps[pump_id]["direction_status"] = direction_status
-                self.pumps[pump_id]["power_label"].config(
-                    text=f"Power Status: {power_status}"
-                )
-                self.pumps[pump_id]["direction_label"].config(
-                    text=f"Direction Status: {direction_status}"
-                )
-            else:
-                # This mean we somehow received a status update for a pump that does not exist
-                # clear the pumps widgets and re-query the pump info
-                self.clear_pumps_widgets()
-                self.query_pump_info()
-                logging.error(
-                    f"We received a status update for a pump that does not exist: {pump_id}"
-                )
+    # a function to clear all pumps or or remove all pump under a controller or remove a specific pump
+    def remove_pumps_widgets(self, remove_all=True, pump_id=None, controller_id=None):
+        if remove_all:
+            for widget in self.pumps_frame.winfo_children():
+                widget.destroy()
+            # destroy the pumps frame
+            self.pumps_frame.destroy()
+            # recreate pumps frame inside the manual control frame
+            self.pumps_frame = ttk.Frame(self.manual_control_frame)
+            self.pumps_frame.grid(
+                row=1,
+                column=0,
+                columnspan=8,
+                padx=global_pad_x,
+                pady=global_pad_y,
+                sticky="NSEW",
+            )
+            self.pumps.clear()
+            self.pump_id_to_controller_id.clear()
+            self.controller_id_to_pump_id.clear()
+        else:
+            if pump_id:  # we now remove a specific pump
+                if pump_id in self.pumps:
+                    self.pumps[pump_id]["frame"].destroy()
+                    self.pumps.pop(pump_id)
+                    controller_id = self.pump_id_to_controller_id.pop(pump_id)
+                    self.controller_id_to_pump_id[controller_id].remove(pump_id)
+            elif controller_id:  # we now remove all pumps under a specific controller
+                if controller_id in self.controller_id_to_pump_id:
+                    for pump_id in self.controller_id_to_pump_id[controller_id]:
+                        self.pumps[pump_id]["frame"].destroy()
+                        self.pumps.pop(pump_id)
+                        self.pump_id_to_controller_id.pop(pump_id)
+                    self.controller_id_to_pump_id.pop(controller_id)
 
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
@@ -1707,7 +1747,7 @@ class PicoController:
             non_blocking_messagebox(
                 parent=self.master,
                 title="Error",
-                message="No pump controller connection. Please connect to at least one controller to continue."
+                message="No pump controller connection. Please connect to at least one controller to continue.",
             )
             return
         # display warning if only one MCU is connected
@@ -1722,7 +1762,15 @@ class PicoController:
             self.stop_button.config(state=tk.NORMAL)
             self.pause_button.config(state=tk.NORMAL)
             self.continue_button.config(state=tk.DISABLED)
-            self.disconnect_button.config(state=tk.DISABLED)
+            # disable the disconnect button for connected controllers
+            for (
+                controller_id,
+                connection_status,
+            ) in self.pump_controllers_connected.items():
+                if connection_status:
+                    self.pump_controllers_id_to_widget_map[controller_id][
+                        "disconnect_button"
+                    ].config(state=tk.DISABLED)
 
             # clear the stop time and pause time
             self.pause_timepoint_ns = -1
@@ -1759,9 +1807,7 @@ class PicoController:
     def execute_procedure(self, index=0):
         if self.recipe_df is None or self.recipe_df.empty:
             non_blocking_messagebox(
-                parent=self.master,
-                title="Error",
-                message="No recipe file loaded."
+                parent=self.master, title="Error", message="No recipe file loaded."
             )
             logging.error("No recipe data to execute.")
             return
@@ -1779,7 +1825,7 @@ class PicoController:
                 non_blocking_messagebox(
                     parent=self.master,
                     title="Procedure Complete",
-                    message="The procedure has been completed."
+                    message="The procedure has been completed.",
                 )
                 # disable the stop button
                 self.stop_button.config(state=tk.DISABLED)
@@ -1829,8 +1875,10 @@ class PicoController:
                 if col.startswith("Autosampler_position")
             }
 
-            # issue a one-time status update
-            self.update_status()
+            # issue a one-time status update for all pumps and autosampler
+            for id, connection_status in self.pump_controllers_connected.items():
+                if connection_status:
+                    self.update_status(controller_id=id)
             self.execute_actions(
                 index,
                 pump_actions,
@@ -1901,8 +1949,10 @@ class PicoController:
                     f"Warning: Invalid autosampler position: {position} at index {index}"
                 )
 
-        # issue a one-time status update
-        self.update_status()
+        # issue a one-time status update for all pumps and autosampler
+        for id, connection_status in self.pump_controllers_connected.items():
+            if connection_status:
+                self.update_status(controller_id=id)
         self.execute_procedure(index + 1)
 
     def update_progress(self):
@@ -1986,9 +2036,7 @@ class PicoController:
         # only add a pump if connected to Pico
         if not self.pump_controllers:
             non_blocking_messagebox(
-                parent=self.master,
-                title="Error",
-                message="Not connected to Pico."
+                parent=self.master, title="Error", message="Not connected to Pico."
             )
             return
 
@@ -2053,7 +2101,7 @@ class PicoController:
             non_blocking_messagebox(
                 parent=self.master,
                 title="Error",
-                message="Invalid input for pump registration."
+                message="Invalid input for pump registration.",
             )
         # update the pump info
         self.query_pump_info()
