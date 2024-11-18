@@ -19,3 +19,4 @@ pyvenv.cfg
 *.lck
 *.zip
 *.exe
+*.lock
