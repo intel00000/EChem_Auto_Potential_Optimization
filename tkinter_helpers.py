@@ -216,7 +216,7 @@ def non_blocking_input_dialog(parent, title, fields, result_var, icon_path=None)
 
         # OK and Cancel buttons
         def on_ok():
-            inputs = {field["label"]: var.get() for field, var in input_vars.items()}
+            inputs = {label: var.get() for label, var in input_vars.items()}
             result_var.set(json.dumps(inputs))  # Store inputs as JSON in the result_var
             top.destroy()
 

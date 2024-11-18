@@ -558,18 +558,21 @@ class PicoController:
             # go through the pump controllers dictionary and update the comboboxes in the corresponding frame
             for id, widgets in self.pump_controllers_id_to_widget_map.items():
                 serial_port_obj = self.pump_controllers[id]
-                if serial_port_obj and not serial_port_obj.is_open:
+                if serial_port_obj and not serial_port_obj.is_open: # don't update the combobox if the port is already connected
                     widgets["combobox"]["values"] = ports
-                    if len(ports) > 0:
-                        widgets["combobox"].current(0)
-                    else:
-                        widgets["combobox"].set("")
+                    if widgets["combobox"].get() not in ports:
+                        if len(ports) > 0:
+                            widgets["combobox"].current(0)
+                        else:
+                            widgets["combobox"].set("")
             if not self.autosamplers:
                 self.port_combobox_as["values"] = ports
-                if len(ports) > 0:
-                    self.port_combobox_as.current(0)
-                else:
-                    self.port_combobox_as.set("")
+                # if current value is in the list, don't change it
+                if self.port_combobox_as.get() not in ports:
+                    if len(ports) > 0:
+                        self.port_combobox_as.current(0)
+                    else:
+                        self.port_combobox_as.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
 
     def connect(self, controller_id):
@@ -1151,10 +1154,8 @@ class PicoController:
 
     # send_command will remove the first item from the queue and send it
     def send_command(self):
-        while not self.pump_controllers_send_queue.empty():
+        if not self.pump_controllers_send_queue.empty():
             command = self.pump_controllers_send_queue.get(block=False)
-            if "time" not in command:
-                logging.debug(f"From queue: {command}")
             controller_id = int(command.split(":")[0])
             try:
                 # assemble the command (everything after the first colon, the rest might also contain colons)
@@ -2193,9 +2194,8 @@ class PicoController:
             if not result:
                 result_var.trace_remove("write", trace_id)  # Untrace on cancel
                 return
-
-            inputs = json.loads(result)
             try:
+                inputs = json.loads(result)
                 self.register_pump(
                     controller_id=controller_id,
                     pump_id=pump_id,
@@ -2208,11 +2208,8 @@ class PicoController:
                     initial_power_status=inputs["Initial Power Status"],
                     initial_direction_status=inputs["Initial Direction Status"],
                 )
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Success",
-                    message=f"Pump {pump_id} updated successfully on controller {controller_id}.",
-                )
+                # update the pump info
+                self.query_pump_info(controller_id)
             except Exception as e:
                 logging.error(f"Error updating pump: {e}")
                 non_blocking_messagebox(
@@ -2229,8 +2226,6 @@ class PicoController:
             fields=fields,
             result_var=result_var,
         )
-        # update the pump info
-        self.query_pump_info(controller_id)
 
     # on closing, minimize window to the system tray
     def on_closing(self) -> None:
