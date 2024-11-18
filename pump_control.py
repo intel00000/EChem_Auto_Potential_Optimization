@@ -502,15 +502,23 @@ class PicoController:
         }
 
     def main_loop(self):
-        self.refresh_ports()
-        self.read_serial()
-        self.read_serial_as()
-        self.send_command()
-        self.send_command_as()
-        self.update_progress()
-        self.query_rtc_time()
-        self.update_rtc_time_display()
-        self.master.after(self.main_loop_interval_ms, self.main_loop)
+        try:
+            self.refresh_ports()
+            self.read_serial()
+            self.read_serial_as()
+            self.send_command()
+            self.send_command_as()
+            self.update_progress()
+            self.query_rtc_time()
+            self.update_rtc_time_display()
+            self.master.after(self.main_loop_interval_ms, self.main_loop)
+        except Exception as e:
+            logging.error(f"Error in main loop: {e}")
+            non_blocking_messagebox(
+                parent=self.master,
+                title="Error",
+                message=f"An error occurred in the main loop: {e}",
+            )
 
     def refresh_ports(self, instant=False):
         # check if all serial objects in the self.pump_controllers dictionary are connected
@@ -909,7 +917,6 @@ class PicoController:
             self.pump_controllers_send_queue.put(f"{controller_id}:0:st")
 
     def toggle_power(self, pump_id, update_status=True):
-        # find the controller id of the pump
         controller_id = self.pump_ids_to_controller_ids.get(pump_id)
         if self.pump_controllers[controller_id].is_open:
             self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
@@ -1040,10 +1047,6 @@ class PicoController:
                     message=f"An error occurred in function save_pump_config: {e}",
                 )
 
-    def save_pump_config_callback(self, selected_pumps):
-        # just return the selected pumps list
-        return selected_pumps
-
     def pumps_shutdown(self, confirmation=False, all=True, controller_id=None):
         if any(self.pump_controllers_connected.values()):
             try:
@@ -1159,9 +1162,9 @@ class PicoController:
     # send_command will remove the first item from the queue and send it
     def send_command(self):
         if not self.pump_controllers_send_queue.empty():
-            command = self.pump_controllers_send_queue.get(block=False)
-            controller_id = int(command.split(":")[0])
             try:
+                command = self.pump_controllers_send_queue.get(block=False)
+                controller_id = int(command.split(":")[0])
                 # assemble the command (everything after the first colon, the rest might also contain colons)
                 command = command.split(":", 1)[1]
                 if self.pump_controllers[
