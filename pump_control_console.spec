@@ -1,11 +1,13 @@
-# -*- mode: python ; coding: utf-8 -*-
+import os
 
+# Define the path dynamically
+icon_path = os.path.join("icons", "icon.ico")
 
 a = Analysis(
     ['pump_control.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('icons/icons-black.ico', '.'), ('icons/icons-white.ico', '.'), ('icons/icons-red.ico', '.')],
+    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +37,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['icons/icons-red.ico'],
+    icon=icon_path,
 )

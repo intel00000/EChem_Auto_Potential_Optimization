@@ -1,18 +1,15 @@
 # pyserial imports
-from multiprocessing import connection
 import serial
-
-# weird that I have to import serial again here, wtf
 import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import N, ttk, messagebox, simpledialog, filedialog
+from tkinter import ttk, messagebox, filedialog
 import pystray
 from PIL import Image
 
 # other library
-import os, re, sys
+import os, re
 import time
 import json
 import logging
@@ -100,8 +97,12 @@ class PicoController:
         self.last_time_query = time.monotonic_ns()
 
         # define window behavior
-        self.image_red = Image.open(resource_path("icons-red.ico"))
-        self.image_white = Image.open(resource_path("icons-white.ico"))
+        self.image_red = Image.open(
+            resource_path(os.path.join("icons", "icons-red.ico"))
+        )
+        self.image_white = Image.open(
+            resource_path(os.path.join("icons", "icons-white.ico"))
+        )
         self.first_close = True
 
         # Set up logging
@@ -2284,7 +2285,7 @@ class PicoController:
 root = tk.Tk()
 root.withdraw()
 check_lock_file()
-root.iconbitmap(resource_path("icons-red.ico"))
+root.iconbitmap(resource_path(os.path.join("icons", "icons-red.ico")))
 app = PicoController(root)
 root.deiconify()
 root.geometry(f"+{root.winfo_screenwidth()//8}+{root.winfo_screenheight()//8}")

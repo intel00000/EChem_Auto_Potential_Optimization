@@ -1,13 +1,14 @@
 import tkinter as tk
 from tkinter import ttk
+import os
 import json
 import logging
 from helper_functions import resource_path
 
+default_icon_path = resource_path(os.path.join("icons", "icons-red.ico"))
 
-def non_blocking_messagebox(
-    parent, title, message, icon_path=resource_path("icons-red.ico")
-):
+
+def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path):
     """Create a non-blocking message box."""
     try:
         top = tk.Toplevel(parent)
@@ -31,7 +32,7 @@ def non_blocking_messagebox(
 
 
 def non_blocking_custom_messagebox(
-    parent, title, message, buttons, callback, icon_path=resource_path("icons-red.ico")
+    parent, title, message, buttons, callback, icon_path=default_icon_path
 ):
     """Create a non-blocking custom message box with multiple buttons."""
     try:
@@ -65,7 +66,7 @@ def non_blocking_custom_messagebox(
 
 
 def non_blocking_checklist(
-    parent, title, items, result_var, icon_path=resource_path("icons-red.ico")
+    parent, title, items, result_var, icon_path=default_icon_path
 ):
     """Create a non-blocking checklist dialog without a scroll bar."""
     try:
@@ -122,7 +123,7 @@ def non_blocking_checklist(
 
 
 def non_blocking_single_select(
-    parent, title, items, result_var, icon_path=resource_path("icons-red.ico")
+    parent, title, items, result_var, icon_path=default_icon_path
 ):
     """Create a non-blocking single selection dialog using radio buttons."""
     try:
@@ -175,7 +176,9 @@ def non_blocking_single_select(
         logging.error(f"Error creating non-blocking single selection dialog: {e}")
 
 
-def non_blocking_input_dialog(parent, title, fields, result_var, icon_path=None):
+def non_blocking_input_dialog(
+    parent, title, fields, result_var, icon_path=default_icon_path
+):
     """
     A non-blocking dialog to gather multiple inputs with support for text entry and dropdown.
     """
