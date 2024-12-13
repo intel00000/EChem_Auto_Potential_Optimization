@@ -613,7 +613,6 @@ class PicoController:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
-
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
                 if "Pico Pump Control Version" not in response:
@@ -624,14 +623,13 @@ class PicoController:
                         message="Connected to the wrong device for pump control",
                     )
                     return
-                self.refresh_ports(instant=True)  # refresh the ports immediately
-                # synchronize the RTC with the PC time
-                now = datetime.now()
+                now = datetime.now()  # synchronize the RTC with the PC time
                 sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
                 serial_port_obj.write(f"{sync_command}\n".encode())
                 response = serial_port_obj.readline().decode("utf-8").strip()
 
                 logging.info(f"Connected to {selected_port}")
+                self.refresh_ports(instant=True)  # refresh the ports immediately
                 serial_port_widget["status_label"].config(
                     text=f"Status: Connected to {parsed_port}"
                 )
@@ -642,15 +640,6 @@ class PicoController:
                 serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
                 serial_port_widget["reset_button"].config(state=tk.NORMAL)
                 self.set_manual_control_buttons_state(tk.NORMAL)
-            except serial.SerialException as e:
-                serial_port_widget["status_label"].config(text=f"Status: Not connected")
-                self.pump_controllers_connected[controller_id] = False
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Error",
-                    message=f"Failed to connect to pump controller {controller_id} at {selected_port} with error: {e}",
-                )
             except Exception as e:
                 serial_port_widget["status_label"].config(text="Status: Not connected")
                 self.pump_controllers_connected[controller_id] = False
@@ -684,9 +673,6 @@ class PicoController:
                     return
             try:
                 self.autosamplers = serial.Serial(parsed_port, timeout=self.timeout)
-                self.status_label_as.config(text=f"Status: Connected to {parsed_port}")
-                logging.info(f"Connected to Autosampler at {selected_port}")
-
                 self.autosamplers.write("0:ping\n".encode())  # identify Pico type
                 response = self.autosamplers.readline().decode("utf-8").strip()
                 if "Pico Autosampler Control Version" not in response:
@@ -697,24 +683,16 @@ class PicoController:
                         message="Connected to the wrong device for autosampler.",
                     )
                     return
-                self.refresh_ports(instant=True)  # refresh the ports immediately
-                # synchronize the RTC with the PC time
-                now = datetime.now()
+                now = datetime.now()  # synchronize the RTC with the PC time
                 sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
                 self.autosamplers.write(f"{sync_command}\n".encode())
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
+                self.status_label_as.config(text=f"Status: Connected to {parsed_port}")
+                logging.info(f"Connected to Autosampler at {selected_port}")
                 self.refresh_ports(instant=True)
                 self.set_autosampler_buttons_state(tk.NORMAL)
                 self.autosamplers_send_queue.put("config")  # Populate the slots
-            except serial.SerialException as e:
-                self.status_label_as.config(text="Status: Not connected")
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Error",
-                    message=f"Failed to connect to autosampler at {selected_port} with error: {e}",
-                )
             except Exception as e:
                 self.status_label_as.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
@@ -800,17 +778,14 @@ class PicoController:
                     ):
                         self.set_manual_control_buttons_state(tk.DISABLED)
                         self.clear_recipe()  # clear the recipe table
-                        # also stop any running procedure
-                        self.stop_procedure(False)
+                        self.stop_procedure(False)  # also stop any running procedure
 
                     # go into the queue and remove any command that is meant for the disconnected controller
-                    # createa temporary queue to store the commands
                     temp_queue = Queue()
                     while not self.pump_controllers_send_queue.empty():
                         command = self.pump_controllers_send_queue.get()
                         if int(command.split(":")[0]) != controller_id:
                             temp_queue.put(command)
-                    # put the commands back to the original queue
                     while not temp_queue.empty():
                         self.pump_controllers_send_queue.put(temp_queue.get())
 
@@ -822,14 +797,6 @@ class PicoController:
                             title="Connection Status",
                             message=f"Disconnected from pump controller {controller_id}",
                         )
-                except serial.SerialException as e:
-                    logging.error(f"Error: {e}")
-                    self.pump_controllers_connected[controller_id] = False
-                    non_blocking_messagebox(
-                        parent=self.master,
-                        title="Error",
-                        message=f"Failed to disconnect from Pico {controller_id} with error: {e}",
-                    )
                 except Exception as e:
                     logging.error(f"Error: {e}")
                     self.pump_controllers_connected[controller_id] = False
@@ -844,15 +811,10 @@ class PicoController:
             try:
                 self.autosamplers.close()
                 self.autosamplers = None
-
                 self.status_label_as.config(text="Status: Not connected")
-                self.slot_combobox_as.set("")
                 self.set_autosampler_buttons_state(tk.DISABLED)
-
                 while not self.autosamplers_send_queue.empty():  # empty the queue
                     self.autosamplers_send_queue.get()
-
-                self.refresh_ports(instant=True)
 
                 logging.info(f"Disconnected from Autosampler")
                 if show_message:
@@ -861,15 +823,9 @@ class PicoController:
                         title="Error",
                         message="Disconnected from Autosampler",
                     )
-            except serial.SerialException as e:
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Error",
-                    message=f"Failed to disconnect from Autosampler with error: {e}",
-                )
             except Exception as e:
                 logging.error(f"Error: {e}")
+                self.autosamplers = None
                 non_blocking_messagebox(
                     parent=self.master,
                     title="Error",
@@ -877,20 +833,20 @@ class PicoController:
                 )
 
     def reset(self, controller_id):
-        if self.pump_controllers[controller_id].is_open:
-            try:
+        try:
+            if self.pump_controllers[controller_id].is_open:
                 if messagebox.askyesno(
                     "Reset", "Are you sure you want to reset the Pico?"
                 ):
                     self.pump_controllers_send_queue.put(f"{controller_id}:0:reset")
                     logging.info(f"Signal sent for controller {controller_id} reset.")
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Error",
-                    message=f"An error occurred in function reset: {e}",
-                )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.master,
+                title="Error",
+                message=f"An error occurred in function reset: {e}",
+            )
 
     def reset_as(self):
         if self.autosamplers:
@@ -909,27 +865,38 @@ class PicoController:
                 )
 
     def query_pump_info(self, controller_id):
-        if self.pump_controllers[controller_id].is_open:
+        serial_obj = self.pump_controllers.get(controller_id, None)
+        if serial_obj and serial_obj.is_open:
             self.pump_controllers_send_queue.put(f"{controller_id}:0:info")
 
     def update_status(self, controller_id):
-        if self.pump_controllers[controller_id].is_open:
+        serial_obj = self.pump_controllers.get(controller_id, None)
+        if serial_obj and serial_obj.is_open:
             self.pump_controllers_send_queue.put(f"{controller_id}:0:st")
 
     def toggle_power(self, pump_id, update_status=True):
-        controller_id = self.pump_ids_to_controller_ids.get(pump_id)
-        if self.pump_controllers[controller_id].is_open:
-            self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
-            if update_status:
-                self.update_status(controller_id=controller_id)
+        controller_id = self.pump_ids_to_controller_ids.get(pump_id, None)
+        if controller_id:
+            if self.pump_controllers[controller_id].is_open:
+                self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:pw")
+                if update_status:
+                    self.update_status(controller_id=controller_id)
+        else:
+            logging.error(
+                f"Trying to toggle power for pump {pump_id} without a controller."
+            )
 
     def toggle_direction(self, pump_id, update_status=True):
-        controller_id = self.pump_ids_to_controller_ids.get(pump_id)
-        if self.pump_controllers[controller_id].is_open:
-            # put the command in the queue
-            self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:di")
-            if update_status:
-                self.update_status(controller_id=controller_id)
+        controller_id = self.pump_ids_to_controller_ids.get(pump_id, None)
+        if controller_id:
+            if self.pump_controllers[controller_id].is_open:
+                self.pump_controllers_send_queue.put(f"{controller_id}:{pump_id}:di")
+                if update_status:
+                    self.update_status(controller_id=controller_id)
+        else:
+            logging.error(
+                f"Trying to toggle direction for pump {pump_id} without a controller."
+            )
 
     def register_pump(
         self,
@@ -942,22 +909,22 @@ class PicoController:
         initial_power_status,
         initial_direction_status,
     ):
-        if self.pump_controllers[controller_id].is_open:
-            try:
+        try:
+            serial_obj = self.pump_controllers.get(controller_id, None)
+            if serial_obj and serial_obj.is_open:
                 command = f"{pump_id}:reg:{power_pin}:{direction_pin}:{initial_power_pin_value}:{initial_direction_pin_value}:{initial_power_status}:{initial_direction_status}"
                 self.pump_controllers_send_queue.put(f"{controller_id}:{command}")
                 self.update_status(controller_id=controller_id)
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.master,
-                    title="Error",
-                    message=f"An error occurred in function register_pump: {e}",
-                )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.master,
+                title="Error",
+                message=f"An error occurred in function register_pump: {e}",
+            )
 
     def remove_pump(self, remove_all=False, pump_id=None):
         try:
-            # pop a message to confirm the clear
             if remove_all:
                 if messagebox.askyesno("Clear Pumps", "Clear all pumps?") == tk.YES:
                     # query the pump info for all the controllers
@@ -966,10 +933,10 @@ class PicoController:
                         connection_status,
                     ) in self.pump_controllers_connected.items():
                         if connection_status:
-                            self.pump_controllers_send_queue.put(f"{id}:0:clr")
                             self.remove_pumps_widgets(
                                 remove_all=False, controller_id=id
                             )
+                            self.pump_controllers_send_queue.put(f"{id}:0:clr")
                             self.query_pump_info(controller_id=id)
             else:
                 if (
@@ -978,13 +945,13 @@ class PicoController:
                     and pump_id
                 ):
                     # find the controller id of the pump
-                    controller_id = self.pump_ids_to_controller_ids[pump_id]
-                    self.pump_controllers_send_queue.put(
-                        f"{controller_id}:{pump_id}:clr"
-                    )
-                    self.remove_pumps_widgets(remove_all=False, pump_id=pump_id)
-                    # issue a pump info query for this specific controller
-                    self.query_pump_info(controller_id=controller_id)
+                    controller_id = self.pump_ids_to_controller_ids.get(pump_id, None)
+                    if controller_id:
+                        self.remove_pumps_widgets(remove_all=False, pump_id=pump_id)
+                        self.pump_controllers_send_queue.put(
+                            f"{controller_id}:{pump_id}:clr"
+                        )
+                        self.query_pump_info(controller_id=controller_id)
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -1013,8 +980,7 @@ class PicoController:
                     result_var=result_var,
                 )  # Trigger non-blocking checklist
 
-                # Trace the variable to act once the user makes a selection
-                def on_selection(*args):
+                def on_selection(*args):  # act once the user makes a selection
                     result = result_var.get()
                     if result == "":  # check if empty
                         result_var.trace_remove("write", trace_id)  # Untrace
@@ -1037,8 +1003,7 @@ class PicoController:
 
                     result_var.trace_remove("write", trace_id)  # Untrace
 
-                # trace the variable and call the on_selection when the user makes a selection
-                trace_id = result_var.trace_add("write", on_selection)
+                trace_id = result_var.trace_add("write", on_selection)  # Trace
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
