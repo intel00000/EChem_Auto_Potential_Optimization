@@ -1,23 +1,38 @@
 # ignore all file in folder Source Code
-Source Code/*
-build/*
-dist/*
-logs/*
-.vscode/*
+Source Code/
+build/
+dist/
+logs/
 
 # ignore python virtual environment
-.venv/*
-.venv_clean/*
-pyvenv.cfg
+.venv/
+.venv_clean/
+venv/
+env/
+Lib/
+Scripts/
 
 # ignore MicroPico extension idenity file
 .micropico
 
 # exclude by extension
-*.pyc
-*.pyo
-*.log
-*.lck
-*.zip
+*.chk
+*.cdxml
+*.com
 *.exe
+*.html
+*.lck
 *.lock
+*.log
+*.mae
+*.maegz
+*.micropico
+*.pkl
+*.pyo
+*.pyc
+*.png
+*.sdf
+*.spec
+*.xlsx
+*.zip
+.DS_Store
