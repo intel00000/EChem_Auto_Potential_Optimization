@@ -1,0 +1,31 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Electrochemical Frequency Modulation</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Electrochemical Frequency Modulation</name>
+      <classname>EFM</classname>
+      <type>normal</type>
+      <description>Performs an EFM experiment on the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Electrochemical Frequency Modulation" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="EFM.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="BASEFREQUENCY" value="0.1" desc="Base Freq. (Hz)" />
+        <explain_iquant tag="MULTIPLIERA" value="2" desc="Multiplier A" />
+        <explain_iquant tag="MULTIPLIERB" value="5" desc="Multiplier B" />
+        <explain_quant tag="AMPLITUDE" value="10.0" desc="Amplitude (mV)" />
+        <explain_poten tag="VDC" value="0.0" versus="1" desc="DC Voltage (V)" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_iquant tag="CYCLES" value="4" desc="Cycles (#)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_selector tag="CORRTYPE" index="0" desc="Corrosion Type" item0="Active" item1="Diffusion" item2="Passive" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

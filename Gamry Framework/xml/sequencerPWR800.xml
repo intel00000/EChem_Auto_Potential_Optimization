@@ -1,0 +1,497 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Electrochemical Energy</name>
+    <expanded>False</expanded>
+    <element>
+      <name>PWR Cell Config</name>
+      <classname>PWRCELLCONFIG</classname>
+      <type>normal</type>
+      <description>Cell Configuration for all Sequence steps</description>
+      <parameters>
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_toggle tag="CABLECHECK" checked="TRUE" desc="Cable Check" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Read Voltage</name>
+      <classname>PWRREADVOLTAGE</classname>
+      <type>normal</type>
+      <description>Performs a read voltage experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Read Voltage" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRREADVOLTAGE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_varunits tag="MAXTIME" desc="Max Time" index="2" value="2.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="STOPAT1" desc="Stop At 1" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="|dV/dT| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="V/s" />
+        <explain_mltparam tag="STOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="|dV/dT| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="V/s" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Potentiostatic</name>
+      <classname>PWRPOTENTIOSTATIC</classname>
+      <type>normal</type>
+      <description>Performs a power style potentiostatic experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Potentiostatic" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRPOTENTIOSTATIC.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="VOLTAGE" value="1.4" desc="Voltage (V)" />
+        <explain_quant tag="MAXI" value="0.5" desc="Max Current (A)" />
+        <explain_varunits tag="MAXTIME" desc="Max Time" index="2" value="2.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_varunits tag="STOPTHRESH" desc="Stop At Threshold" index="0" value="5.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_mltparam tag="STOPAT1" desc="Stop At 1" index="1" value="0.001" item0="None" item1="|Current| &lt; Limit" item2="|Current| &gt; Limit" item3="Current &lt; Limit" item4="Current &gt; Limit" item5="|dI/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" unit0="N/A" unit1="A" unit2="A" unit3="A" unit4="A" unit5="A/s" unit6="Celcius" unit7="Celcius/min" />
+        <explain_mltparam tag="STOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Current| &lt; Limit" item2="|Current| &gt; Limit" item3="Current &lt; Limit" item4="Current &gt; Limit" item5="|dI/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" unit0="N/A" unit1="A" unit2="A" unit3="A" unit4="A" unit5="A/s" unit6="Celcius" unit7="Celcius/min" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Galvanostatic</name>
+      <classname>PWRGALVANOSTATIC</classname>
+      <type>normal</type>
+      <description>Performs a power style galvanostatic experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Galvanostatic" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRGALVANOSTATIC.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_selector tag="MODE" index="1" desc="Mode" item0="Discharge" item1="Charge" />
+        <explain_quant tag="CURRENT" value="1.0" desc="Current (A)" />
+        <explain_varunits tag="MAXTIME" desc="Max Time" index="2" value="2.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_varunits tag="STOPTHRESH" desc="Stop At Threshold" index="0" value="5.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_mltparam tag="STOPAT1" desc="Stop At 1" index="1" value="4.2" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" item8="|Charge| &gt; Limit" item9="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="Celcius" unit7="Celcius/min" unit8="A h" unit9="J" />
+        <explain_mltparam tag="STOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" item8="|Charge| &gt; Limit" item9="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="Celcius" unit7="Celcius/min" unit8="A h" unit9="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Charge</name>
+      <classname>CHARGE</classname>
+      <type>normal</type>
+      <description>Performs a constant current charge experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Charge" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCHARGE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_mltparam tag="CHARGEMODE" desc="Charge Mode" index="0" value="0.5" item0="Constant Current" item1="Capacity * N" item2="Capacity / N" unit0="Amp(s)" unit1="#N" unit2="#N" />
+        <explain_varunits tag="MAXCHARGETIME" desc="Max Charge Time" index="2" value="4.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="CHARGESTOPAT1" desc="Stop At 1" index="2" value="4.2" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="CHARGESTOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_twoparam tag="VOLTAGEFINISH" desc="Voltage Finish" checked="TRUE" desc1="I (A) &lt;" desc2="Max Time(s)" value1="0.001" value2="3600" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Discharge</name>
+      <classname>DISCHARGE</classname>
+      <type>normal</type>
+      <description>Performs a discharge experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Discharge" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRDISCHARGE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_mltparam tag="DISCHARGEMODE" desc="Discharge Mode" index="0" value="1.0" item0="Constant Current" item1="Constant Load" item2="Constant Power" item3="Capacity * N" item4="Capacity / N" unit0="Amp(s)" unit1="Ohm(s)" unit2="Watt(s)" unit3="#N" unit4="#N" />
+        <explain_varunits tag="MAXDISCHARGETIME" desc="Max Discharge Time" index="2" value="4.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="DISCHARGESTOPAT1" desc="Stop At 1" index="1" value="3.5" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="DISCHARGESTOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+        <explain_twoparam tag="DISCHARGEVOLTAGEFINISH" desc="Voltage Finish" checked="FALSE" desc1="I (A) &lt;" desc2="Max Time(s)" value1="0.001" value2="3600" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Loop (Cyclic Charge Discharge)</name>
+      <classname>SEQUENCER_LOOPCCD</classname>
+      <includefile>LOOPCCD</includefile>
+      <type>loop</type>
+      <description>Loop used to create a capacity curve from Cyclic Charge Discharge</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Capacity Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCAPACITY.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_iquant tag="CYCLES" value="1000" desc="Cycles (#)" />
+        <explain_mltparam tag="LOOPEND1" desc="Loop End 1" index="0" value="0.0" item0="None" item1="Discharge Time &lt; Limit" item2="Charge Time &gt; Limit" item3="Capacity &lt; Limit" unit0="N/A" unit1="s" unit2="s" unit3="A h" />
+        <explain_mltparam tag="LOOPEND2" desc="Loop End 2" index="0" value="0.0" item0="None" item1="Discharge Time &lt; Limit" item2="Charge Time &gt; Limit" item3="Capacity &lt; Limit" unit0="N/A" unit1="s" unit2="s" unit3="A h" />
+        <explain_oneparam tag="SAVERAW" desc="Save Raw Data" checked="TRUE" desc1="Skip #" value1="4.0" />
+        <explain_oneparam tag="SKIPEIS" desc="EIS Skip Number" checked="FALSE" desc1="Skip #" value1="4.0" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Constant Current Polarization Curve</name>
+      <classname>CCPOLARIZATIONCURVE</classname>
+      <includefile>POLARIZATIONCURVE</includefile>
+      <type>normal</type>
+      <description>Performs a constant current polarization experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Constant Current Polarization Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCCPOLARIZATION.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="INITIALLOAD" value="0.0" desc="Initial Load (A)" />
+        <explain_quant tag="FINALLOAD" value="1.0" desc="Final Load (A)" />
+        <explain_quant tag="SCANRATE" value="0.01" desc="Scan Rate (A/s)" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="DISCHARGESTOPAT1" desc="Stop At 1" index="2" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="DISCHARGESTOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Constant Resistance Polarization Curve</name>
+      <classname>CRPOLARIZATIONCURVE</classname>
+      <includefile>POLARIZATIONCURVE</includefile>
+      <type>normal</type>
+      <description>Performs a constant resistance polarization experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Constant Resistance Polarization Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCRPOLARIZATION.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="INITIALLOAD" value="5.0" desc="Initial Load (ohm)" />
+        <explain_quant tag="FINALLOAD" value="0.1" desc="Final Load (ohm)" />
+        <explain_quant tag="SCANRATE" value="0.02" desc="Scan Rate (ohm/s)" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="DISCHARGESTOPAT1" desc="Stop At 1" index="2" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="DISCHARGESTOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Constant Power Polarization Curve</name>
+      <classname>CPPOLARIZATIONCURVE</classname>
+      <includefile>POLARIZATIONCURVE</includefile>
+      <type>normal</type>
+      <description>Performs a constant power polarization experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Constant Power Polarization Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCPPOLARIZATION.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="INITIALLOAD" value="0.0" desc="Initial Load (W)" />
+        <explain_quant tag="FINALLOAD" value="5.0" desc="Final Load (W)" />
+        <explain_quant tag="SCANRATE" value="0.1" desc="Scan Rate (W/s)" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="DISCHARGESTOPAT1" desc="Stop At 1" index="2" value="4.2" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="DISCHARGESTOPAT2" desc="Stop At 2" index="1" value="3.5" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Cyclic Voltammetry</name>
+      <classname>PWRCV</classname>
+      <type>normal</type>
+      <description>Performs a cyclic voltammetry scan</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Cyclic Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRCV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_poten tag="VINIT" value="0.0" versus="0" desc="Initial E (V)" />
+        <explain_poten tag="VLIMIT1" value="0.5" versus="0" desc="Scan Limit 1 (V)" />
+        <explain_poten tag="VLIMIT2" value="-0.5" versus="0" desc="Scan Limit 2 (V)" />
+        <explain_poten tag="VFINAL" value="0.0" versus="0" desc="Final E (V)" />
+        <explain_quant tag="SCANRATE" value="100.0" desc="Scan Rate (mV/s)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_iquant tag="CYCLES" value="1" desc="Cycles (#)" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Galvanostatic EIS</name>
+      <classname>PWREISGALV</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan galvanostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Galvanostatic EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWREISGALV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="IACREQ" value="0.00001" desc="AC Current (A rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Hybrid EIS</name>
+      <classname>PWRHYBRIDEIS</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan under galvanostatic control with an AC Voltage input</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Hybrid EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRHYBRIDEIS.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="VACREQ" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Potentiostatic EIS</name>
+      <classname>PWRPOTENTIOSTATICEIS</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Potentiostatic EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWREISPOT.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="VAC" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_poten tag="VDC" value="0.0" versus="1" desc="DC Voltage (V)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Galvanostatic Single Frequency EIS</name>
+      <classname>PWRGALVEISMON</classname>
+      <type>normal</type>
+      <description>Performs an impedance measurement at a constant frequency under galvanostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Galvanostatic EIS Monitor" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRGALVEISMON.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="FREQUENCY" value="5000.0" desc="Frequency (Hz)" />
+        <explain_quant tag="IACREQ" value="0.00001" desc="AC Current (A rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="REPTIME" value="0.1" desc="Repeat Time (min)" />
+        <explain_quant tag="TOTTIME" value="0.3" desc="Total Time (hr)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Hybrid Single Frequency EIS</name>
+      <classname>PWRHYBEISMON</classname>
+      <type>normal</type>
+      <description>Performs an impedance measurement at a constant frequency under hybrid control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Hybrid EIS Monitor" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRHYBEISMON.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="FREQUENCY" value="5000.0" desc="Frequency (Hz)" />
+        <explain_quant tag="VACREQ" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="REPTIME" value="0.1" desc="Repeat Time (min)" />
+        <explain_quant tag="TOTTIME" value="0.3" desc="Total Time (hr)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>PWR Self Discharge</name>
+      <classname>PWRSELFDISCHARGE</classname>
+      <type>normal</type>
+      <description>Performs a Self Discharge experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="PWR Self-Discharge" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="SELFDISCHARGE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_quant tag="VOLTAGE" value="1.4" desc="Voltage (V)" />
+        <explain_varunits tag="CHARGETIME" desc="Charge Time" index="2" value="2.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_varunits tag="DECAYTIME" desc="Decay Time" index="1" value="20.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Galvanostatic Intermittent Titration Technique</name>
+      <classname>GITT</classname>
+      <type>normal</type>
+      <description>Step used to perform a Galvanostatic Intermittent Titration Experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Titration Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRGITT.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_selector tag="MODE" index="1" desc="Mode" item0="Discharge" item1="Charge" />
+        <explain_quant tag="CURRENT" value="1.0" desc="Current (A)" />
+        <explain_varunits tag="MAXTIME" desc="Max On Time" index="1" value="30.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_varunits tag="RESTTIME" desc="Rest Time" index="2" value="1.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIMEON" value="5.0" desc="Sample Period On (s)" />
+        <explain_quant tag="SAMPLETIMEREST" value="5.0" desc="Sample Period Rest (s)" />
+        <explain_mltparam tag="STOPAT1" desc="Stop At 1" index="2" value="4.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" item8="|Charge| &gt; Limit" item9="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="Celcius" unit7="Celcius/min" unit8="A h" unit9="J" />
+        <explain_mltparam tag="STOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="|dV/dT| &lt; Limit" item6="Temp &gt; Limit" item7="|dTemp/dT| &gt; Limit" item8="|Charge| &gt; Limit" item9="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="V/s" unit6="Celcius" unit7="Celcius/min" unit8="A h" unit9="J" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Potentiostatic Intermittent Titration Technique</name>
+      <classname>PITT</classname>
+      <type>normal</type>
+      <description>Step used to perform a Potentiostatic Intermittent Titration Experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Potentiostatic Titration Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRPITT.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+        <explain_poten tag="VINIT" value="0.005" versus="1" desc="Initial E (V)" />
+        <explain_poten tag="VFINAL" value="4.2" versus="0" desc="Final E (V)" />
+        <explain_quant tag="MAXI" value="0.5" desc="Max Current (A)" />
+        <explain_quant tag="STEPSIZE" value="5.0" desc="Step Size (mV)" />
+        <explain_varunits tag="MAXTIME" desc="Max On Time" index="2" value="12.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIMEON" value="5.0" desc="Sample Period On (s)" />
+        <explain_mltparam tag="STOPATO1" desc="Stop At On 1" index="1" value="0.01" item0="None" item1="|Current| &lt; Limit" unit0="N/A" unit1="A" />
+        <explain_mltparam tag="STOPATO2" desc="Stop At On 2" index="0" value="0.0" item0="None" item1="|dI/dT| &lt; Limit" unit0="N/A" unit1="A/s" />
+        <explain_varunits tag="RESTTIME" desc="Rest Time" index="2" value="6.0" siunits="s" unit0="second(s)" unit1="minute(s)" unit2="hour(s)" unit3="day(s)" mult0="1.0" mult1="60.0" mult2="3600.0" mult3="86400.0" />
+        <explain_quant tag="SAMPLETIMEREST" value="5.0" desc="Sample Period Rest (s)" />
+        <explain_mltparam tag="STOPATR" desc="Stop At Rest" index="1" value="0.1" item0="None" item1="|dV/dT| &lt; Limit" unit0="N/A" unit1="mV/h" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Discharge Profile</name>
+      <classname>DISCHARGEPROFILE</classname>
+      <type>normal</type>
+      <description>Performs a discharge experiment from a file profile</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Discharge Profile Curve" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PWRDISCHARGEPROFILE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="CAPACITY" value="1.0" desc="Capacity (A-hr)" />
+        <explain_selector tag="CELLTYPE" index="0" desc="Cell Type" item0="Half Cell" item1="Full Cell" item2="Both" />
+        <explain_selector tag="WORKINGCONNECTION" index="0" desc="Working Connection" item0="Positive" item1="Negative" />
+        <explain_label tag="SIGNALPROFILE" value="PROFILE1.TXT" desc="Signal Profile" />
+        <explain_quant tag="SAMPLETIME" value="5.0" desc="Sample Period (s)" />
+        <explain_mltparam tag="DISCHARGESTOPAT1" desc="Stop At 1" index="1" value="3.5" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_mltparam tag="DISCHARGESTOPAT2" desc="Stop At 2" index="0" value="0.0" item0="None" item1="|Voltage| &lt; Limit" item2="|Voltage| &gt; Limit" item3="Voltage &lt; Limit" item4="Voltage &gt; Limit" item5="Temp &gt; Limit" item6="|dTemp/dT| &gt; Limit" item7="|Charge| &gt; Limit" item8="|Energy| &gt; Limit" unit0="N/A" unit1="V" unit2="V" unit3="V" unit4="V" unit5="Celcius" unit6="Celcius/min" unit7="A h" unit8="J" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Measure" />
+        <explain_quant tag="EXPECTEDMAXV" value="4.25" desc="Expected Max V (V)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+  <category>
+    <name>Aux Measurements</name>
+    <expanded>False</expanded>
+    <element>
+      <name>AE Channels</name>
+      <classname>AECHANNELS</classname>
+      <type>normal</type>
+      <description>Specifies the Aux Electrometer channels to use</description>
+      <parameters>
+        <explain_aeselect tag="AESELECTOR" desc="AE Channels" value="0x00" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>AE Limits</name>
+      <classname>AELIMITS</classname>
+      <type>normal</type>
+      <description>Specifies the Aux Electrometer stop test limits</description>
+      <parameters>
+        <explain_twoparam tag="AELIMITS1" desc="AE Ch# 1" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS2" desc="AE Ch# 2" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS3" desc="AE Ch# 3" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS4" desc="AE Ch# 4" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS5" desc="AE Ch# 5" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS6" desc="AE Ch# 6" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS7" desc="AE Ch# 7" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+        <explain_twoparam tag="AELIMITS8" desc="AE Ch# 8" checked="FALSE" desc1="Under (V)" desc2="Over (V)" value1="3.0" value2="4.2" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

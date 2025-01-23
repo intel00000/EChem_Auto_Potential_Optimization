@@ -1,0 +1,197 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Physical Electrochemistry</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Expected Max V</name>
+      <classname>EXPECTEDMAXV</classname>
+      <type>normal</type>
+      <description>Check if High Voltage Electrometer can be used</description>
+      <parameters>
+        <explain_quant tag="EXPECTEDMAXV" value="10.0" desc="Expected Max V (V)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Chronoamperometry</name>
+      <classname>CHRONOAMP</classname>
+      <type>normal</type>
+      <description>Performs a chronoamperometry measurement under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Chronoamperometry Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CHRONOA.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VPRESTEP" value="0.0" versus="0" desc="Pre-step Voltage (V)" />
+        <explain_quant tag="TPRESTEP" value="0.5" desc="Pre-step Delay Time (s)" />
+        <explain_poten tag="VSTEP1" value="0.5" versus="0" desc="Step 1 Voltage (V)" />
+        <explain_quant tag="TSTEP1" value="5.0" desc="Step 1 Time (s)" />
+        <explain_poten tag="VSTEP2" value="0.1" versus="0" desc="Step 2 Voltage (V)" />
+        <explain_quant tag="TSTEP2" value="5.0" desc="Step 2 Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.01" desc="Sample Period (s)" />
+        <explain_quant tag="ILIMIT" value="10.0" desc="Limit I (mA/cm^2)" />
+        <explain_toggle tag="DECIMATE" checked="FALSE" desc="Decimate" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_selector tag="IMODE" index="0" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" item2="Surface" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" item2="CI" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Chronocoulometry</name>
+      <classname>CHRONOCOUL</classname>
+      <type>normal</type>
+      <description>Performs a chronocoulometry measurement under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Chronocoulometry Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CHRONOC.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VPRESTEP" value="0.0" versus="0" desc="Pre-step Voltage (V)" />
+        <explain_quant tag="TPRESTEP" value="0.5" desc="Pre-step Delay Time (s)" />
+        <explain_poten tag="VSTEP1" value="0.5" versus="0" desc="Step 1 Voltage (V)" />
+        <explain_quant tag="TSTEP1" value="5.0" desc="Step 1 Time (s)" />
+        <explain_poten tag="VSTEP2" value="0.1" versus="0" desc="Step 2 Voltage (V)" />
+        <explain_quant tag="TSTEP2" value="5.0" desc="Step 2 Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.01" desc="Sample Period (s)" />
+        <explain_oneparam tag="QLIMIT" checked="FALSE" desc="Charge Limit" value1="20.0" desc1="Charge(mC)" />
+        <explain_toggle tag="DECIMATE" checked="FALSE" desc="Decimate" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_selector tag="IMODE" index="0" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Chronopotentiometry</name>
+      <classname>CHRONOPOT</classname>
+      <type>normal</type>
+      <description>Performs a chronopotentiometry scan under galvanostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Chronopotentiometry Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CHRONOP.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="IPRESTEP" value="0.0" desc="Pre-step Current(A)" />
+        <explain_quant tag="TPRESTEP" value="0.5" desc="Pre-step Delay Time (s)" />
+        <explain_quant tag="ISTEP1" value="0.001" desc="Step 1 Current (A)" />
+        <explain_quant tag="TSTEP1" value="5.0" desc="Step 1 Time (s)" />
+        <explain_quant tag="ISTEP2" value="0.01" desc="Step 2 Current (A)" />
+        <explain_quant tag="TSTEP2" value="5.0" desc="Step 2 Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.01" desc="Sample Period (s)" />
+        <explain_quant tag="VLIMITLOWER" value="-10.0" desc="Lower Limit V (V)" />
+        <explain_quant tag="VLIMITUPPER" value="10.0" desc="Upper Limit V (V)" />
+        <explain_toggle tag="DECIMATE" checked="FALSE" desc="Decimate" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Cyclic Voltammetry</name>
+      <classname>CV</classname>
+      <type>normal</type>
+      <description>Performs a cyclic voltammetry scan</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Cyclic Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="0.0" versus="0" desc="Initial E (V)" />
+        <explain_poten tag="VLIMIT1" value="0.5" versus="0" desc="Scan Limit 1 (V)" />
+        <explain_poten tag="VLIMIT2" value="-0.5" versus="0" desc="Scan Limit 2 (V)" />
+        <explain_poten tag="VFINAL" value="0.0" versus="0" desc="Final E (V)" />
+        <explain_quant tag="SCANRATE" value="100.0" desc="Scan Rate (mV/s)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_iquant tag="CYCLES" value="1" desc="Cycles (#)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_selector tag="IMODE" index="0" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" item2="Surface" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" item2="CI" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Linear Sweep Voltammetry</name>
+      <classname>LSV</classname>
+      <type>normal</type>
+      <description>Performs a linear sweep voltammetry scan</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Linear Sweep Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="LSV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="0.0" versus="0" desc="Initial E (V)" />
+        <explain_poten tag="VFINAL" value="0.5" versus="0" desc="Final E (V)" />
+        <explain_quant tag="SCANRATE" value="100.0" desc="Scan Rate (mV/s)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_selector tag="IMODE" index="0" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" item2="Surface" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" item2="CI" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Repeating Chronoamperometry</name>
+      <classname>REPEATCHRONOAMP</classname>
+      <type>normal</type>
+      <description>Performs a repeating chronoamperometry measurement under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Chronoamperometry Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CHRONOA.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_poten tag="VSTEP1" value="0.5" versus="0" desc="Step 1 Voltage (V)" />
+        <explain_quant tag="TSTEP1" value="5.0" desc="Step 1 Time (s)" />
+        <explain_poten tag="VSTEP2" value="0.1" versus="0" desc="Step 2 Voltage (V)" />
+        <explain_quant tag="TSTEP2" value="5.0" desc="Step 2 Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.01" desc="Sample Period (s)" />
+        <explain_iquant tag="CYCLES" value="10" desc="Cycles (#)" />
+        <explain_toggle tag="DECIMATE" checked="FALSE" desc="Decimate" />
+        <explain_selector tag="IMODE" index="0" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="ILIMIT" value="10.0" desc="Limit I (mA/cm^2)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" item2="CI" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" item2="Surface" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Repeating Chronopotentiometry</name>
+      <classname>REPEATCHRONOPOT</classname>
+      <type>normal</type>
+      <description>Performs a repeating chronopotentiometry scan under galvanostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Chronopotentiometry Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CHRONOP.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ISTEP1" value="0.001" desc="Step 1 Current (A)" />
+        <explain_quant tag="TSTEP1" value="5.0" desc="Step 1 Time (s)" />
+        <explain_quant tag="ISTEP2" value="0.01" desc="Step 2 Current (A)" />
+        <explain_quant tag="TSTEP2" value="5.0" desc="Step 2 Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.01" desc="Sample Period (s)" />
+        <explain_iquant tag="CYCLES" value="10" desc="Cycles (#)" />
+        <explain_toggle tag="DECIMATE" checked="FALSE" desc="Decimate" />
+        <explain_quant tag="VLIMITLOWER" value="-10.0" desc="Lower Limit V (V)" />
+        <explain_quant tag="VLIMITUPPER" value="10.0" desc="Upper Limit V (V)" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+        <explain_selector tag="SAMPLINGMODE" index="1" desc="Sampling Mode" item0="Fast" item1="Noise Reject" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

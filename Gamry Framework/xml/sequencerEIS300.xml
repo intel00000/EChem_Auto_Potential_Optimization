@@ -1,0 +1,193 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Electrochemical Impedance</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Potentiostatic EIS</name>
+      <classname>EISPOT</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Potentiostatic EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="EISPOT.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VDC" value="0.0" versus="1" desc="DC Voltage (V)" />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="VAC" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Galvanostatic EIS</name>
+      <classname>EISGALV</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan galvanostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Galvanostatic EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="EISGALV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="IACREQ" value="0.00001" desc="AC Current (A rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Hybrid EIS</name>
+      <classname>HYBRIDEIS</classname>
+      <type>normal</type>
+      <description>Performs an impedance scan under galvanostatic control with an AC Voltage input</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Hybrid EIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="HYBRIDEIS.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="FREQINIT" value="100000.0" desc="Initial Freq. (Hz)" />
+        <explain_quant tag="FREQFINAL" value="0.2" desc="Final Freq. (Hz)" />
+        <explain_quant tag="PTSPERDEC" value="10.0" desc="Points/decade" />
+        <explain_quant tag="VACREQ" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="IDCREQ" value="0.0" desc="DC Current (A)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ZGUESS" value="1.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Mott Schottky</name>
+      <classname>MOTTSCHOTTKY</classname>
+      <type>normal</type>
+      <description>Performs a single frequency impedance measurement at various DC Voltages</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Mott-Schottky" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="MOTTSCHOT.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="-1.0" versus="1" desc="Initial E (V)" />
+        <explain_poten tag="VFINAL" value="1.0" versus="1" desc="Final E (V)" />
+        <explain_quant tag="VSTEP" value="0.1" desc="Voltage Step (V)" />
+        <explain_quant tag="VAC" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="FREQUENCY" value="100.0" desc="Frequency (Hz)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Single Frequency EIS</name>
+      <classname>EISMON</classname>
+      <type>normal</type>
+      <description>Performs an impedance measurement versus time at a single frequency</description>
+      <parameters>
+        <explain_label tag="TITLE" value="EIS Monitor" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="EISMON.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="FREQUENCY" value="5000.0" desc="Frequency (Hz)" />
+        <explain_poten tag="VDC" value="0.0" versus="1" desc="DC Voltage (V)" />
+        <explain_quant tag="VAC" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="REPTIME" value="0.1" desc="Repeat Time (min)" />
+        <explain_quant tag="TOTTIME" value="0.3" desc="Total Time (hr)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="ZGUESS" value="100.0" desc="Estimated Z (ohms)" />
+        <explain_selector tag="SPEED" index="1" desc="Optimize for:" item0="Fast" item1="Normal" item2="Low Noise" />
+        <explain_selector tag="THD" index="0" desc="THD" item0="Off" item1="On" />
+        <explain_selector tag="DRIFTCOR" index="0" desc="Drift Correction" item0="Off" item1="On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>OptiEisPstat</name>
+      <classname>MSISPOT</classname>
+      <type>normal</type>
+      <description>Performs an OptiEisPstat Measurement</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Potentiostatic OptiEIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="OptiEisPstat.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VDC" value="0.0" versus="1" desc="DC Voltage (V)" />
+        <explain_quant tag="FREQINIT" value="1.0" desc="Min Frequency (Hz)" />
+        <explain_quant tag="FREQFINAL" value="10.0" desc="Max Frequency (Hz)" />
+        <explain_iquant tag="PTSPERDEC" value="10" desc="# Freq.s/ Decade" />
+        <explain_quant tag="VAC" value="10.0" desc="AC Voltage (mV rms)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="MAXCURRENT" value="0.001" desc="Max Current(A)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>OptiEisGstat</name>
+      <classname>MSISGALV</classname>
+      <type>normal</type>
+      <description>Performs an OptiEisGstat Measurement</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Galvanostatic OptiEIS" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="OptiEisGstat.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="IDC" value="0.0" versus="1" desc="DC Current (A)" />
+        <explain_quant tag="FREQINIT" value="1.0" desc="Min Frequency (Hz)" />
+        <explain_quant tag="FREQFINAL" value="10.0" desc="Max Frequency (Hz)" />
+        <explain_iquant tag="PTSPERDEC" value="10" desc="# Freq.s/ Decade" />
+        <explain_quant tag="IAC" value="10.0" desc="AC Current (mA rms)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="MAXVOLTAGE" value="1.0" desc="Max Voltage(V)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>CombiEisPstat</name>
+      <classname>COMBIEISPOT</classname>
+      <type>normal</type>
+      <description>Performs a Combined OptiEIS and Single-sine Measurement under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" desc="Test Identifier" value="Potentiostatic Combined OptiEIS" />
+        <explain_output tag="OUTPUT" desc="Output File" value="CombiEisPstat.DTA" />
+        <explain_notes tag="NOTES" desc="Notes..." value="" />
+        <explain_poten tag="VDC" desc="DC Voltage(V)" value="0" versus="1" variable="None" />
+        <explain_quant tag="FREQINIT" desc="Min Freq(Hz)" value="0.01" variable="None" />
+        <explain_quant tag="FREQFINAL" desc="Max Freq(Hz)" value="300000" variable="None" />
+        <explain_iquant tag="PTSPERDEC" desc="# Freq.s/ Decade" value="10" variable="None" />
+        <explain_quant tag="VAC" desc="AC Voltage (mV rms)" value="10" variable="None" />
+        <explain_quant tag="AREA" desc="Sample Area (cm^2)" value="1" variable="None" />
+        <explain_quant tag="MAXCURRENT" desc="Max Current(A)" value="0.000005" variable="None" />
+        <explain_quant tag="ZGUESS" desc="Estimated Z (ohms)" value="100" variable="None" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>CombiEisGstat</name>
+      <classname>COMBIEISGALV</classname>
+      <type>normal</type>
+      <description>Performs a Combined OptiEIS and Single-sine Measurement under potentiostatic control</description>
+      <parameters>
+        <explain_label tag="TITLE" desc="Test Identifier" value="Galvanostatic Combined OptiEIS" />
+        <explain_output tag="OUTPUT" desc="Output File" value="CombiEisGstat.DTA" />
+        <explain_notes tag="NOTES" desc="Notes..." value="" />
+        <explain_quant tag="IDC" desc="DC Current (A)" value="0" variable="None" />
+        <explain_quant tag="FREQINIT" desc="Min Freq(Hz)" value="0.01" variable="None" />
+        <explain_quant tag="FREQFINAL" desc="Max Freq(Hz)" value="300000" variable="None" />
+        <explain_iquant tag="PTSPERDEC" desc="# Freq.s/ Decade" value="10" variable="None" />
+        <explain_quant tag="IAC" desc="AC Current (mA rms)" value="0.1" variable="None" />
+        <explain_quant tag="AREA" desc="Sample Area (cm^2)" value="1" variable="None" />
+        <explain_quant tag="MAXVOLTAGE" desc="Max Voltage(V)" value="0.1" variable="None" />
+        <explain_quant tag="ZGUESS" desc="Estimated Z (ohms)" value="100" variable="None" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

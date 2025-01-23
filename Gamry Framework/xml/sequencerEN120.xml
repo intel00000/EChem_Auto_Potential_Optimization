@@ -1,0 +1,24 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Electrochemical Noise</name>
+    <expanded>False</expanded>
+    <element>
+      <name>ZRA Mode Electrochemical Noise</name>
+      <classname>ZECN</classname>
+      <type>normal</type>
+      <description>Performs an electrochemical noise measurement using ZRA mode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="ZRA Mode ECN" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="NOISE.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="BLOCKTIME" value="4.0" desc="Block Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.05" desc="Sample Period (s)" />
+        <explain_quant tag="REPTIME" value="0.25" desc="Repeat Time (min)" />
+        <explain_quant tag="TOTTIME" value="1.00" desc="Total Time (hr)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

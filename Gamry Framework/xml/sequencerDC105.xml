@@ -1,0 +1,156 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>DC Corrosion</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Galvanodynamic</name>
+      <classname>GALVDYN</classname>
+      <type>normal</type>
+      <description>Performs a galvanodynamic scan of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Galvanodynamic Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="GALVDYN.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="IINIT" value="1.0" desc="Initial I (mA/cm^2)" />
+        <explain_quant tag="IFINAL" value="-1.0" desc="Final I (mA/cm^2)" />
+        <explain_quant tag="SCANRATE" value="0.01" desc="Scan Rate (mA/cm^2*s)" />
+        <explain_quant tag="SAMPLETIME" value="0.5" desc="Sample Period (s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Potentiodynamic</name>
+      <classname>POTDYN</classname>
+      <type>normal</type>
+      <description>Performs a potentiodynamic scan of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Potentiodynamic Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="POTDYN.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="-0.5" versus="1" desc="Initial E (V)" />
+        <explain_poten tag="VFINAL" value="1.5" versus="1" desc="Final E (V)" />
+        <explain_quant tag="SCANRATE" value="5.0" desc="Scan Rate (mV/s)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Potentiostatic</name>
+      <classname>PSTATIC</classname>
+      <type>normal</type>
+      <description>Performs a potentiostatic hold of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Potentiostatic Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="PSTATIC.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="-0.5" versus="1" desc="Initial E (V)" />
+        <explain_quant tag="TINIT" value="100.0" desc="Initial Time (s)" />
+        <explain_poten tag="VFINAL" value="0.5" versus="1" desc="Final E (V)" />
+        <explain_quant tag="TFINAL" value="100.0" desc="Final Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="ILIMIT" value="25.0" desc="Limit I (mA/cm^2)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Galvanostatic</name>
+      <classname>GSTATIC</classname>
+      <type>normal</type>
+      <description>Performs a galvanostatic hold of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Galvanostatic Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="GSTATIC.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="IINIT" value="-0.5" desc="Initial I (mA/cm^2)" />
+        <explain_quant tag="TINIT" value="100.0" desc="Initial Time (s)" />
+        <explain_quant tag="IFINAL" value="0.5" desc="Final I (mA/cm^2)" />
+        <explain_quant tag="TFINAL" value="100.0" desc="Final Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Cyclic Polarization</name>
+      <classname>CYCPOL</classname>
+      <type>normal</type>
+      <description>Performs a cyclic polarization of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Cyclic Polarization Scan" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="CYCPOL.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="-0.5" versus="1" desc="Initial E (V)" />
+        <explain_quant tag="SCANFWD" value="5.0" desc="Forward Scan (mV/s)" />
+        <explain_poten tag="VAPEX" value="1.5" versus="1" desc="Apex E (V)" />
+        <explain_quant tag="SCANREV" value="2.5" desc="Reverse Scan (mV/s)" />
+        <explain_poten tag="VFINAL" value="0.0" versus="1" desc="Final E (V)" />
+        <explain_quant tag="ILIMIT" value="25.0" desc="Apex I (mA/cm^2)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Galvanic Corrosion</name>
+      <classname>GALVANICCORROSION</classname>
+      <type>normal</type>
+      <description>Performs a galvanic corrosion experiment between the working and reference electrodes</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Galvanic Corrosion" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="GALVCOR.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="TRUN" value="100.0" desc="Run Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="ILIMIT" value="25.0" desc="Limit I (mA/cm^2)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Polarization Resistance</name>
+      <classname>POLRES</classname>
+      <type>normal</type>
+      <description>Performs a polarization scan of the working electrode</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Polarization Resistance" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="POLRES.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_poten tag="VINIT" value="-0.02" versus="1" desc="Initial E (V)" />
+        <explain_poten tag="VFINAL" value="0.02" versus="1" desc="Final E (V)" />
+        <explain_quant tag="SCANRATE" value="0.125" desc="Scan Rate (mV/s)" />
+        <explain_quant tag="SAMPLETIME" value="2.0" desc="Sample Period (s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_quant tag="DENSITY" value="7.87" desc="Density (g/cm^3)" />
+        <explain_quant tag="EQUIV" value="27.92" desc="Equiv. Wt" />
+        <explain_quant tag="BETAA" value="0.12" desc="Beta An.(V/Dec)" />
+        <explain_quant tag="BETAC" value="0.12" desc="Beta Cat.(V/Dec)" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+        <explain_quant tag="EQDELAY" value="0.0" desc="Equil. Time (s)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

@@ -1,0 +1,342 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Frequently Used Steps</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Loop (Mux Channel)</name>
+      <classname>LOOPMUXCHANNEL</classname>
+      <type>loop</type>
+      <description>Causes all child experiments to be run across a user specified range of multiplexer channels</description>
+      <parameters>
+        <explain_iquant tag="FIRSTCHANNEL" value="1" desc="First Channel (#)" />
+        <explain_iquant tag="LASTCHANNEL" value="8" desc="Last Channel (#)" />
+      </parameters>
+      <usecount>2</usecount>
+    </element>
+  </category>
+  <category>
+    <name>Hardware</name>
+    <description>Select or control aspects of the hardware</description>
+    <expanded>True</expanded>
+    <element>
+      <name>Manual Potentiostat Select</name>
+      <classname>MANUALPSTATSELECT</classname>
+      <type>normal</type>
+      <description>Allows the user to manually select a potentiostat to use in the sequence</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Multiple Instrument Select</name>
+      <classname>MULTIPLEINSTRUMENTSELECT</classname>
+      <type>normal</type>
+      <description>Allows the user to select multiple potentiostats to use in the sequence</description>
+      <parameters>
+        <explain_selector tag="GROUPTYPE" index="0" desc="Group By:" item0="Directory" item1="Precursor" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Cell State Mode</name>
+      <classname>PSTATCELLSTATEMODE</classname>
+      <type>normal</type>
+      <description>Specify whether the cell is left on or not between sequence steps</description>
+      <parameters>
+        <explain_selector tag="CELLSTATEMODE" index="0" desc="Cell State Mode" item0="Normal" item1="Leave On" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Manual Multiplexer Select</name>
+      <classname>MANUALMUXSELECT</classname>
+      <type>normal</type>
+      <description>Allows the user to manually select a multiplexer to use in the sequence</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Multiplexer Channel Select</name>
+      <classname>MUXSETCELL</classname>
+      <type>normal</type>
+      <description>Specify the channel number of the multiplexer</description>
+      <parameters>
+        <explain_iquant tag="CHANNELNO" value="1" desc="Channel Number (#)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Loop (Mux Channel)</name>
+      <classname>LOOPMUXCHANNEL</classname>
+      <type>loop</type>
+      <description>Causes all child experiments to be run across a user specified range of multiplexer channels</description>
+      <parameters>
+        <explain_iquant tag="FIRSTCHANNEL" value="1" desc="First Channel (#)" />
+        <explain_iquant tag="LASTCHANNEL" value="8" desc="Last Channel (#)" />
+      </parameters>
+      <usecount>2</usecount>
+    </element>
+    <element>
+      <name>EIS Box Channel Select</name>
+      <classname>EISBOXSETCHANNEL</classname>
+      <type>normal</type>
+      <description>Specify the channel number of the EIS Box</description>
+      <parameters>
+        <explain_iquant tag="CHANNELNO" value="1" desc="Channel Number (#)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Loop (EIS Box Channel)</name>
+      <classname>LOOPEISBOXCHANNEL</classname>
+      <type>loop</type>
+      <description>Causes all child experiments to be run across a user specified range of EIS Box channels</description>
+      <parameters>
+        <explain_iquant tag="FIRSTCHANNEL" value="1" desc="First Channel (#)" />
+        <explain_iquant tag="LASTCHANNEL" value="8" desc="Last Channel (#)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Manual TDC Select</name>
+      <classname>MANUALTDCSELECT</classname>
+      <type>normal</type>
+      <description>Allows the user to manually select a TDC to use in the sequence</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>TDC Temperature Set</name>
+      <classname>TDCTEMPERATURESET</classname>
+      <type>normal</type>
+      <description>Specify the set point temperature on the TDC</description>
+      <parameters>
+        <explain_quant tag="TDCSETPOINT" value="25.0" desc="Temperature (C)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Set Digital Out</name>
+      <classname>SETDIGITALOUT</classname>
+      <type>normal</type>
+      <description>Set one or more digital outs of the potentiostat</description>
+      <parameters>
+        <explain_selector tag="DIGOUT0" index="2" desc="Digital Out 0:" item0="Low" item1="High" item2="Last" />
+        <explain_selector tag="DIGOUT1" index="2" desc="Digital Out 1:" item0="Low" item1="High" item2="Last" />
+        <explain_selector tag="DIGOUT2" index="2" desc="Digital Out 2:" item0="Low" item1="High" item2="Last" />
+        <explain_selector tag="DIGOUT3" index="2" desc="Digital Out 3:" item0="Low" item1="High" item2="Last" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Wait for Digital In</name>
+      <classname>WAITDIGITALIN</classname>
+      <type>normal</type>
+      <description>Wait for one or more digital in's of the potentiostat</description>
+      <parameters>
+        <explain_selector tag="DIGIN0" index="1" desc="Digital In 0:" item0="Low" item1="High" />
+        <explain_selector tag="DIGIN1" index="1" desc="Digital In 1:" item0="Low" item1="High" />
+        <explain_selector tag="DIGIN2" index="1" desc="Digital In 2:" item0="Low" item1="High" />
+        <explain_selector tag="DIGIN3" index="1" desc="Digital In 3:" item0="Low" item1="High" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Collect Optical Spectrum</name>
+      <classname>OPTICALSPECTRO</classname>
+      <type>normal</type>
+      <description>Collect a Raw Optical Spectrum</description>
+      <parameters>
+        <explain_output tag="OUTPUT" value="Spectroscopy.DTA" desc="Output File" />
+        <explain_quant tag="INTTIME" value="1000.0" desc="Integration Time(us)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+  <category>
+    <name>Sequence Utilities</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Loop (Cycle)</name>
+      <classname>LOOPBYCYCLE</classname>
+      <type>loop</type>
+      <description>Causes all child experiments to be looped a user specified number of times</description>
+      <parameters>
+        <explain_iquant tag="LOOPCOUNT" value="1" desc="Loop Count (#)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Loop (Time)</name>
+      <classname>LOOPBYTIME</classname>
+      <type>loop</type>
+      <description>Causes all child experiments to be looped a user specified amount of time</description>
+      <parameters>
+        <explain_quant tag="LOOPTIME" value="30.0" desc="Loop Time" />
+        <explain_selector tag="TIMEUNITS" index="1" desc="Time Units" item0="Hours" item1="Minutes" item2="Seconds" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Loop (Variable)</name>
+      <classname>LOOPBYVARIABLE</classname>
+      <type>loop_variable</type>
+      <description>Causes all child experiments to be looped a until a variable meets some criteria</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Define Variable</name>
+      <type>define_variable</type>
+      <description>Allows the user to create a variable that can be used as a setup or looping parameter.</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Modify Variable</name>
+      <type>modify_variable</type>
+      <description>Allows the user to modify a variable that has already been created.</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Modify Variable Prompted</name>
+      <classname>MODIFYVARIABLEPROMPT</classname>
+      <type>modify_variable</type>
+      <description>Allows the user to modify a variable that has already been created.</description>
+      <parameters>
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Delay</name>
+      <classname>DELAY</classname>
+      <type>delay</type>
+      <description>Causes the sequence to wait a user specified period of time before continuing on to the next operation</description>
+      <parameters>
+        <explain_quant tag="DELAY" value="10.0" desc="Delay Amount" />
+        <explain_selector tag="DELAYSTYLE" index="2" desc="Delay Units" item0="Hours" item1="Minutes" item2="Seconds" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Group Data Files</name>
+      <classname>GROUPDATAFILES</classname>
+      <type>normal</type>
+      <description>Allows data files generated by the sequencer to be grouped together</description>
+      <parameters>
+        <explain_selector tag="GROUPTYPE" index="0" desc="Group By:" item0="Directory" item1="Precursor" />
+        <explain_label tag="GROUPNAME" value="GROUPNAME" desc="Directory/Precursor" />
+        <explain_toggle tag="RUNTIMESETUP" checked="FALSE" desc="Show runtime dialog" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Multiple Instrument Start</name>
+      <classname>MULTIPLEINSTRUMENTSTART</classname>
+      <type>normal</type>
+      <description>Allows the sequence to be started on multiple instruments at the same time</description>
+      <parameters>
+        <explain_selector tag="GROUPTYPE" index="0" desc="Group By:" item0="Directory" item1="Precursor" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>User Prompt</name>
+      <classname>PROMPT</classname>
+      <type>normal</type>
+      <description>Display a user prompt and wait for OK to be pressed.</description>
+      <parameters>
+        <explain_label tag="PROMPT" value="Press OK to continue" desc="Message to display:" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+  <category>
+    <name>Electrode</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Specify Electrode Type</name>
+      <classname>ELECTRODETYPE</classname>
+      <type>normal</type>
+      <description>Allows specification of the electrode type</description>
+      <parameters>
+        <explain_selector tag="ELECTRODETYPE" index="0" desc="Electrode Type" item0="N/A" item1="Solid" item2="DME" item3="SMDE" item4="HMDE" item5="Rotating" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Stir-Purge Cell</name>
+      <classname>ELECTRODESTIRPURGE</classname>
+      <type>normal</type>
+      <description>Set the stir and purge option</description>
+      <parameters>
+        <explain_iquant tag="TIME" value="60" desc="Time (s)" />
+        <explain_iquant tag="QUIET" value="0" desc="Quiet (s)" />
+        <explain_selector tag="PURGEWHEN" index="0" desc="Purge When" item0="Once" item1="Always" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Set Rotation Speed</name>
+      <classname>ELECTRODEROTATION</classname>
+      <type>normal</type>
+      <description>Specify the rotation speed and type for a rotating electrode</description>
+      <parameters>
+        <explain_quant tag="RPM" value="60.0" desc="Rotation Speed (RPM)" />
+        <explain_selector tag="TURNOFFMODE" index="0" desc="Turn Off Mode" item0="Always" item1="At End" item2="Never" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+  <category>
+    <name>General</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Open Circuit Potential</name>
+      <classname>OCP</classname>
+      <type>normal</type>
+      <description>Performs an Open Circuit Potential measurement</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Open Circuit Potential" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="OCP.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="TIMEOUT" value="200.0" desc="Total Time (s)" />
+        <explain_quant tag="SAMPLETIME" value="0.5" desc="Sample Period (s)" />
+        <explain_quant tag="STABILITY" value="0.0" desc="Stability (mV/s)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Conditioning</name>
+      <classname>CONDIT</classname>
+      <type>normal</type>
+      <description>Performs a Conditioning Step</description>
+      <parameters>
+        <explain_quant tag="TIMEOUT" value="200.0" desc="Time (s)" />
+        <explain_quant tag="VOLTAGE" value="0.0" desc="Voltage (V)" />
+        <explain_quant tag="ILIMIT" value="1.0" desc="ILimit (A)" />
+        <explain_toggle tag="IRCOMP" checked="FALSE" desc="IR Comp" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Get Ru</name>
+      <classname>GETRU</classname>
+      <type>normal</type>
+      <description>Performs Ru Estimation</description>
+      <parameters>
+        <explain_poten tag="VDC" value="0.0" versus="0" desc="DC Voltage (V)" />
+        <explain_quant tag="ZGUESS" value="40.0" desc="Estimated Z (ohms)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>

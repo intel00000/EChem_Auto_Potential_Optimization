@@ -1,0 +1,127 @@
+<?xml version="1.0" standalone="yes"?>
+<experiment_elements>
+  <category>
+    <name>Pulse Voltammetry</name>
+    <expanded>False</expanded>
+    <element>
+      <name>Sampled DC Voltammetry</name>
+      <classname>SAMPLEDDC</classname>
+      <type>normal</type>
+      <description>Performs a Sampled DC Voltammetry experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Sampled DC Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="DCV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="VINIT" value="0.0" desc="Initial E (V)" />
+        <explain_quant tag="VFINAL" value="-1.0" desc="Final E (V)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_toggle tag="NOISEREJECT" checked="TRUE" desc="Noise Rejection" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_iquant tag="EQDELAY" value="5" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Differential Pulse Voltammetry</name>
+      <classname>DIFFPULSE</classname>
+      <type>normal</type>
+      <description>Performs a Differential Pulse Voltammetry experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Differential Pulse Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="DPV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="VINIT" value="0.0" desc="Initial E (V)" />
+        <explain_quant tag="VFINAL" value="-1.0" desc="Final E (V)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="PULSESIZE" value="25.0" desc="Pulse Size E (mV)" />
+        <explain_quant tag="PULSEON" value="0.1" desc="Pulse Time (s)" />
+        <explain_toggle tag="NOISEREJECT" checked="TRUE" desc="Noise Rejection" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_iquant tag="EQDELAY" value="5" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Square Wave Voltammetry</name>
+      <classname>SQUAREWAVE</classname>
+      <type>normal</type>
+      <description>Performs a Square Wave Voltammetry experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Square Wave Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="SWV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="VINIT" value="0.0" desc="Initial E (V)" />
+        <explain_quant tag="VFINAL" value="-1.0" desc="Final E (V)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="FREQUENCY" value="25.0" desc="Frequency (Hz)" />
+        <explain_quant tag="PULSESIZE" value="25.0" desc="Pulse Size E (mV)" />
+        <explain_selector tag="SAMPLINGMODE" index="0" desc="Sampling Mode" item0="Fast" item1="Noise Reject" item2="Surface" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_iquant tag="EQDELAY" value="15" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Normal Pulse Voltammetry</name>
+      <classname>NORMALPULSE</classname>
+      <type>normal</type>
+      <description>Performs a Normal Pulse Voltammetry experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Normal Pulse Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="NPV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="VINIT" value="0.0" desc="Initial E (V)" />
+        <explain_quant tag="VFINAL" value="-1.0" desc="Final E (V)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="PULSEON" value="0.1" desc="Pulse Time (s)" />
+        <explain_toggle tag="NOISEREJECT" checked="TRUE" desc="Noise Rejection" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_iquant tag="EQDELAY" value="5" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+    <element>
+      <name>Reverse Normal Pulse Voltammetry</name>
+      <classname>REVERSENORMALPULSE</classname>
+      <type>normal</type>
+      <description>Performs a Reverse Normal Pulse Voltammetry experiment</description>
+      <parameters>
+        <explain_label tag="TITLE" value="Reverse Normal Pulse Voltammetry" desc="Test Identifier" />
+        <explain_output tag="OUTPUT" value="RNV.DTA" desc="Output File" />
+        <explain_notes tag="NOTES" value="" desc="Notes..." />
+        <explain_quant tag="VINIT" value="0.0" desc="Initial E (V)" />
+        <explain_quant tag="VFINAL" value="-1.0" desc="Final E (V)" />
+        <explain_quant tag="STEPSIZE" value="2.0" desc="Step Size (mV)" />
+        <explain_quant tag="SAMPLETIME" value="1.0" desc="Sample Period (s)" />
+        <explain_quant tag="PULSEON" value="0.1" desc="Pulse Time (s)" />
+        <explain_toggle tag="NOISEREJECT" checked="TRUE" desc="Noise Rejection" />
+        <explain_selector tag="IMODE" index="1" desc="I/E Range Mode" item0="Auto" item1="Fixed" />
+        <explain_quant tag="IRANGE" value="0.3" desc="Max Current (mA)" />
+        <explain_quant tag="AREA" value="1.0" desc="Sample Area (cm^2)" />
+        <explain_iquant tag="EQDELAY" value="5" desc="Equil. Time (s)" />
+        <explain_selector tag="IRCOMP" index="0" desc="IRComp" item0="None" item1="PF" />
+        <explain_quant tag="PFCOR" value="50.0" desc="PF Corr. (ohm)" />
+      </parameters>
+      <usecount>0</usecount>
+    </element>
+  </category>
+</experiment_elements>
