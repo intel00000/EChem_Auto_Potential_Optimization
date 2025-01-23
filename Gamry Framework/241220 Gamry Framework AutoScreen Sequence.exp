@@ -1,0 +1,1802 @@
+; Gamry Sequence Wizard Generated Script
+
+; Standard Includes
+include "sequencer.exp"
+
+; Sequence Required Includes
+include "sequencerWAITDIGITALIN.exp"
+include "sequencerGROUPDATAFILES.exp"
+include "sequencerCHARGE.exp"
+
+function Main(argv)
+
+	; Initialize the sequencer
+	Sequencer = SEQUENCER.New(argv)
+
+	; Create experiment object vector
+	expt = VectorNew(33)
+
+	; Create Wait for Digital In object
+	expt[0] = WAITDIGITALIN.New (Arguments0())
+
+	; Create Group Data Files object
+	expt[1] = GROUPDATAFILES.New (Arguments1())
+
+	; Create Charge object
+	expt[2] = CHARGE.New (Arguments2())
+
+	; Create Delay object
+	expt[3] = DELAY.New (Arguments3())
+
+	; Create Charge object
+	expt[4] = CHARGE.New (Arguments4())
+
+	; Create Delay object
+	expt[5] = DELAY.New (Arguments5())
+
+	; Create Charge object
+	expt[6] = CHARGE.New (Arguments6())
+
+	; Create Delay object
+	expt[7] = DELAY.New (Arguments7())
+
+	; Create Charge object
+	expt[8] = CHARGE.New (Arguments8())
+
+	; Create Delay object
+	expt[9] = DELAY.New (Arguments9())
+
+	; Create Charge object
+	expt[10] = CHARGE.New (Arguments10())
+
+	; Create Delay object
+	expt[11] = DELAY.New (Arguments11())
+
+	; Create Charge object
+	expt[12] = CHARGE.New (Arguments12())
+
+	; Create Delay object
+	expt[13] = DELAY.New (Arguments13())
+
+	; Create Charge object
+	expt[14] = CHARGE.New (Arguments14())
+
+	; Create Delay object
+	expt[15] = DELAY.New (Arguments15())
+
+	; Create Charge object
+	expt[16] = CHARGE.New (Arguments16())
+
+	; Create Delay object
+	expt[17] = DELAY.New (Arguments17())
+
+	; Create Charge object
+	expt[18] = CHARGE.New (Arguments18())
+
+	; Create Delay object
+	expt[19] = DELAY.New (Arguments19())
+
+	; Create Charge object
+	expt[20] = CHARGE.New (Arguments20())
+
+	; Create Delay object
+	expt[21] = DELAY.New (Arguments21())
+
+	; Create Charge object
+	expt[22] = CHARGE.New (Arguments22())
+
+	; Create Delay object
+	expt[23] = DELAY.New (Arguments23())
+
+	; Create Charge object
+	expt[24] = CHARGE.New (Arguments24())
+
+	; Create Delay object
+	expt[25] = DELAY.New (Arguments25())
+
+	; Create Charge object
+	expt[26] = CHARGE.New (Arguments26())
+
+	; Create Delay object
+	expt[27] = DELAY.New (Arguments27())
+
+	; Create Charge object
+	expt[28] = CHARGE.New (Arguments28())
+
+	; Create Delay object
+	expt[29] = DELAY.New (Arguments29())
+
+	; Create Charge object
+	expt[30] = CHARGE.New (Arguments30())
+
+	; Create Delay object
+	expt[31] = DELAY.New (Arguments31())
+
+	; Create Charge object
+	expt[32] = CHARGE.New (Arguments32())
+
+	; Check output filenames and run-time parameters
+	Sequencer.ParameterCheck (expt)
+
+	; Display the sequence steps in the Stdout window
+	Sequencer.DisplaySequence (expt)
+
+	; Run The Sequence
+	Sequencer.Run (expt)
+
+	; Clean Up and Close
+	Sequencer.Close ()
+
+function Arguments0()
+	; Number of Arguments for Wait for Digital In
+	args = VectorNew(4)
+
+	; Create the argument list for Wait for Digital In
+	selectvector = VectorNew (2)
+	selectvector[0] = "Low"
+	selectvector[1] = "High"
+	args[0] = SELECTOR.New ("DIGIN0", selectvector, 0, "Digital In 0:")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Low"
+	selectvector[1] = "High"
+	args[1] = SELECTOR.New ("DIGIN1", selectvector, 0, "Digital In 1:")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Low"
+	selectvector[1] = "High"
+	args[2] = SELECTOR.New ("DIGIN2", selectvector, 0, "Digital In 2:")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Low"
+	selectvector[1] = "High"
+	args[3] = SELECTOR.New ("DIGIN3", selectvector, 0, "Digital In 3:")
+	
+	args
+	return
+	
+function Arguments1()
+	; Number of Arguments for Group Data Files
+	args = VectorNew(3)
+
+	; Create the argument list for Group Data Files
+	selectvector = VectorNew (2)
+	selectvector[0] = "Directory"
+	selectvector[1] = "Precursor"
+	args[0] = SELECTOR.New ("GROUPTYPE", selectvector, 0, "Group By:")
+	args[1] = LABEL.New ("GROUPNAME", 128, "241220 Auto Echem Screen", "Directory/Precursor")
+	args[2] = TOGGLE.New ("RUNTIMESETUP", FALSE, "Show runtime dialog")
+	
+	args
+	return
+	
+function Arguments2()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 1", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 1.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments3()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments4()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 2", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 2.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments5()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments6()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 3", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 3.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments7()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments8()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 4", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 4.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments9()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments10()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 5", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 5.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.025, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments11()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments12()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 6", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 6.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.025, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments13()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments14()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 7", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 7.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.025, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments15()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments16()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 8", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 8.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments17()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments18()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 9", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 9.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.025, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments19()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments20()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 10", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 10.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.025, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments21()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments22()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 11", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 11.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.04, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments23()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments24()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 12", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 12.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.04, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments25()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments26()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 13", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 13.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.04, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments27()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments28()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 14", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 14.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.04, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments29()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments30()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 15", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 15.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.05, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
+function Arguments31()
+	; Number of Arguments for Delay
+	args = VectorNew(2)
+
+	; Create the argument list for Delay
+	args[0] = QUANT.New ("DELAY", 9.58, "Delay Amount")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Hours"
+	selectvector[1] = "Minutes"
+	selectvector[2] = "Seconds"
+	args[1] = SELECTOR.New ("DELAYSTYLE", selectvector, 1, "Delay Units")
+	
+	args
+	return
+	
+function Arguments32()
+	; Number of Arguments for Charge
+	args = VectorNew(14)
+
+	; Create the argument list for Charge
+	args[0] = LABEL.New ("TITLE", 128, "PWR Charge 16", "Test Identifier")
+	args[1] = OUTPUT.New ("OUTPUT", "PWRCHARGE 16.DTA", "Output File")
+	args[2] = NOTES.New ("NOTES", 0, "", "Notes...")
+	args[3] = QUANT.New ("CAPACITY", 1.0, "Capacity (A-hr)")
+	selectvector = VectorNew (3)
+	selectvector[0] = "Half Cell"
+	selectvector[1] = "Full Cell"
+	selectvector[2] = "Both"
+	args[4] = SELECTOR.New ("CELLTYPE", selectvector, 1, "Cell Type")
+	selectvector = VectorNew (2)
+	selectvector[0] = "Positive"
+	selectvector[1] = "Negative"
+	args[5] = SELECTOR.New ("WORKINGCONNECTION", selectvector, 1, "Working Connection")
+	args[6] = QUANT.New ("EXPECTEDMAXV", 10.0, "Expected Max V (V)")
+	mltitemsvector = VectorNew (3)
+	mltitemsvector[0] = "Constant Current"
+	mltitemsvector[1] = "Capacity * N"
+	mltitemsvector[2] = "Capacity / N"
+	mltunitsvector = VectorNew (3)
+	mltunitsvector[0] = "Amp(s)"
+	mltunitsvector[1] = "#N"
+	mltunitsvector[2] = "#N"
+	args[7] = MULTIPARAM.New ("CHARGEMODE", mltitemsvector, mltunitsvector, 0, 0.01, "Charge Mode")
+	varunitsunitsvector = VectorNew (4)
+	varunitsunitsvector[0] = "second(s)"
+	varunitsunitsvector[1] = "minute(s)"
+	varunitsunitsvector[2] = "hour(s)"
+	varunitsunitsvector[3] = "day(s)"
+	varunitsmultsvector = VectorNew (4)
+	varunitsmultsvector[0] = "1.0"
+	varunitsmultsvector[1] = "60.0"
+	varunitsmultsvector[2] = "3600.0"
+	varunitsmultsvector[3] = "86400.0"
+	args[8] = VARIABLEANDUNITS.New ("MAXCHARGETIME", 2.0, varunitsunitsvector, 3, "s", varunitsmultsvector, "Max Charge Time")
+	args[9] = QUANT.New ("SAMPLETIME", 10.0, "Sample Period (s)")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[10] = MULTIPARAM.New ("CHARGESTOPAT1", mltitemsvector, mltunitsvector, 7, 0.1072, "Stop At 1")
+	mltitemsvector = VectorNew (9)
+	mltitemsvector[0] = "None"
+	mltitemsvector[1] = "|Voltage| < Limit"
+	mltitemsvector[2] = "|Voltage| > Limit"
+	mltitemsvector[3] = "Voltage < Limit"
+	mltitemsvector[4] = "Voltage > Limit"
+	mltitemsvector[5] = "Temp > Limit"
+	mltitemsvector[6] = "|dTemp/dT| > Limit"
+	mltitemsvector[7] = "|Charge| > Limit"
+	mltitemsvector[8] = "|Energy| > Limit"
+	mltunitsvector = VectorNew (9)
+	mltunitsvector[0] = "N/A"
+	mltunitsvector[1] = "V"
+	mltunitsvector[2] = "V"
+	mltunitsvector[3] = "V"
+	mltunitsvector[4] = "V"
+	mltunitsvector[5] = "Celcius"
+	mltunitsvector[6] = "Celcius/min"
+	mltunitsvector[7] = "A h"
+	mltunitsvector[8] = "J"
+	args[11] = MULTIPARAM.New ("CHARGESTOPAT2", mltitemsvector, mltunitsvector, 0, 0.0, "Stop At 2")
+	args[12] = TWOPARAM.New ("VOLTAGEFINISH", FALSE, 0.001, 3600.0, "Voltage Finish", "I (A) <", "Max Time(s)")
+	args[13] = TOGGLE.New ("IRCOMP", FALSE, "IR Measure")
+	
+	args
+	return
+	
