@@ -195,8 +195,8 @@ class GSequenceApp:
                 # Save the file
                 save_path = filedialog.asksaveasfilename(
                     title="Save GSequence File",
-                    defaultextension=".xml",
-                    filetypes=[("XML files", "*.xml"), ("All files", "*.*")],
+                    defaultextension=".GSequence",
+                    filetypes=[("GSequence files", "*.GSequence"), ("All files", "*.*")],
                 )
                 if save_path:
                     new_method_tree.write(

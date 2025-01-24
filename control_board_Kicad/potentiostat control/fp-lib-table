@@ -13,5 +13,6 @@
   (lib (name "UW-Madison Logo")(type "KiCad")(uri "${KIPRJMOD}/Libraries/UW-Madison Logo")(options "")(descr ""))
   (lib (name "DB25_182_025_113R531")(type "KiCad")(uri "${KIPRJMOD}/Libraries/182_025_113R531")(options "")(descr ""))
   (lib (name "Library")(type "KiCad")(uri "${KIPRJMOD}/Libraries/MountingHole_1mm/Library.pretty")(options "")(descr ""))
-  (lib (name "DB15")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717SDA15PA4CH4F/footprints.pretty")(options "")(descr ""))
+  (lib (name "DB15_L717SDA15PA4CH4F")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717SDA15PA4CH4F/footprints.pretty")(options "")(descr ""))
+  (lib (name "DB15_L717HDE15PD1CH4F")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717HDE15PD1CH4F")(options "")(descr ""))
 )

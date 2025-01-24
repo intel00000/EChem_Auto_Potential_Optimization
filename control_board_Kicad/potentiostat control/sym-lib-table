@@ -10,5 +10,6 @@
   (lib (name "LM4132BMF_2_5_NOPB")(type "KiCad")(uri "${KIPRJMOD}/Libraries/LM4132BMF_2_5_NOPB/KiCADv6/2024-09-25_03-47-14.kicad_sym")(options "")(descr ""))
   (lib (name "Switch_TE_3_1825910_5")(type "KiCad")(uri "${KIPRJMOD}/Libraries/TE_3_1825910_5/KiCADv6/2024-09-29_02-09-14.kicad_sym")(options "")(descr ""))
   (lib (name "DB25_182-025-113R531")(type "KiCad")(uri "${KIPRJMOD}/Libraries/182_025_113R531/182-025-113R531.kicad_sym")(options "")(descr ""))
-  (lib (name "DB15")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717SDA15PA4CH4F/2025-01-17_00-59-27.kicad_sym")(options "")(descr ""))
+  (lib (name "DB15_L717SDA15PA4CH4F")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717SDA15PA4CH4F/2025-01-17_00-59-27.kicad_sym")(options "")(descr ""))
+  (lib (name "DB15_L717HDE15PD1CH4F")(type "KiCad")(uri "${KIPRJMOD}/Libraries/L717HDE15PD1CH4F/L717HDE15PD1CH4F.kicad_sym")(options "")(descr ""))
 )
