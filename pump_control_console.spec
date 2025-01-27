@@ -7,7 +7,7 @@ a = Analysis(
     ['pump_control.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons')],
+    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons'), ('combined_sequencer_methods.xml', 'combined_sequencer_methods.xml')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

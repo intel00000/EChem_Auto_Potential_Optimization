@@ -15,6 +15,7 @@ import json
 import logging
 import pandas as pd
 from queue import Queue
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from tkinter_helpers import (
     non_blocking_messagebox,
@@ -30,6 +31,7 @@ from helper_functions import (
     convert_minutes_to_ns,
     convert_ns_to_timestr,
     process_pump_actions,
+    generate_gsequence,
 )
 
 pico_vid = 0x2E8A  # Pi Pico vendor ID
@@ -47,9 +49,9 @@ NANOSECONDS_PER_MILLISECOND = 1_000_000
 
 
 class PicoController:
-    def __init__(self, master) -> None:
-        self.master = master
-        self.master.title("Pump Control via Pi Pico")
+    def __init__(self, root) -> None:
+        self.root = root
+        self.root.title("Pump Control via Pi Pico")
         self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
 
         # port refresh timer
@@ -118,15 +120,135 @@ class PicoController:
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
 
-        self.create_widgets()
-        self.master.after(self.main_loop_interval_ms, self.main_loop)
+        # a notebook widget to hold the tabs
+        self.notebook = ttk.Notebook(
+            self.root, padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E)
+        )
+        self.notebook.pack(
+            expand=True, fill="both", padx=global_pad_x, pady=global_pad_y
+        )
 
-    def create_widgets(self):
+        # root frame for the experiment scheduler page
+        self.experiment_scheduler_tab = ttk.Frame(self.root)
+        self.create_experiment_scheduler_page(self.experiment_scheduler_tab)
+        self.notebook.add(self.experiment_scheduler_tab, text="Experiment scheduler")
+
+        self.file_history = OrderedDict()
+        self.generate_automation_sequence = ttk.Frame(self.root)
+        self.create_generate_automation_sequence_page(self.generate_automation_sequence)
+        self.notebook.add(
+            self.generate_automation_sequence, text="Generate automation sequence"
+        )
+
+        self.root.after(self.main_loop_interval_ms, self.main_loop)
+
+    def create_generate_automation_sequence_page(self, root_frame):
+        current_row = 0  # Row Counter
+
+        # Excel File Selection Frame
+        self.gae_file_select_frame = ttk.Labelframe(
+            root_frame,
+            text="Select Excel File",
+            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+        )
+        self.gae_file_select_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        current_row += 1
+
+        self.gae_file_path = tk.StringVar()
+        ttk.Label(self.gae_file_select_frame, text="File Path:      ").grid(
+            row=0,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+            columnspan=1,
+        )
+        self.gae_file_entry = ttk.Combobox(
+            self.gae_file_select_frame,
+            textvariable=self.gae_file_path,
+            values=list(self.file_history.keys()),
+            width=40,
+        )
+        # bind to self.on_file_change
+        self.gae_file_entry.bind("<<ComboboxSelected>>", self.update_sheet_dropdown)
+        self.gae_file_entry.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
+        )
+        self.gae_file_browse_button = ttk.Button(
+            self.gae_file_select_frame, text="Browse", command=self.browse_file
+        )
+        self.gae_file_browse_button.grid(
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+
+        # Sheet Name Selection Frame
+        self.gae_sheet_select_frame = ttk.Labelframe(
+            root_frame,
+            text="Select Sheet:",
+            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+        )
+        self.gae_sheet_select_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        current_row += 1
+
+        self.gae_sheet_name = tk.StringVar(value="")
+        ttk.Label(self.gae_sheet_select_frame, text="Sheet Name:").grid(
+            row=0,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+            columnspan=1,
+        )
+        self.gae_sheet_dropdown = ttk.Combobox(
+            self.gae_sheet_select_frame, textvariable=self.gae_sheet_name, width=40
+        )
+        self.gae_sheet_dropdown.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
+        )
+
+        # Convert Button Frame
+        self.gae_convert_frame = ttk.Frame(root_frame)
+        self.gae_convert_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="EW",
+        )
+        current_row += 1
+
+        self.gae_convert_button = ttk.Button(
+            self.gae_convert_frame,
+            text="Convert to GSequence",
+            command=self.convert_to_gsequence,
+        )
+        self.gae_convert_button.pack(pady=global_pad_y * 3)
+
+        # Make the main frame expandable
+        root_frame.columnconfigure(1, weight=1)
+
+    # add the widgets under the provided root_frame
+    def create_experiment_scheduler_page(self, root_frame):
         current_row = 0
 
         # Port selection frame
         self.port_select_frame = ttk.Labelframe(
-            self.master,
+            root_frame,
             text="Select Port",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
@@ -191,7 +313,7 @@ class PicoController:
 
         # Pump Manual Control frame
         self.manual_control_frame = ttk.Labelframe(
-            self.master,
+            root_frame,
             text="Pump Manual Control",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
@@ -258,7 +380,7 @@ class PicoController:
 
         # Autosampler Manual Control frame
         self.manual_control_frame_as = ttk.Labelframe(
-            self.master,
+            root_frame,
             text="Autosampler Manual Control",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
@@ -301,7 +423,7 @@ class PicoController:
 
         # Recipe frame
         self.recipe_frame = ttk.Labelframe(
-            self.master,
+            root_frame,
             text="Recipe",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
@@ -371,7 +493,7 @@ class PicoController:
 
         # Progress frame
         self.progress_frame = ttk.Labelframe(
-            self.master,
+            root_frame,
             text="Progress",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
@@ -420,7 +542,7 @@ class PicoController:
 
         # RTC time frame
         self.rtc_time_frame = ttk.Frame(
-            self.master,
+            root_frame,
             padding=(0, 0, 0, 0),
         )
         self.rtc_time_frame.grid(
@@ -511,11 +633,11 @@ class PicoController:
             self.update_progress()
             self.query_rtc_time()
             self.update_rtc_time_display()
-            self.master.after(self.main_loop_interval_ms, self.main_loop)
+            self.root.after(self.main_loop_interval_ms, self.main_loop)
         except Exception as e:
             logging.error(f"Error in main loop: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in the main loop: {e}",
             )
@@ -618,7 +740,7 @@ class PicoController:
                 if "Pico Pump Control Version" not in response:
                     self.disconnect(controller_id=controller_id, show_message=False)
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message="Connected to the wrong device for pump control",
                     )
@@ -645,7 +767,7 @@ class PicoController:
                 self.pump_controllers_connected[controller_id] = False
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function connect: {e}",
                 )
@@ -678,7 +800,7 @@ class PicoController:
                 if "Pico Autosampler Control Version" not in response:
                     self.disconnect_as(show_message=False)
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message="Connected to the wrong device for autosampler.",
                     )
@@ -697,7 +819,7 @@ class PicoController:
                 self.status_label_as.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function connect_as: {e}",
                 )
@@ -793,7 +915,7 @@ class PicoController:
                     logging.info(f"Disconnected from Pico {controller_id}")
                     if show_message:
                         non_blocking_messagebox(
-                            parent=self.master,
+                            parent=self.root,
                             title="Connection Status",
                             message=f"Disconnected from pump controller {controller_id}",
                         )
@@ -801,7 +923,7 @@ class PicoController:
                     logging.error(f"Error: {e}")
                     self.pump_controllers_connected[controller_id] = False
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message=f"An error occurred in function disconnect: {e}",
                     )
@@ -819,7 +941,7 @@ class PicoController:
                 logging.info(f"Disconnected from Autosampler")
                 if show_message:
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message="Disconnected from Autosampler",
                     )
@@ -827,7 +949,7 @@ class PicoController:
                 logging.error(f"Error: {e}")
                 self.autosamplers = None
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred: {e}",
                 )
@@ -843,7 +965,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function reset: {e}",
             )
@@ -859,7 +981,7 @@ class PicoController:
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function reset_as: {e}",
                 )
@@ -918,7 +1040,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function register_pump: {e}",
             )
@@ -955,7 +1077,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function remove_pump: {e}",
             )
@@ -974,7 +1096,7 @@ class PicoController:
                 result_var = tk.StringVar()
                 result_var.set("")  # Initialize as empty
                 non_blocking_checklist(
-                    parent=self.master,
+                    parent=self.root,
                     title="Select Controller to Save",
                     items=pump_id_list,
                     result_var=result_var,
@@ -1007,7 +1129,7 @@ class PicoController:
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function save_pump_config: {e}",
                 )
@@ -1045,7 +1167,7 @@ class PicoController:
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function pumps_shutdown: {e}",
                 )
@@ -1053,7 +1175,7 @@ class PicoController:
     def stop_procedure(self, message=False):
         try:
             if self.scheduled_task:
-                self.master.after_cancel(self.scheduled_task)
+                self.root.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
             self.start_time_ns = -1
             self.total_procedure_time_ns = -1
@@ -1077,14 +1199,14 @@ class PicoController:
             logging.info("Procedure stopped.")
             if message:
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Procedure Stopped",
                     message="The procedure has been stopped.",
                 )
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function stop_procedure: {e}",
             )
@@ -1092,7 +1214,7 @@ class PicoController:
     def pause_procedure(self):
         try:
             if self.scheduled_task:
-                self.master.after_cancel(self.scheduled_task)
+                self.root.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
             self.pause_timepoint_ns = time.monotonic_ns()
             self.pause_button.config(state=tk.DISABLED)
@@ -1102,7 +1224,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function pause_procedure: {e}",
             )
@@ -1119,7 +1241,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function continue_procedure: {e}",
             )
@@ -1146,7 +1268,7 @@ class PicoController:
                 self.disconnect(controller_id, False)
                 logging.error(f"Error: controller {controller_id} {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"Failed to send command to pump controller {controller_id} with error: {e}",
                 )
@@ -1154,7 +1276,7 @@ class PicoController:
                 self.disconnect(controller_id, False)
                 logging.error(f"Error: controller {controller_id} {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function send_command: {e}",
                 )
@@ -1170,14 +1292,14 @@ class PicoController:
             self.disconnect_as(False)
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"Failed to send command to Autosampler with error: {e}",
             )
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function send_command_as: {e}",
             )
@@ -1203,13 +1325,13 @@ class PicoController:
                         )
                     elif "Success" in response:
                         non_blocking_messagebox(
-                            parent=self.master,
+                            parent=self.root,
                             title="Success",
                             message=f"Pump Controller {controller_id}: {response}",
                         )
                     elif "Error" in response:
                         non_blocking_messagebox(
-                            parent=self.master,
+                            parent=self.root,
                             title="Error",
                             message=f"Pump Controller {controller_id}: {response}",
                         )
@@ -1217,7 +1339,7 @@ class PicoController:
             self.disconnect(controller_id, False)
             logging.error(f"Error: controller {controller_id} {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"Failed to read from pump controller {controller_id} with error: {e}",
             )
@@ -1225,7 +1347,7 @@ class PicoController:
             self.disconnect(controller_id, False)
             logging.error(f"Error: controller {controller_id} {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function read_serial: {e}",
             )
@@ -1255,7 +1377,7 @@ class PicoController:
                         f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_ids_to_controller_ids[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue."
                     )
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message=f"We received a status update for pump {pump_id} from the wrong controller {controller_id}. The current controller for this pump is {self.pump_ids_to_controller_ids[pump_id]}.\n You should remove the duplicate pump id from one of the above controllers to resolve this issue.",
                     )
@@ -1303,7 +1425,7 @@ class PicoController:
                     except json.JSONDecodeError as e:
                         logging.error(f"Error decoding autosampler configuration: {e}")
                         non_blocking_messagebox(
-                            parent=self.master,
+                            parent=self.root,
                             title="Error",
                             message="Failed to parse autosampler configuration with error: {e}",
                         )
@@ -1313,13 +1435,13 @@ class PicoController:
                     )
                 elif "Error" in response:
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message=f"Autosampler: {response}",
                     )
                 elif "Success" in response:
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Success",
                         message=f"Autosampler: {response}",
                     )
@@ -1327,7 +1449,7 @@ class PicoController:
             self.disconnect_as(False)
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"Failed to read from Autosampler with error: {e}",
             )
@@ -1335,7 +1457,7 @@ class PicoController:
             self.disconnect_as(False)
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function read_serial_as: {e}",
             )
@@ -1351,14 +1473,14 @@ class PicoController:
                     logging.info(f"Autosampler command sent: {command}")
                 else:
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error",
                         message="Invalid input, please enter a valid position number.",
                     )
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function goto_position_as: {e}",
                 )
@@ -1374,7 +1496,7 @@ class PicoController:
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function goto_slot_as: {e}",
                 )
@@ -1543,14 +1665,14 @@ class PicoController:
                     )
                 else:  # we have a pump with the same id but different controller
                     non_blocking_messagebox(
-                        parent=self.master,
+                        parent=self.root,
                         title="Error: Duplicate Pump Id",
                         message=f"Pump {pump_id} in controller {controller_id} already exists in controller {self.pump_ids_to_controller_ids[pump_id]}!\nDuplicate pump ids are not allow!\nConnect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue.",
                     )
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function add_pump_widgets: {e}",
             )
@@ -1723,7 +1845,7 @@ class PicoController:
 
                 logging.info(f"Recipe file loaded successfully: {file_path}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="File Load",
                     message=f"Recipe file loaded successfully: {file_path}",
                 )
@@ -1731,7 +1853,7 @@ class PicoController:
                 # shutdown the procedure if it is running
                 self.stop_procedure()
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred in function load_recipe: {e}",
                 )
@@ -1765,7 +1887,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function clear_recipe: {e}",
             )
@@ -1777,7 +1899,7 @@ class PicoController:
         # require at least one MCU connection
         if not self.autosamplers and not any(self.pump_controllers_connected.values()):
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message="No controller connection. Please connect to at least one controller to continue.",
             )
@@ -1809,7 +1931,7 @@ class PicoController:
 
             # cancel the scheduled task if it exists
             if self.scheduled_task:
-                self.master.after_cancel(self.scheduled_task)
+                self.root.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
 
             # calculate the total procedure time, max time point in the first column
@@ -1831,7 +1953,7 @@ class PicoController:
             self.stop_procedure()
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function start_procedure: {e}",
             )
@@ -1839,7 +1961,7 @@ class PicoController:
     def execute_procedure(self, index=0):
         if self.recipe_df is None or self.recipe_df.empty:
             non_blocking_messagebox(
-                parent=self.master, title="Error", message="No recipe file loaded."
+                parent=self.root, title="Error", message="No recipe file loaded."
             )
             logging.error("No recipe data to execute.")
             return
@@ -1855,7 +1977,7 @@ class PicoController:
                 self.pumps_shutdown()
                 logging.info("Procedure completed.")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Procedure Complete",
                     message=f"The procedure has been completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 )
@@ -1882,7 +2004,7 @@ class PicoController:
                     current_step_remaining_time_ns // 2 // NANOSECONDS_PER_MILLISECOND,
                 )
                 # convert from nanoseconds to milliseconds
-                self.scheduled_task = self.master.after(
+                self.scheduled_task = self.root.after(
                     int(intended_sleep_time_ms),
                     self.execute_procedure,
                     index,
@@ -1921,7 +2043,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function execute_procedure: {e}",
             )
@@ -2056,7 +2178,7 @@ class PicoController:
         # if we have any connected pump controller, we can add a pump
         if not any(self.pump_controllers_connected.values()):
             non_blocking_messagebox(
-                parent=self.master, title="Error", message="Not connected to Pico."
+                parent=self.root, title="Error", message="Not connected to Pico."
             )
             return
 
@@ -2069,7 +2191,7 @@ class PicoController:
             result_var = tk.StringVar()
             result_var.set("")  # Initialize as empty
             non_blocking_single_select(
-                parent=self.master,
+                parent=self.root,
                 title="Select Controller for Pump",
                 items=controller_list,
                 result_var=result_var,
@@ -2089,7 +2211,7 @@ class PicoController:
                     response=f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW",
                 )
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Success",
                     message=f"Pump {pump_id} added to {selected_controller}.",
                 )
@@ -2099,7 +2221,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error adding pump: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred while adding the pump: {e}",
             )
@@ -2173,7 +2295,7 @@ class PicoController:
             except Exception as e:
                 logging.error(f"Error updating pump: {e}")
                 non_blocking_messagebox(
-                    parent=self.master,
+                    parent=self.root,
                     title="Error",
                     message=f"An error occurred while updating the pump: {e}",
                 )
@@ -2181,7 +2303,7 @@ class PicoController:
 
         trace_id = result_var.trace_add("write", on_result)  # Trace the variable
         non_blocking_input_dialog(
-            parent=self.master,
+            parent=self.root,
             title=f"Edit Pump {pump_id}",
             fields=fields,
             result_var=result_var,
@@ -2192,7 +2314,7 @@ class PicoController:
         if self.first_close:
             # pop a message box to confirm exit the first time
             non_blocking_custom_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Quit",
                 message="Do you want to quit or minimize to tray?",
                 buttons=["Quit", "Minimize", "Cancel"],
@@ -2244,9 +2366,100 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
-                parent=self.master,
+                parent=self.root,
                 title="Error",
                 message=f"An error occurred in function minimize_to_tray_icon: {e}",
+            )
+
+    def browse_file(self):
+        file_path = filedialog.askopenfilename(
+            title="Select Excel File",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+        )
+        if file_path:
+            self.gae_file_path.set(file_path)
+            self.update_file_history(file_path)
+            self.load_sheets(file_path)
+
+    def update_file_history(self, file_path):
+        if file_path not in self.file_history:
+            self.file_history[file_path] = []
+            # Limit the history to the last 10 entries
+            if len(self.file_history) > 10:
+                self.file_history.popitem(last=False)
+            # Update the combobox values
+            self.gae_file_entry["values"] = list(self.file_history.keys())
+            self.gae_file_entry.set(file_path)
+
+    def load_sheets(self, file_path):
+        try:
+            xl = pd.ExcelFile(file_path)
+            self.file_history[file_path] = xl.sheet_names
+            self.gae_sheet_dropdown["values"] = xl.sheet_names
+            if "export_GSequence" in xl.sheet_names:
+                self.gae_sheet_name.set("export_GSequence")
+            else:
+                self.gae_sheet_name.set(str(xl.sheet_names[0]))
+        except Exception as e:
+            messagebox.showerror("Error", f"Error loading sheets: {e}")
+
+    def update_sheet_dropdown(self, event):
+        file_path = self.gae_file_path.get()
+        if file_path:
+            self.load_sheets(file_path)
+
+    def convert_to_gsequence(self):
+        excel_path = self.gae_file_path.get()
+        sheet_name = self.gae_sheet_name.get()
+        if not excel_path:
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message="Please select an Excel file.",
+            )
+            return
+        if not sheet_name:
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message="Please select a sheet name.",
+            )
+            return
+
+        try:
+            # Generate GSequence
+            new_method_tree = generate_gsequence(
+                excel_path, sheet_name, "combined_sequencer_methods.xml"
+            )
+            if new_method_tree is not None:
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Success",
+                    message="GSequence generated successfully, select a save location.",
+                )
+                # Save the file
+                save_path = filedialog.asksaveasfilename(
+                    title="Save GSequence File",
+                    defaultextension=".GSequence",
+                    filetypes=[
+                        ("GSequence files", "*.GSequence"),
+                        ("All files", "*.*"),
+                    ],
+                )
+                if save_path:
+                    new_method_tree.write(
+                        save_path, encoding="utf-8", xml_declaration=True
+                    )
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Success",
+                        message=f"GSequence saved to {save_path}",
+                    )
+        except Exception as e:
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"Error generating GSequence: {e}",
             )
 
 

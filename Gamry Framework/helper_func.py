@@ -20,10 +20,6 @@ def print_stats(root):
     )
 
 
-template_method_tree = ET.parse("combined_sequencer_methods.xml")
-template_method_root = template_method_tree.getroot()
-
-
 def wait_for_digital(
     template_method_tree: ET.ElementTree,
     DIGIN0: str,
