@@ -20,7 +20,9 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install --upgrade pip
+        run: |
+          pip install --upgrade pip
+          pip install pytz
 
       - name: Run the generate_index.py script
         run: |
