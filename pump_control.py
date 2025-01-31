@@ -164,12 +164,6 @@ class PicoController:
         self.root.geometry(
             f"{current_tab.winfo_reqwidth()+10}x{current_tab.winfo_reqheight()+48}"
         )
-        print(
-            f"Current tab: {current_tab}, height: {current_tab.winfo_height()}, width: {current_tab.winfo_width()}"
-        )
-        print(
-            f"Root height: {self.root.winfo_height()}, width: {self.root.winfo_width()}"
-        )
 
     def create_manual_control_page(self, root_frame):
         current_row = 0
@@ -1704,6 +1698,7 @@ class PicoController:
                         title="Error: Duplicate Pump Id",
                         message=f"Pump {pump_id} in controller {controller_id} already exists in controller {self.pump_ids_to_controller_ids[pump_id]}!\nDuplicate pump ids are not allow!\nConnect ONLY to one of the above controllers and remove the duplicated pump id to resolve this issue.",
                     )
+            self.on_tab_change(event=None, notebook=self.notebook)
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -1746,6 +1741,7 @@ class PicoController:
                         self.pumps.pop(pump_id)
                         self.pump_ids_to_controller_ids.pop(pump_id)
                     self.controller_ids_to_pump_ids.pop(controller_id)
+        self.on_tab_change(event=None, notebook=self.notebook)
 
     def load_recipe(self):
         file_path = filedialog.askopenfilename(
