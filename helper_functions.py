@@ -10,7 +10,11 @@ import logging
 import pandas as pd
 import xml.etree.ElementTree as ET
 
-LOCK_FILE = os.path.join(str(os.getenv("pump_control")), "lockfile.txt")
+# LOCK_FILE = os.path.join(str(os.getenv("pump_control")), "lockfile.txt")
+if os.name == "nt":
+    LOCK_FILE = os.path.join(str(os.getenv("APPDATA")), "pump_control", "lockfile.txt")
+else:
+    LOCK_FILE = os.path.join("log", "lockfile.txt")
 TEMPLATE_METHOD_PATH = "combined_sequencer_methods.xml"
 
 NANOSECONDS_PER_DAY = 24 * 60 * 60 * 1_000_000_000
