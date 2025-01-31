@@ -33,10 +33,64 @@ with open("index.html", "w") as index_file:
 		<title>Available Pages for EChem_Auto_Potential_Optimization repo</title>
 		<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+        <script>
+            function filterList() {
+                let input = document.getElementById('searchInput').value.toLowerCase();
+                let items = document.querySelectorAll('.list-group-item');
+                let tabs = document.querySelectorAll('.nav-link'); // All tab buttons
+                let tabContents = document.querySelectorAll('.tab-pane'); // All tab contents
+                let foundInTabs = {}; // Track if any items are found in each tab
+                let hasGlobalMatch = false; // Track if any item is visible at all
+
+                // Hide all items initially
+                items.forEach(item => {
+                    let text = item.textContent.toLowerCase();
+                    let parentTab = item.closest('.tab-pane').id;
+
+                    if (text.includes(input)) {
+                        item.style.display = '';
+                        foundInTabs[parentTab] = true;
+                        hasGlobalMatch = true;
+                    } else {
+                        item.style.display = 'none'; // Hide non-matching item
+                    }
+                });
+
+                // Hide tabs with no results and activate the first one with results
+                let firstVisibleTab = null;
+                tabs.forEach(tab => {
+                    let targetTab = tab.getAttribute('data-bs-target').substring(1); // Get tab-pane ID
+                    let tabPane = document.getElementById(targetTab); // The tab content
+
+                    if (foundInTabs[targetTab]) {
+                        tab.style.display = ''; // Show tab
+                        tabPane.style.display = ''; // Show tab content
+                        if (!firstVisibleTab) {
+                            firstVisibleTab = tab; // Mark first visible tab
+                        }
+                    } else {
+                        tab.style.display = 'none'; // Hide tab
+                        tabPane.style.display = 'none'; // Hide tab content
+                    }
+                });
+
+                // If no matches at all, hide everything
+                if (!hasGlobalMatch) {
+                    tabs.forEach(tab => (tab.style.display = 'none')); // Hide all tabs
+                    tabContents.forEach(tabPane => (tabPane.style.display = 'none')); // Hide all content
+                } else if (firstVisibleTab) { // Activate the first visible tab
+                    let tabInstance = new bootstrap.Tab(firstVisibleTab);
+                    tabInstance.show();
+                }
+            }
+        </script>
 	</head>
 	<body>
 		<div class="container mt-5">
 			<h2 class="mb-4">Available Pages for EChem_Auto_Potential_Optimization repo</h2>
+
+			<!-- Search Input -->
+			<input type="text" id="searchInput" class="form-control mb-3" onkeyup="filterList()" placeholder="Search pages...">
 
 			<!-- Navigation Tabs -->
 			<ul class="nav nav-tabs" id="navTabs" role="tablist">
@@ -51,9 +105,9 @@ with open("index.html", "w") as index_file:
         index_file.write(
             f'			<li class="nav-item" role="presentation">\n'
             f'				<button class="nav-link {active_class}" id="{prefix}-tab" data-bs-toggle="tab" data-bs-target="#{prefix}" type="button" role="tab" aria-controls="{prefix}" aria-selected="{aria_selected}">\n'
-            f"						{prefix}\n"
-            f"					</button>\n"
-            f"				</li>\n"
+            f"					{prefix}\n"
+            f"				</button>\n"
+            f"			</li>\n"
         )
         first = False
 
