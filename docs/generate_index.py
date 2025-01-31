@@ -5,8 +5,8 @@ from collections import defaultdict
 import pytz
 
 
-tz = pytz.timezone("America/Chicago")  # Set timezone to CST/CDT
-timestamp = int(time.time())  # Get a unique timestamp for cache busting
+tz = pytz.timezone("America/Chicago")  # CST/CDT timezone
+timestamp = int(time.time())  # Get a timestamp for cache busting
 
 # List all HTML files index.html
 html_files = [f for f in os.listdir(".") if f.endswith(".html") and f != "index.html"]
@@ -14,7 +14,7 @@ html_files = [f for f in os.listdir(".") if f.endswith(".html") and f != "index.
 file_groups = defaultdict(list)
 for filename in sorted(html_files):
     display_name = filename.replace("_", " ").replace(".html", "")
-    prefix = display_name.split(" ", 1)[0]  # Extract the first word as prefix
+    prefix = display_name.split(" ", 1)[0]  # First word as prefix
     file_groups[prefix].append((filename, display_name))
 
 
@@ -141,7 +141,6 @@ with open("index.html", "w") as index_file:
         index_file.write("					</div>\n				</div>\n")
         first = False
 
-    # Finish writing the index.html file
     index_file.write(
         """			</div>
 		</div>
