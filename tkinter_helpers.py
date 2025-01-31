@@ -1,9 +1,10 @@
-import tkinter as tk
-from tkinter import ttk
 import os
 import json
 import logging
 from helper_functions import resource_path
+
+import tkinter as tk
+from tkinter import ttk
 
 default_icon_path = resource_path(os.path.join("icons", "icons-red.ico"))
 
@@ -25,7 +26,7 @@ def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path)
         top.update_idletasks()
         top.wait_visibility()
         top.geometry(
-            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
     except Exception as e:
         logging.error(f"Error creating non-blocking message box: {e}")
@@ -59,7 +60,7 @@ def non_blocking_custom_messagebox(
         top.update_idletasks()
         top.wait_visibility()
         top.geometry(
-            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
     except Exception as e:
         logging.error(f"Error creating non-blocking custom message box: {e}")
@@ -116,7 +117,7 @@ def non_blocking_checklist(
         top.update_idletasks()
         top.wait_visibility()
         top.geometry(
-            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
     except Exception as e:
         logging.error(f"Error creating non-blocking checklist: {e}")
@@ -170,7 +171,7 @@ def non_blocking_single_select(
         top.update_idletasks()
         top.wait_visibility()
         top.geometry(
-            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
     except Exception as e:
         logging.error(f"Error creating non-blocking single selection dialog: {e}")
@@ -238,7 +239,7 @@ def non_blocking_input_dialog(
         top.update_idletasks()
         top.wait_visibility()
         top.geometry(
-            f"+{top.winfo_screenwidth()//2 - top.winfo_width()//2}+{top.winfo_screenheight()//2 - top.winfo_height()//2}"
+            f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
     except Exception as e:
         logging.error(f"Error creating non-blocking input dialog: {e}")

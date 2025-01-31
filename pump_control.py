@@ -9,7 +9,8 @@ import pystray
 from PIL import Image
 
 # other library
-import os, re
+import os
+import re
 import time
 import json
 import logging
@@ -162,7 +163,7 @@ class PicoController:
         # query the current tab
         current_tab = notebook.nametowidget(notebook.select())
         self.root.geometry(
-            f"{current_tab.winfo_reqwidth()+10}x{current_tab.winfo_reqheight()+48}"
+            f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
         )
 
     def create_manual_control_page(self, root_frame):
@@ -633,7 +634,7 @@ class PicoController:
         reset_button.config(state=tk.DISABLED)
         status_label = ttk.Label(
             self.port_select_frame,
-            text=f"Status: Not connected",
+            text="Status: Not connected",
         )
         status_label.grid(
             row=row,
@@ -967,7 +968,7 @@ class PicoController:
                 while not self.autosamplers_send_queue.empty():  # empty the queue
                     self.autosamplers_send_queue.get()
 
-                logging.info(f"Disconnected from Autosampler")
+                logging.info("Disconnected from Autosampler")
                 if show_message:
                     non_blocking_messagebox(
                         parent=self.root,
@@ -2511,7 +2512,7 @@ check_lock_file()
 root.iconbitmap(resource_path(os.path.join("icons", "icons-red.ico")))
 app = PicoController(root)
 root.deiconify()
-root.geometry(f"+{root.winfo_screenwidth()//8}+{root.winfo_screenheight()//8}")
+root.geometry(f"+{root.winfo_screenwidth() // 8}+{root.winfo_screenheight() // 8}")
 root.protocol("WM_DELETE_WINDOW", app.on_closing)
 root.mainloop()
 remove_lock_file()

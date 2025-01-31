@@ -19,7 +19,7 @@
     "prettier.useTabs": true,
     "editor.defaultFormatter": null,
     "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter"
+        "editor.defaultFormatter": "charliermarsh.ruff"
     },
     "[json]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
