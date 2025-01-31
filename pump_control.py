@@ -53,6 +53,8 @@ class PicoController:
         self.root = root
         self.root.title("Pump Control via Pi Pico")
         self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
+        self.sizeGrip = ttk.Sizegrip(self.root)
+        self.sizeGrip.pack(side="bottom", anchor="se")
 
         # port refresh timer
         self.port_refresh_interval_ns = (
@@ -124,127 +126,54 @@ class PicoController:
         self.notebook = ttk.Notebook(
             self.root, padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E)
         )
-        self.notebook.pack(
-            expand=True, fill="both", padx=global_pad_x, pady=global_pad_y
+        self.notebook.pack(side="top", fill="both", expand=True)
+
+        # root frame for the manual control page
+        self.manual_control_tab = ttk.Frame(self.root)
+        self.create_manual_control_page(self.manual_control_tab)
+        self.notebook.add(
+            self.manual_control_tab, text="Hardware control", sticky="NSEW"
         )
 
         # root frame for the experiment scheduler page
         self.experiment_scheduler_tab = ttk.Frame(self.root)
         self.create_experiment_scheduler_page(self.experiment_scheduler_tab)
-        self.notebook.add(self.experiment_scheduler_tab, text="Experiment scheduler")
+        self.notebook.add(
+            self.experiment_scheduler_tab, text="Experiment scheduler", sticky="NSEW"
+        )
 
+        # root frame for the generate automation sequence page
         self.file_history = OrderedDict()
         self.generate_automation_sequence = ttk.Frame(self.root)
         self.create_generate_automation_sequence_page(self.generate_automation_sequence)
         self.notebook.add(
-            self.generate_automation_sequence, text="Generate automation sequence"
+            self.generate_automation_sequence, text="Generate sequence", sticky="NSEW"
         )
 
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
         self.root.after(self.main_loop_interval_ms, self.main_loop)
 
-    def create_generate_automation_sequence_page(self, root_frame):
-        current_row = 0  # Row Counter
-
-        # Excel File Selection Frame
-        self.gae_file_select_frame = ttk.Labelframe(
-            root_frame,
-            text="Select Excel File",
-            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+    def on_tab_change(self, event, notebook=None):
+        if notebook is None:
+            notebook = event.widget
+        else:
+            notebook = notebook
+        notebook.update_idletasks()
+        # query the current tab
+        current_tab = notebook.nametowidget(notebook.select())
+        self.root.geometry(
+            f"{current_tab.winfo_reqwidth()+10}x{current_tab.winfo_reqheight()+48}"
         )
-        self.gae_file_select_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=1,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
+        print(
+            f"Current tab: {current_tab}, height: {current_tab.winfo_height()}, width: {current_tab.winfo_width()}"
         )
-        current_row += 1
-
-        self.gae_file_path = tk.StringVar()
-        ttk.Label(self.gae_file_select_frame, text="File Path:      ").grid(
-            row=0,
-            column=0,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-            columnspan=1,
-        )
-        self.gae_file_entry = ttk.Combobox(
-            self.gae_file_select_frame,
-            textvariable=self.gae_file_path,
-            values=list(self.file_history.keys()),
-            width=40,
-        )
-        # bind to self.on_file_change
-        self.gae_file_entry.bind("<<ComboboxSelected>>", self.update_sheet_dropdown)
-        self.gae_file_entry.grid(
-            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
-        )
-        self.gae_file_browse_button = ttk.Button(
-            self.gae_file_select_frame, text="Browse", command=self.browse_file
-        )
-        self.gae_file_browse_button.grid(
-            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        print(
+            f"Root height: {self.root.winfo_height()}, width: {self.root.winfo_width()}"
         )
 
-        # Sheet Name Selection Frame
-        self.gae_sheet_select_frame = ttk.Labelframe(
-            root_frame,
-            text="Select Sheet:",
-            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
-        )
-        self.gae_sheet_select_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=1,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
-        current_row += 1
-
-        self.gae_sheet_name = tk.StringVar(value="")
-        ttk.Label(self.gae_sheet_select_frame, text="Sheet Name:").grid(
-            row=0,
-            column=0,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-            columnspan=1,
-        )
-        self.gae_sheet_dropdown = ttk.Combobox(
-            self.gae_sheet_select_frame, textvariable=self.gae_sheet_name, width=40
-        )
-        self.gae_sheet_dropdown.grid(
-            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
-        )
-
-        # Convert Button Frame
-        self.gae_convert_frame = ttk.Frame(root_frame)
-        self.gae_convert_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=1,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="EW",
-        )
-        current_row += 1
-
-        self.gae_convert_button = ttk.Button(
-            self.gae_convert_frame,
-            text="Convert to GSequence",
-            command=self.convert_to_gsequence,
-        )
-        self.gae_convert_button.pack(pady=global_pad_y * 3)
-
-        # Make the main frame expandable
-        root_frame.columnconfigure(1, weight=1)
-
-    # add the widgets under the provided root_frame
-    def create_experiment_scheduler_page(self, root_frame):
+    def create_manual_control_page(self, root_frame):
         current_row = 0
+        local_columnspan = 8
 
         # Port selection frame
         self.port_select_frame = ttk.Labelframe(
@@ -255,7 +184,7 @@ class PicoController:
         self.port_select_frame.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             rowspan=3,
             padx=global_pad_x,
             pady=global_pad_y,
@@ -320,7 +249,7 @@ class PicoController:
         self.manual_control_frame.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -330,7 +259,7 @@ class PicoController:
         self.manual_control_frame_buttons.grid(
             row=0,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -370,7 +299,7 @@ class PicoController:
         self.pumps_frame.grid(
             row=1,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -387,7 +316,7 @@ class PicoController:
         self.manual_control_frame_as.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -421,6 +350,14 @@ class PicoController:
         # update the current row
         current_row += self.manual_control_frame_as.grid_size()[1]
 
+        self.set_manual_control_buttons_state(tk.DISABLED)
+        self.set_autosampler_buttons_state(tk.DISABLED)
+
+    # add the widgets under the provided root_frame
+    def create_experiment_scheduler_page(self, root_frame):
+        current_row = 0  # Row Counter
+        local_columnspan = 8
+
         # Recipe frame
         self.recipe_frame = ttk.Labelframe(
             root_frame,
@@ -430,7 +367,7 @@ class PicoController:
         self.recipe_frame.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -440,7 +377,7 @@ class PicoController:
         self.recipe_frame_buttons.grid(
             row=0,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -478,7 +415,7 @@ class PicoController:
         self.recipe_table_frame.grid(
             row=1,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -500,7 +437,7 @@ class PicoController:
         self.progress_frame.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -548,7 +485,7 @@ class PicoController:
         self.rtc_time_frame.grid(
             row=current_row,
             column=0,
-            columnspan=8,
+            columnspan=local_columnspan,
             padx=0,
             pady=0,
             sticky="NSE",
@@ -563,8 +500,106 @@ class PicoController:
         )
         self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
 
-        self.set_manual_control_buttons_state(tk.DISABLED)
-        self.set_autosampler_buttons_state(tk.DISABLED)
+    def create_generate_automation_sequence_page(self, root_frame):
+        current_row = 0  # Row Counter
+        local_columnspan = 1
+
+        # Excel File Selection Frame
+        self.gae_file_select_frame = ttk.Labelframe(
+            root_frame,
+            text="Select Excel File",
+            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+        )
+        self.gae_file_select_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=local_columnspan,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        current_row += 1
+
+        self.gae_file_path = tk.StringVar()
+        ttk.Label(self.gae_file_select_frame, text="File Path:      ").grid(
+            row=0,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+            columnspan=local_columnspan,
+        )
+        self.gae_file_entry = ttk.Combobox(
+            self.gae_file_select_frame,
+            textvariable=self.gae_file_path,
+            values=list(self.file_history.keys()),
+            width=40,
+        )
+        # bind to self.on_file_change
+        self.gae_file_entry.bind("<<ComboboxSelected>>", self.update_sheet_dropdown)
+        self.gae_file_entry.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
+        )
+        self.gae_file_browse_button = ttk.Button(
+            self.gae_file_select_frame, text="Browse", command=self.browse_file
+        )
+        self.gae_file_browse_button.grid(
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+
+        # Sheet Name Selection Frame
+        self.gae_sheet_select_frame = ttk.Labelframe(
+            root_frame,
+            text="Select Sheet:",
+            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+        )
+        self.gae_sheet_select_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=local_columnspan,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        current_row += 1
+
+        self.gae_sheet_name = tk.StringVar(value="")
+        ttk.Label(self.gae_sheet_select_frame, text="Sheet Name:").grid(
+            row=0,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+            columnspan=local_columnspan,
+        )
+        self.gae_sheet_dropdown = ttk.Combobox(
+            self.gae_sheet_select_frame, textvariable=self.gae_sheet_name, width=40
+        )
+        self.gae_sheet_dropdown.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
+        )
+
+        # Convert Button Frame
+        self.gae_convert_frame = ttk.Frame(root_frame)
+        self.gae_convert_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=local_columnspan,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="EW",
+        )
+        current_row += 1
+
+        self.gae_convert_button = ttk.Button(
+            self.gae_convert_frame,
+            text="Convert to GSequence",
+            command=self.convert_to_gsequence,
+        )
+        self.gae_convert_button.pack(pady=global_pad_y * 3)
+
+        # Make the main frame expandable
+        root_frame.columnconfigure(1, weight=1)
 
     def add_pump_controller_widgets(self, controller_id):
         # update the pump_controllers dictionary
@@ -1819,7 +1854,7 @@ class PicoController:
                 )
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
-                    self.recipe_table.column(col, width=100, anchor="center")
+                    self.recipe_table.column(col, width=60, anchor="center")
 
                 for index, row in self.recipe_df.iterrows():
                     # Convert all cells to strings, allow up to 15 significant figures for floats
@@ -1835,13 +1870,23 @@ class PicoController:
                     self.recipe_rows.append(
                         (index, self.recipe_table.get_children()[-1])
                     )
-
-                # Double width for the notes column if it exists
+                # double width for the first column
+                self.recipe_table.column(
+                    self.recipe_df.columns[0], width=100, anchor="center"
+                )
+                # set width for the notes column if it exists
                 if "Notes" in columns:
-                    self.recipe_table.column("Notes", width=200, anchor="center")
+                    self.recipe_table.column("Notes", width=150, anchor="center")
+                if "Progress Bar" in columns:
+                    self.recipe_table.column("Progress Bar", width=150, anchor="center")
+                if "Remaining Time" in columns:
+                    self.recipe_table.column(
+                        "Remaining Time", width=150, anchor="center"
+                    )
 
                 # Enable the start button
                 self.start_button.config(state=tk.NORMAL)
+                self.on_tab_change(event=None, notebook=self.notebook)
 
                 logging.info(f"Recipe file loaded successfully: {file_path}")
                 non_blocking_messagebox(
@@ -2465,6 +2510,7 @@ class PicoController:
 
 root = tk.Tk()
 root.withdraw()
+root.resizable(True, True)
 check_lock_file()
 root.iconbitmap(resource_path(os.path.join("icons", "icons-red.ico")))
 app = PicoController(root)
