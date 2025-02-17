@@ -16,7 +16,6 @@ if os.name == "nt":
     LOCK_FILE = os.path.join(str(os.getenv("APPDATA")), "pump_control", "lockfile.txt")
 else:
     LOCK_FILE = os.path.join("log", "lockfile.txt")
-TEMPLATE_METHOD_PATH = "combined_sequencer_methods.xml"
 
 NANOSECONDS_PER_DAY = 24 * 60 * 60 * 1_000_000_000
 NANOSECONDS_PER_HOUR = 60 * 60 * 1_000_000_000
@@ -395,7 +394,8 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
         ET.ElementTree: The generated GSequence XML tree.
     """
     # Read the template method XML file
-    template_method_tree = ET.parse(template_method_path)
+    with open(template_method_path, "r") as file:
+        template_method_tree = ET.parse(file)
     steps_header = df.columns[0]  # Get the first column name
     # Create the root element
     new_method_root = ET.Element("GamrySequence")

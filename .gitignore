@@ -31,7 +31,6 @@ Scripts/
 *.pyc
 *.png
 *.sdf
-*.spec
 *.xlsx
 *.zip
 .DS_Store

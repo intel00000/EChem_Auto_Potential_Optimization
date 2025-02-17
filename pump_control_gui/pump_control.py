@@ -2442,7 +2442,10 @@ class PicoController:
         try:
             # Generate GSequence
             new_method_tree = generate_gsequence(
-                self.eChem_sequence_df, "combined_sequencer_methods.xml"
+                df=self.eChem_sequence_df,
+                template_method_path=resource_path(
+                    os.path.join("xmls", "combined_sequencer_methods.xml")
+                ),
             )
             if new_method_tree is not None:
                 non_blocking_messagebox(
