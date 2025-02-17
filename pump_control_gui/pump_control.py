@@ -4,7 +4,7 @@ import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import NO, ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog
 import pystray
 from PIL import Image
 
@@ -16,7 +16,6 @@ import json
 import logging
 import pandas as pd
 from queue import Queue
-from collections import OrderedDict
 from datetime import datetime, timedelta
 from tkinter_helpers import (
     non_blocking_messagebox,
@@ -52,10 +51,12 @@ NANOSECONDS_PER_MILLISECOND = 1_000_000
 class PicoController:
     def __init__(self, root) -> None:
         self.root = root
-        self.root.title("Pump Control via Pi Pico")
+        self.root.title("Pump Control & Automation")
         self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
-        self.sizeGrip = ttk.Sizegrip(self.root)
-        self.sizeGrip.pack(side="bottom", anchor="se")
+        self.root_button_frame = ttk.Frame(self.root)
+        self.root_button_frame.pack(side="bottom", anchor="se")
+        self.sizeGrip = ttk.Sizegrip(self.root_button_frame)
+        self.sizeGrip.pack(side="right", anchor="se", fill="x", expand=True)
 
         # port refresh timer
         self.port_refresh_interval_ns = (
@@ -66,31 +67,26 @@ class PicoController:
 
         # instance fields for the serial port and queue
         # we have multiple controller, the key is the id, the value is the serial port object
+        self.num_controllers = 5
         self.pump_controllers = {}
-        self.pump_controllers_connected = {}
-        # format is "controller_id: bool"
+        self.pump_controllers_connected = {}  # format is "controller_id: bool"
         self.pump_controllers_id_to_widget_map = {}
         self.pump_controllers_send_queue = Queue()  # format is "controller_id:command"
         self.pump_controllers_rtc_time = {}
-
+        # Dictionary to store pump information
+        self.pumps = {}
+        self.pump_ids_to_controller_ids = {}  # mapping from pump id to the controller id
+        self.controller_ids_to_pump_ids = {}
+        self.pumps_per_row = 3  # define num of pumps per row in manual control frame
         # instance field for the autosampler serial port
         self.autosamplers = None
         self.autosamplers_send_queue = Queue()
         self.autosamplers_rtc_time = "Autosampler Time: --:--:--"
 
-        # Dictionary to store pump information
-        self.pumps = {}
-        # a mapping from pump id to the controller id
-        self.pump_ids_to_controller_ids = {}
-        self.controller_ids_to_pump_ids = {}
-        # define pumps per row in the manual control frame
-        self.pumps_per_row = 3
-
         # Dataframe to store the recipe
         self.recipe_df = None
         self.recipe_df_time_header_index = -1
         self.recipe_rows = []
-
         # Dataframe to store the EChem automation sequence
         self.eChem_sequence_df = None
         self.eChem_sequence_df_time_header_index = -1
@@ -128,11 +124,34 @@ class PicoController:
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
 
+        # RTC time frame
+        self.rtc_time_frame = ttk.Frame(
+            self.root_button_frame,
+            padding=(0, 0, 0, 0),
+        )
+        self.rtc_time_frame.pack(
+            side="bottom",
+            anchor="se",
+            fill="x",
+            expand=True,
+        )
+        # first row in the rtc_time_frame, containing the current rtc time from the Pico
+        self.current_time_label = ttk.Label(
+            self.rtc_time_frame, text="Pump Controller Time: --:--:--"
+        )
+        self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
+        self.current_time_label_as = ttk.Label(
+            self.rtc_time_frame, text=self.autosamplers_rtc_time
+        )
+        self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
+
         # a notebook widget to hold the tabs
         self.notebook = ttk.Notebook(
             self.root, padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E)
         )
-        self.notebook.pack(side="top", fill="both", expand=True)
+        self.notebook.pack(
+            side="top", fill="both", expand=True, padx=global_pad_x, pady=global_pad_y
+        )
 
         # root frame for the manual control page
         self.manual_control_tab = ttk.Frame(self.root)
@@ -164,22 +183,10 @@ class PicoController:
         else:
             notebook = notebook
         notebook.update_idletasks()
-        # query the current tab
         current_tab = notebook.nametowidget(notebook.select())
-        # don't update the eChem_sequence_view if the corresponding dataframe is empty
-        if (
-            current_tab == self.eChem_sequence_view
-            and self.eChem_sequence_df is not None
-        ):
-            # update the size of the window to fit the content
-            self.root.geometry(
-                f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
-            )
-        if current_tab != self.eChem_sequence_view:
-            # update the size of the window to fit the content
-            self.root.geometry(
-                f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
-            )
+        self.root.geometry(
+            f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
+        )
 
     def create_manual_control_page(self, root_frame):
         current_row = 0
@@ -202,10 +209,9 @@ class PicoController:
         )
         # first in the port_select_frame
         # Create a row for each potential pump controller
-        for controller_id in range(1, 4):  # Assume we can have up to 3 pump controllers
+        for controller_id in range(1, self.num_controllers + 1):
             self.add_pump_controller_widgets(controller_id=controller_id)
         current_row = self.port_select_frame.grid_size()[1]
-
         # second in the port_select_frame
         self.port_label_as = ttk.Label(self.port_select_frame, text="Autosampler:")
         self.port_label_as.grid(
@@ -248,7 +254,7 @@ class PicoController:
             sticky="W",
         )
         # update the current row
-        current_row = self.port_select_frame.grid_size()[1]
+        current_row += self.port_select_frame.grid_size()[1]
 
         # Pump Manual Control frame
         self.manual_control_frame = ttk.Labelframe(
@@ -290,7 +296,7 @@ class PicoController:
         )
         self.save_pumps_button = ttk.Button(
             self.manual_control_frame_buttons,
-            text="Save Config",
+            text="Save Config to EC",
             command=self.save_pump_config,
         )
         self.save_pumps_button.grid(
@@ -392,34 +398,72 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
+        temp_col_counter = 0
         self.load_recipe_button = ttk.Button(
             self.recipe_frame_buttons, text="Load Recipe", command=self.load_recipe
         )
         self.load_recipe_button.grid(
-            row=0, column=0, padx=global_pad_x, pady=global_pad_y
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
+        temp_col_counter += 1
+        self.clear_recipe_button = ttk.Button(
+            self.recipe_frame_buttons, text="Clear Recipe", command=self.clear_recipe
+        )
+        self.clear_recipe_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
+        self.clear_recipe_button.config(state=tk.DISABLED)
+        temp_col_counter += 1
+        self.generate_sequence_button = ttk.Button(
+            self.recipe_frame_buttons,
+            text="Generate GSequence",
+            command=lambda: non_blocking_custom_messagebox(
+                parent=self.root,
+                title="Convert to GSequence?",
+                message="Convert EChem sequence to a GSequence file?",
+                buttons=["Yes", "No"],
+                callback=self.convert_to_gsequence,
+            ),
+        )
+        self.generate_sequence_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
+        self.generate_sequence_button.config(state=tk.DISABLED)
+        temp_col_counter += 1
         self.start_button = ttk.Button(
             self.recipe_frame_buttons, text="Start", command=self.start_procedure
         )
-        self.start_button.grid(row=0, column=1, padx=global_pad_x, pady=global_pad_y)
+        self.start_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
         self.start_button.config(state=tk.DISABLED)
+        temp_col_counter += 1
         self.stop_button = ttk.Button(
             self.recipe_frame_buttons,
             text="Stop",
             command=lambda: self.stop_procedure(True),
         )
-        self.stop_button.grid(row=0, column=2, padx=global_pad_x, pady=global_pad_y)
+        self.stop_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
         self.stop_button.config(state=tk.DISABLED)
+        temp_col_counter += 1
         self.pause_button = ttk.Button(
             self.recipe_frame_buttons, text="Pause", command=self.pause_procedure
         )
-        self.pause_button.grid(row=0, column=3, padx=global_pad_x, pady=global_pad_y)
+        self.pause_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
         self.pause_button.config(state=tk.DISABLED)
+        temp_col_counter += 1
         self.continue_button = ttk.Button(
             self.recipe_frame_buttons, text="Continue", command=self.continue_procedure
         )
-        self.continue_button.grid(row=0, column=4, padx=global_pad_x, pady=global_pad_y)
+        self.continue_button.grid(
+            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
         self.continue_button.config(state=tk.DISABLED)
+
         # second row in the recipe frame, containing the recipe table
         self.recipe_table_frame = ttk.Frame(self.recipe_frame)
         self.recipe_table_frame.grid(
@@ -430,11 +474,19 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        self.recipe_table = ttk.Frame(self.recipe_table_frame)
+        self.recipe_table = ttk.Treeview(
+            self.recipe_table_frame, columns=["", "", ""], show="headings"
+        )
+        self.scrollbar = ttk.Scrollbar(
+            self.recipe_table_frame,
+            orient="vertical",
+            command=self.recipe_table.yview,
+        )
+        self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
+        self.scrollbar.grid(row=0, column=1, sticky="NS")
         self.recipe_table.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
         )
-        self.scrollbar = ttk.Scrollbar()
         # update the current row
         current_row += self.recipe_frame.grid_size()[1]
 
@@ -487,29 +539,6 @@ class PicoController:
         # update the current row
         current_row += self.progress_frame.grid_size()[1]
 
-        # RTC time frame
-        self.rtc_time_frame = ttk.Frame(
-            root_frame,
-            padding=(0, 0, 0, 0),
-        )
-        self.rtc_time_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            padx=0,
-            pady=0,
-            sticky="NSE",
-        )
-        # first row in the rtc_time_frame, containing the current rtc time from the Pico
-        self.current_time_label = ttk.Label(
-            self.rtc_time_frame, text="Pump Controller Time: --:--:--"
-        )
-        self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
-        self.current_time_label_as = ttk.Label(
-            self.rtc_time_frame, text=self.autosamplers_rtc_time
-        )
-        self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
-
     def create_eChem_sequence_view_page(self, root_frame):
         current_row = 0  # Row Counter
         local_columnspan = 8
@@ -538,8 +567,10 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        self.eChem_sequence_table = ttk.Frame(
+        self.eChem_sequence_table = ttk.Treeview(
             self.eChem_sequence_table_frame,
+            columns=["", "", ""],
+            show="headings",
         )
         self.eChem_sequence_table.grid(
             row=0,
@@ -549,7 +580,14 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        self.scrollbar_EC = ttk.Scrollbar()
+        self.scrollbar_EC = ttk.Scrollbar(
+            self.eChem_sequence_table_frame,
+            orient="vertical",
+            command=self.eChem_sequence_table.yview,
+        )
+        self.scrollbar_EC.grid(row=0, column=local_columnspan, sticky="NS")
+        self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
+
         # update the current row
         current_row += self.eChem_sequence_frame.grid_size()[1]
         current_row += 1
@@ -645,8 +683,7 @@ class PicoController:
                 and not instant
             ):
                 return
-            # filter by vendor id and ignore already connected ports
-            # get a list of connected ports name from the serial_port dictionary
+            # get a list of connected ports name from the serial_port dictionary, filter by vendor id
             connected_ports = [
                 port.name
                 for port in self.pump_controllers.values()
@@ -1086,6 +1123,7 @@ class PicoController:
                 non_blocking_checklist(
                     parent=self.root,
                     title="Select Controller to Save",
+                    message="Select the controllers to save the configuration:",
                     items=pump_id_list,
                     result_var=result_var,
                 )  # Trigger non-blocking checklist
@@ -1110,7 +1148,6 @@ class PicoController:
                             logging.info(
                                 f"Signal sent to save pump {pump_id} configuration."
                             )
-
                     result_var.trace_remove("write", trace_id)  # Untrace
 
                 trace_id = result_var.trace_add("write", on_selection)  # Trace
@@ -1170,16 +1207,16 @@ class PicoController:
             self.current_index = -1
             self.pause_timepoint_ns = -1
             self.pause_duration_ns = 0
-            # call a emergency shutdown in case the power is still on
-            self.pumps_shutdown()
+            self.pumps_shutdown()  # call a emergency shutdown in case the power is still on
             # update the status
             for id, connection_status in self.pump_controllers_connected.items():
                 if connection_status:
                     self.update_status(controller_id=id)
-                    # enable the disconnect button
                     self.pump_controllers_id_to_widget_map[id][
                         "disconnect_button"
                     ].config(state=tk.NORMAL)
+            if self.autosamplers:
+                self.disconnect_button_as.config(state=tk.NORMAL)
             # disable the buttons
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
@@ -1207,7 +1244,7 @@ class PicoController:
             self.pause_timepoint_ns = time.monotonic_ns()
             self.pause_button.config(state=tk.DISABLED)
             self.continue_button.config(state=tk.NORMAL)
-            self.end_time_value.config(text="")
+            self.end_time_value.config(text="paused")
             logging.info("Procedure paused.")
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -1793,7 +1830,7 @@ class PicoController:
 
                 # Setup the table to display the data
                 columns = list(self.recipe_df.columns) + [
-                    "Progress Bar",
+                    "Progress",
                     "Remaining Time",
                 ]
                 self.recipe_table = ttk.Treeview(
@@ -1826,20 +1863,13 @@ class PicoController:
                     self.recipe_rows.append(
                         (index, self.recipe_table.get_children()[-1])
                     )
-                # double width for the first column
-                self.recipe_table.column(recipe_header, width=100, anchor="center")
                 # set width for the notes column if it exists
                 if "Notes" in columns:
                     self.recipe_table.column("Notes", width=150, anchor="center")
-                if "Progress Bar" in columns:
-                    self.recipe_table.column("Progress Bar", width=150, anchor="center")
-                if "Remaining Time" in columns:
-                    self.recipe_table.column(
-                        "Remaining Time", width=150, anchor="center"
-                    )
 
                 # Enable the start button
                 self.start_button.config(state=tk.NORMAL)
+                self.clear_recipe_button.config(state=tk.NORMAL)
                 self.on_tab_change(event=None, notebook=self.notebook)
 
                 # now setup the eChem table
@@ -1849,16 +1879,6 @@ class PicoController:
                     columns=columns,
                     show="headings",
                 )
-                # Create a scrollbar
-                self.scrollbar_EC = ttk.Scrollbar(
-                    self.eChem_sequence_table_frame,
-                    orient="vertical",
-                    command=self.eChem_sequence_table.yview,
-                )
-                self.eChem_sequence_table.configure(
-                    yscrollcommand=self.scrollbar_EC.set
-                )
-                self.scrollbar_EC.grid(row=0, column=1, sticky="NS")
                 self.eChem_sequence_table.grid(
                     row=0,
                     column=0,
@@ -1866,6 +1886,17 @@ class PicoController:
                     pady=global_pad_y,
                     sticky="NSEW",
                 )
+                self.scrollbar_EC.destroy()
+                self.scrollbar_EC = ttk.Scrollbar(
+                    self.eChem_sequence_table_frame,
+                    orient="vertical",
+                    command=self.eChem_sequence_table.yview,
+                )
+                self.scrollbar_EC.grid(row=0, column=1, sticky="NS")
+                self.eChem_sequence_table.configure(
+                    yscrollcommand=self.scrollbar_EC.set
+                )
+
                 for col in columns:
                     self.eChem_sequence_table.heading(col, text=col)
                     self.eChem_sequence_table.column(
@@ -1881,10 +1912,11 @@ class PicoController:
 
                 # pop a unblocking message box to ask user if they want to convert the eChem sequence to a GSequence
                 if not self.eChem_sequence_df.empty:
+                    self.generate_sequence_button.config(state=tk.NORMAL)
                     non_blocking_custom_messagebox(
                         parent=self.root,
-                        title="Convert eChem Sequence",
-                        message="Do you want to convert the included eChem sequence to a GSequence file?",
+                        title="Convert to GSequence?",
+                        message="Convert EChem sequence to a GSequence file?",
                         buttons=["Yes", "No"],
                         callback=self.convert_to_gsequence,
                     )
@@ -1915,7 +1947,16 @@ class PicoController:
             self.recipe_table.destroy()  # destroy the recipe table
             self.scrollbar.destroy()  # destroy the scrollbar
             # recreate the recipe table
-            self.recipe_table = ttk.Frame(self.recipe_table_frame)
+            self.recipe_table = ttk.Treeview(
+                self.recipe_table_frame, columns=["", "", ""], show="headings"
+            )
+            self.scrollbar = ttk.Scrollbar(
+                self.recipe_table_frame,
+                orient="vertical",
+                command=self.recipe_table.yview,
+            )
+            self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
+            self.scrollbar.grid(row=0, column=1, sticky="NS")
             self.recipe_table.grid(
                 row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
             )
@@ -1926,20 +1967,34 @@ class PicoController:
 
             # clear the eChem table
             self.eChem_sequence_df = None
+            self.generate_sequence_button.config(state=tk.DISABLED)
             self.eChem_sequence_df_time_header_index = -1
             self.eChem_sequence_table.destroy()  # destroy the eChem table
             self.scrollbar_EC.destroy()  # destroy the scrollbar
             # recreate the eChem table
-            self.eChem_sequence_table = ttk.Frame(self.eChem_sequence_table_frame)
+            self.eChem_sequence_table = ttk.Treeview(
+                self.eChem_sequence_table_frame,
+                columns=["", "", ""],
+                show="headings",
+            )
             self.eChem_sequence_table.grid(
                 row=0,
                 column=0,
+                columnspan=8,
                 padx=global_pad_x,
                 pady=global_pad_y,
                 sticky="NSEW",
             )
+            self.scrollbar_EC = ttk.Scrollbar(
+                self.eChem_sequence_table_frame,
+                orient="vertical",
+                command=self.eChem_sequence_table.yview,
+            )
+            self.scrollbar_EC.grid(row=0, column=8, sticky="NS")
+            self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
 
             # disable all procedure buttons
+            self.clear_recipe_button.config(state=tk.DISABLED)
             self.start_button.config(state=tk.DISABLED)
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
@@ -1969,9 +2024,7 @@ class PicoController:
             message = "Only one type of controller connected. Continue?"
             if not messagebox.askyesno("Warning", message):
                 return
-
         logging.info("Starting procedure...")
-
         try:
             self.stop_button.config(state=tk.NORMAL)
             self.pause_button.config(state=tk.NORMAL)
@@ -1985,25 +2038,21 @@ class PicoController:
                     self.pump_controllers_id_to_widget_map[controller_id][
                         "disconnect_button"
                     ].config(state=tk.DISABLED)
-
-            # clear the stop time and pause time
-            self.pause_timepoint_ns = -1
-
-            # cancel the scheduled task if it exists
-            if self.scheduled_task:
+            if self.autosamplers:
+                self.disconnect_button_as.config(state=tk.DISABLED)
+            self.pause_timepoint_ns = -1  # clear the stop time and pause time
+            if self.scheduled_task:  # cancel the scheduled task if it exists
                 self.root.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
-
             # calculate the total procedure time, max time point in the first column
             self.total_procedure_time_ns = convert_minutes_to_ns(
                 float(self.recipe_df.iloc[:, self.recipe_df_time_header_index].max())
             )
-
             # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
-            for _, child in self.recipe_rows:
-                self.recipe_table.set(child, "Progress Bar", "")
-                self.recipe_table.set(child, "Remaining Time", "")
-
+            if type(self.recipe_table) is ttk.Treeview:
+                for _, child in self.recipe_rows:
+                    self.recipe_table.set(child, "Progress", "")
+                    self.recipe_table.set(child, "Remaining Time", "")
             # record start time
             self.start_time_ns = time.monotonic_ns() - self.pause_duration_ns
             self.current_index = 0
@@ -2025,28 +2074,17 @@ class PicoController:
             )
             logging.error("No recipe data to execute.")
             return
-
         try:
             if index >= len(self.recipe_df):
-                # update progress bar and remaining time
-                self.update_progress()
-                self.start_time_ns = -1
-                self.total_procedure_time_ns = -1
-                self.current_index = -1
-                # call a emergency shutdown in case the power is still on
-                self.pumps_shutdown()
                 logging.info("Procedure completed.")
+                self.update_progress()  # update progress bar and remaining time
+                self.stop_procedure(message=False)
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Procedure Complete",
                     message=f"The procedure has been completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 )
-                # disable the stop button
-                self.stop_button.config(state=tk.DISABLED)
-                self.pause_button.config(state=tk.DISABLED)
-                self.continue_button.config(state=tk.DISABLED)
                 return
-
             self.current_index = index
             row = self.recipe_df.iloc[index]
             target_time_ns = convert_minutes_to_ns(
@@ -2073,7 +2111,6 @@ class PicoController:
                 return
 
             logging.info(f"executing step at index {index}")
-
             # Parse pump and valve actions dynamically
             pump_actions = {
                 col: row[col] for col in row.index if col.startswith("Pump")
@@ -2198,7 +2235,6 @@ class PicoController:
             time_stamp_ns = convert_minutes_to_ns(
                 float(self.recipe_df.iloc[i].iloc[self.recipe_df_time_header_index])
             )
-
             # if the time stamp is in the future, break the loop
             if elapsed_time_ns < time_stamp_ns:
                 break
@@ -2231,13 +2267,14 @@ class PicoController:
                     row_progress = 100
                     remaining_time_row_ns = 0
 
-                # Update only the "Progress Bar" and "Remaining Time" columns
-                self.recipe_table.set(child, "Progress Bar", f"{row_progress}%")
-                self.recipe_table.set(
-                    child,
-                    "Remaining Time",
-                    f"{convert_ns_to_timestr(int(remaining_time_row_ns))}",
-                )
+                if type(self.recipe_table) is ttk.Treeview:
+                    # Update only the "Progress Bar" and "Remaining Time" columns
+                    self.recipe_table.set(child, "Progress", f"{row_progress}%")
+                    self.recipe_table.set(
+                        child,
+                        "Remaining Time",
+                        f"{convert_ns_to_timestr(int(remaining_time_row_ns))}",
+                    )
 
     def add_pump(self):
         # if we have any connected pump controller, we can add a pump

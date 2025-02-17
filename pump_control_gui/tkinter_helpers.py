@@ -67,7 +67,7 @@ def non_blocking_custom_messagebox(
 
 
 def non_blocking_checklist(
-    parent, title, items, result_var, icon_path=default_icon_path
+    parent, title, message, items, result_var, icon_path=default_icon_path
 ):
     """Create a non-blocking checklist dialog without a scroll bar."""
     try:
@@ -77,7 +77,7 @@ def non_blocking_checklist(
             top.iconbitmap(icon_path)
 
         # Label for the checklist
-        label = ttk.Label(top, text="Select items:")
+        label = ttk.Label(top, text=message)
         label.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 
         # Frame to hold the checklist items
