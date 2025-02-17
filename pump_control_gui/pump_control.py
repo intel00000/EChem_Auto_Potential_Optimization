@@ -1755,21 +1755,18 @@ class PicoController:
                     )
                 elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
                     # we default read the "Do Not Edit (Export Settings)" sheet
-                    if (
-                        "Do Not Edit (Export Settings)"
-                        in pd.ExcelFile(file_path).sheet_names
-                    ):
+                    try:
                         temp_df = pd.read_excel(
                             file_path,
                             sheet_name="Do Not Edit (Export Settings)",
                             keep_default_na=False,
                             dtype=object,
                         )
-                    else:
+                    except Exception as _:
                         non_blocking_messagebox(
                             parent=self.root,
-                            title="Warning",
-                            message="The recipe file does not contain the 'Do Not Edit (Export Settings)' sheet.\nPlease select a sheet to load.",
+                            title="Error",
+                            message="The recipe file does not contain a 'Do Not Edit (Export Settings)' sheet.",
                         )
                         return
                 elif file_path.endswith(".pkl"):
@@ -1836,7 +1833,6 @@ class PicoController:
                 self.recipe_table = ttk.Treeview(
                     self.recipe_table_frame, columns=columns, show="headings"
                 )
-
                 # Create a scrollbar
                 self.scrollbar = ttk.Scrollbar(
                     self.recipe_table_frame,
@@ -1886,7 +1882,6 @@ class PicoController:
                     pady=global_pad_y,
                     sticky="NSEW",
                 )
-                self.scrollbar_EC.destroy()
                 self.scrollbar_EC = ttk.Scrollbar(
                     self.eChem_sequence_table_frame,
                     orient="vertical",
@@ -1944,8 +1939,8 @@ class PicoController:
             self.recipe_df = None
             self.recipe_df_time_header_index = -1
             self.recipe_rows = []
-            self.recipe_table.destroy()  # destroy the recipe table
-            self.scrollbar.destroy()  # destroy the scrollbar
+            for child in self.recipe_table_frame.winfo_children():
+                child.destroy()
             # recreate the recipe table
             self.recipe_table = ttk.Treeview(
                 self.recipe_table_frame, columns=["", "", ""], show="headings"
@@ -1969,8 +1964,8 @@ class PicoController:
             self.eChem_sequence_df = None
             self.generate_sequence_button.config(state=tk.DISABLED)
             self.eChem_sequence_df_time_header_index = -1
-            self.eChem_sequence_table.destroy()  # destroy the eChem table
-            self.scrollbar_EC.destroy()  # destroy the scrollbar
+            for child in self.eChem_sequence_table_frame.winfo_children():
+                child.destroy()
             # recreate the eChem table
             self.eChem_sequence_table = ttk.Treeview(
                 self.eChem_sequence_table_frame,

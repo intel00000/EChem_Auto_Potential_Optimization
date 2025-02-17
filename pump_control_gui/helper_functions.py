@@ -431,9 +431,6 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
             reaction_charge = float(row.get("Reaction Charge (mA h)", "None"))
             current = float(row.get("Current (A)", "None"))
             working_connection = row.get("Working Connection", "None")
-            logging.debug(
-                f"Reaction Charge: {reaction_charge}, Current: {current}, Working Connection: {working_connection}"
-            )
             if (
                 reaction_charge == "None"
                 or current == "None"
@@ -470,7 +467,6 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
 
         elif method_name == "delay":
             delay_value = float(row.get("Delays", "None"))
-            logging.debug(f"Delay: {delay_value}")
             if delay_value == "None":
                 raise ValueError("Missing required value for delay method: 'Delays'.")
             # Add "Delay" method
