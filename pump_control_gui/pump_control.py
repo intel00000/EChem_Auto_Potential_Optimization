@@ -4,7 +4,7 @@ import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import NO, ttk, messagebox, filedialog
 import pystray
 from PIL import Image
 
@@ -87,8 +87,13 @@ class PicoController:
         self.pumps_per_row = 3
 
         # Dataframe to store the recipe
-        self.recipe_df = pd.DataFrame()
+        self.recipe_df = None
+        self.recipe_df_time_header_index = -1
         self.recipe_rows = []
+
+        # Dataframe to store the EChem automation sequence
+        self.eChem_sequence_df = None
+        self.eChem_sequence_df_time_header_index = -1
 
         # time stamp for the start of the procedure
         self.start_time_ns = -1
@@ -144,11 +149,10 @@ class PicoController:
         )
 
         # root frame for the generate automation sequence page
-        self.file_history = OrderedDict()
-        self.generate_automation_sequence = ttk.Frame(self.root)
-        self.create_generate_automation_sequence_page(self.generate_automation_sequence)
+        self.eChem_sequence_view = ttk.Frame(self.root)
+        self.create_eChem_sequence_view_page(self.eChem_sequence_view)
         self.notebook.add(
-            self.generate_automation_sequence, text="Generate sequence", sticky="NSEW"
+            self.eChem_sequence_view, text="EChem sequence viewer", sticky="NSEW"
         )
 
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
@@ -162,9 +166,20 @@ class PicoController:
         notebook.update_idletasks()
         # query the current tab
         current_tab = notebook.nametowidget(notebook.select())
-        self.root.geometry(
-            f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
-        )
+        # don't update the eChem_sequence_view if the corresponding dataframe is empty
+        if (
+            current_tab == self.eChem_sequence_view
+            and self.eChem_sequence_df is not None
+        ):
+            # update the size of the window to fit the content
+            self.root.geometry(
+                f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
+            )
+        if current_tab != self.eChem_sequence_view:
+            # update the size of the window to fit the content
+            self.root.geometry(
+                f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
+            )
 
     def create_manual_control_page(self, root_frame):
         current_row = 0
@@ -495,17 +510,17 @@ class PicoController:
         )
         self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
 
-    def create_generate_automation_sequence_page(self, root_frame):
+    def create_eChem_sequence_view_page(self, root_frame):
         current_row = 0  # Row Counter
-        local_columnspan = 1
+        local_columnspan = 8
 
-        # Excel File Selection Frame
-        self.gae_file_select_frame = ttk.Labelframe(
+        # sequence table frame
+        self.eChem_sequence_frame = ttk.Labelframe(
             root_frame,
-            text="Select Excel File",
+            text="EChem Sequence Viewer",
             padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
         )
-        self.gae_file_select_frame.grid(
+        self.eChem_sequence_frame.grid(
             row=current_row,
             column=0,
             columnspan=local_columnspan,
@@ -513,88 +528,31 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        current_row += 1
 
-        self.gae_file_path = tk.StringVar()
-        ttk.Label(self.gae_file_select_frame, text="File Path:      ").grid(
+        self.eChem_sequence_table_frame = ttk.Frame(self.eChem_sequence_frame)
+        self.eChem_sequence_table_frame.grid(
             row=0,
-            column=0,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-            columnspan=local_columnspan,
-        )
-        self.gae_file_entry = ttk.Combobox(
-            self.gae_file_select_frame,
-            textvariable=self.gae_file_path,
-            values=list(self.file_history.keys()),
-            width=40,
-        )
-        # bind to self.on_file_change
-        self.gae_file_entry.bind("<<ComboboxSelected>>", self.update_sheet_dropdown)
-        self.gae_file_entry.grid(
-            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
-        )
-        self.gae_file_browse_button = ttk.Button(
-            self.gae_file_select_frame, text="Browse", command=self.browse_file
-        )
-        self.gae_file_browse_button.grid(
-            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-
-        # Sheet Name Selection Frame
-        self.gae_sheet_select_frame = ttk.Labelframe(
-            root_frame,
-            text="Select Sheet:",
-            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
-        )
-        self.gae_sheet_select_frame.grid(
-            row=current_row,
             column=0,
             columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
-        current_row += 1
-
-        self.gae_sheet_name = tk.StringVar(value="")
-        ttk.Label(self.gae_sheet_select_frame, text="Sheet Name:").grid(
+        self.eChem_sequence_table = ttk.Frame(
+            self.eChem_sequence_table_frame,
+        )
+        self.eChem_sequence_table.grid(
             row=0,
             column=0,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-            columnspan=local_columnspan,
-        )
-        self.gae_sheet_dropdown = ttk.Combobox(
-            self.gae_sheet_select_frame, textvariable=self.gae_sheet_name, width=40
-        )
-        self.gae_sheet_dropdown.grid(
-            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="EW"
-        )
-
-        # Convert Button Frame
-        self.gae_convert_frame = ttk.Frame(root_frame)
-        self.gae_convert_frame.grid(
-            row=current_row,
-            column=0,
             columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
-            sticky="EW",
+            sticky="NSEW",
         )
+        self.scrollbar_EC = ttk.Scrollbar()
+        # update the current row
+        current_row += self.eChem_sequence_frame.grid_size()[1]
         current_row += 1
-
-        self.gae_convert_button = ttk.Button(
-            self.gae_convert_frame,
-            text="Convert to GSequence",
-            command=self.convert_to_gsequence,
-        )
-        self.gae_convert_button.pack(pady=global_pad_y * 3)
-
-        # Make the main frame expandable
-        root_frame.columnconfigure(1, weight=1)
 
     def add_pump_controller_widgets(self, controller_id):
         # update the pump_controllers dictionary
@@ -1755,77 +1713,82 @@ class PicoController:
                 self.stop_procedure()
                 self.clear_recipe()
                 if file_path.endswith(".csv"):
-                    self.recipe_df = pd.read_csv(
-                        file_path, header=None, keep_default_na=False, dtype=object
+                    temp_df = pd.read_csv(
+                        file_path, keep_default_na=False, dtype=object
                     )
                 elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
-                    self.recipe_df = pd.read_excel(
-                        file_path, header=None, keep_default_na=False, dtype=object
-                    )
+                    # we default read the "Do Not Edit (Export Settings)" sheet
+                    if (
+                        "Do Not Edit (Export Settings)"
+                        in pd.ExcelFile(file_path).sheet_names
+                    ):
+                        temp_df = pd.read_excel(
+                            file_path,
+                            sheet_name="Do Not Edit (Export Settings)",
+                            keep_default_na=False,
+                            dtype=object,
+                        )
+                    else:
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Warning",
+                            message="The recipe file does not contain the 'Do Not Edit (Export Settings)' sheet.\nPlease select a sheet to load.",
+                        )
+                        return
                 elif file_path.endswith(".pkl"):
-                    self.recipe_df = pd.read_pickle(file_path, compression=None)
+                    temp_df = pd.read_pickle(file_path, compression=None)
                 elif file_path.endswith(".json"):
-                    self.recipe_df = pd.read_json(file_path, dtype=False)
+                    temp_df = pd.read_json(file_path, dtype=False)
                 else:
                     raise ValueError("Unsupported file format.")
 
                 # Clean the data frame
-                time_cells = [
-                    (row_idx, col_idx, cell)
-                    for row_idx, row in self.recipe_df.iterrows()
-                    for col_idx, cell in enumerate(row)
+                # search for any header containing the keyword "time"
+                recipe_headers = [
+                    (col_idx, cell)
+                    for col_idx, cell in enumerate(temp_df.columns)
                     if isinstance(cell, str) and "time" in cell.lower()
-                ]  # Search for any cell containing the keyword "time"
-                if len(time_cells) == 0:  # need at least one "time" cell as the anchor
-                    raise ValueError("No cell containing the keyword 'time'.")
-                elif len(time_cells) == 1:
-                    # if we only have one "time" cell, we use it as the anchor
-                    time_row_idx, time_col_idx, _ = time_cells[0]
-                elif len(time_cells) > 1:
-                    # Filter to choose the most relevant "Time (min)" cell as the anchor
-                    relevant_time_cells = [
-                        cell
-                        for cell in time_cells
-                        if "time (min)" in cell[2].lower()
-                        or "time point (min)" in cell[2].lower()
-                    ]
-                    if len(relevant_time_cells) == 0:
-                        raise ValueError(
-                            "Multiple cell containing the keyword 'time' found, but none of them contain 'Time (min)' or 'Time point (min)'."
-                        )
-                    elif len(relevant_time_cells) > 1:
-                        raise ValueError(
-                            "Multiple cell containing the keyword 'time' found, multiple of them contain 'Time (min)' or 'Time point (min)'."
-                        )
-                    # Choose the first relevant "Time (min)" cell as the primary one
-                    time_row_idx, time_col_idx, _ = relevant_time_cells[0]
-
-                # Trim the DataFrame to set the anchor cell as the first cell
-                self.recipe_df = self.recipe_df.iloc[time_row_idx:, time_col_idx:]
-                # drop column where their first row cell is empty
-                self.recipe_df = self.recipe_df.loc[
-                    :, self.recipe_df.iloc[0].astype(str).str.strip() != ""
                 ]
-                self.recipe_df.columns = self.recipe_df.iloc[0]
-                self.recipe_df = self.recipe_df[1:].reset_index(drop=True)
+                self.recipe_df_time_header_index, recipe_header = recipe_headers[0]
+                # look for the second anchor named "Echem Steps" , we will split the dataframe into two based on this index
+                echem_headers = [
+                    (col_idx, cell)
+                    for col_idx, cell in enumerate(temp_df.columns)
+                    if isinstance(cell, str) and "echem steps" in cell.lower()
+                ]
+                echem_header_col_idx, echem_header = echem_headers[0]
 
+                # Split the dataframe until echem_header_col_idx, that is the recipe data
+                self.recipe_df = temp_df.iloc[:, 0:echem_header_col_idx]
+                self.eChem_sequence_df = temp_df.iloc[:, echem_header_col_idx:]
                 # drop rows where time column has NaN
-                time_col = self.recipe_df.columns[0]
-                self.recipe_df.dropna(subset=[time_col], inplace=True)
-                # convert the time column to float
-                self.recipe_df[self.recipe_df.columns[0]] = self.recipe_df[
-                    self.recipe_df.columns[0]
-                ].apply(float)
+                self.recipe_df = self.recipe_df.dropna(axis=0, subset=[recipe_header])
+                self.recipe_df = self.recipe_df.drop(
+                    self.recipe_df[self.recipe_df[recipe_header] == ""].index,
+                )
+                self.recipe_df = self.recipe_df.reset_index(drop=True)
 
+                # drop tows where echem_header has NaN or empty string
+                self.eChem_sequence_df = self.eChem_sequence_df.dropna(
+                    axis=0, subset=[echem_header]
+                )
+                self.eChem_sequence_df = self.eChem_sequence_df.drop(
+                    self.eChem_sequence_df[
+                        self.eChem_sequence_df[echem_header] == ""
+                    ].index,
+                )
+                self.eChem_sequence_df = self.eChem_sequence_df.reset_index(drop=True)
+                # convert the time column to float
+                self.recipe_df[recipe_header] = self.recipe_df[recipe_header].apply(
+                    float
+                )
                 # check if the time points are in ascending order
-                if not self.recipe_df[
-                    self.recipe_df.columns[0]
-                ].is_monotonic_increasing:
+                if not self.recipe_df[recipe_header].is_monotonic_increasing:
                     raise ValueError(
                         "Time points are required in monotonically increasing order."
                     )
                 # check if there is duplicate time points
-                if self.recipe_df[self.recipe_df.columns[0]].duplicated().any():
+                if self.recipe_df[recipe_header].duplicated().any():
                     raise ValueError("Duplicate time points are not allowed.")
 
                 # Setup the table to display the data
@@ -1851,16 +1814,12 @@ class PicoController:
                 )
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
-                    self.recipe_table.column(col, width=60, anchor="center")
+                    self.recipe_table.column(col, width=len(col) * 10, anchor="center")
 
                 for index, row in self.recipe_df.iterrows():
-                    # Convert all cells to strings, allow up to 15 significant figures for floats
+                    # Convert all cells to strings, allow up to 2 significant figures for floats
                     values = [
-                        (
-                            f"{cell:.15g}"
-                            if isinstance(cell, (int, float))
-                            else str(cell)
-                        )
+                        (f"{cell:.2f}" if isinstance(cell, float) else str(cell))
                         for cell in row
                     ]
                     self.recipe_table.insert("", "end", values=values)
@@ -1868,9 +1827,7 @@ class PicoController:
                         (index, self.recipe_table.get_children()[-1])
                     )
                 # double width for the first column
-                self.recipe_table.column(
-                    self.recipe_df.columns[0], width=100, anchor="center"
-                )
+                self.recipe_table.column(recipe_header, width=100, anchor="center")
                 # set width for the notes column if it exists
                 if "Notes" in columns:
                     self.recipe_table.column("Notes", width=150, anchor="center")
@@ -1884,6 +1841,53 @@ class PicoController:
                 # Enable the start button
                 self.start_button.config(state=tk.NORMAL)
                 self.on_tab_change(event=None, notebook=self.notebook)
+
+                # now setup the eChem table
+                columns = list(self.eChem_sequence_df.columns)
+                self.eChem_sequence_table = ttk.Treeview(
+                    self.eChem_sequence_table_frame,
+                    columns=columns,
+                    show="headings",
+                )
+                # Create a scrollbar
+                self.scrollbar_EC = ttk.Scrollbar(
+                    self.eChem_sequence_table_frame,
+                    orient="vertical",
+                    command=self.eChem_sequence_table.yview,
+                )
+                self.eChem_sequence_table.configure(
+                    yscrollcommand=self.scrollbar_EC.set
+                )
+                self.scrollbar_EC.grid(row=0, column=1, sticky="NS")
+                self.eChem_sequence_table.grid(
+                    row=0,
+                    column=0,
+                    padx=global_pad_x,
+                    pady=global_pad_y,
+                    sticky="NSEW",
+                )
+                for col in columns:
+                    self.eChem_sequence_table.heading(col, text=col)
+                    self.eChem_sequence_table.column(
+                        col, width=len(col) * 10, anchor="center"
+                    )
+                for index, row in self.eChem_sequence_df.iterrows():
+                    # Convert all cells to strings, allow up to 2 significant figures for floats
+                    values = [
+                        (f"{cell:.2f}" if isinstance(cell, float) else str(cell))
+                        for cell in row
+                    ]
+                    self.eChem_sequence_table.insert("", "end", values=values)
+
+                # pop a unblocking message box to ask user if they want to convert the eChem sequence to a GSequence
+                if not self.eChem_sequence_df.empty:
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Convert eChem Sequence",
+                        message="Do you want to convert the included eChem sequence to a GSequence file?",
+                        buttons=["Yes", "No"],
+                        callback=self.convert_to_gsequence,
+                    )
 
                 logging.info(f"Recipe file loaded successfully: {file_path}")
                 non_blocking_messagebox(
@@ -1906,11 +1910,10 @@ class PicoController:
         try:
             # clear the recipe table
             self.recipe_df = None
+            self.recipe_df_time_header_index = -1
             self.recipe_rows = []
-            # destroy the recipe table
-            self.recipe_table.destroy()
-            # destroy the scrollbar
-            self.scrollbar.destroy()
+            self.recipe_table.destroy()  # destroy the recipe table
+            self.scrollbar.destroy()  # destroy the scrollbar
             # recreate the recipe table
             self.recipe_table = ttk.Frame(self.recipe_table_frame)
             self.recipe_table.grid(
@@ -1920,6 +1923,21 @@ class PicoController:
             self.total_progress_bar["value"] = 0
             self.remaining_time_value.config(text="")
             self.end_time_value.config(text="")
+
+            # clear the eChem table
+            self.eChem_sequence_df = None
+            self.eChem_sequence_df_time_header_index = -1
+            self.eChem_sequence_table.destroy()  # destroy the eChem table
+            self.scrollbar_EC.destroy()  # destroy the scrollbar
+            # recreate the eChem table
+            self.eChem_sequence_table = ttk.Frame(self.eChem_sequence_table_frame)
+            self.eChem_sequence_table.grid(
+                row=0,
+                column=0,
+                padx=global_pad_x,
+                pady=global_pad_y,
+                sticky="NSEW",
+            )
 
             # disable all procedure buttons
             self.start_button.config(state=tk.DISABLED)
@@ -1978,7 +1996,7 @@ class PicoController:
 
             # calculate the total procedure time, max time point in the first column
             self.total_procedure_time_ns = convert_minutes_to_ns(
-                float(self.recipe_df[self.recipe_df.columns[0]].max())
+                float(self.recipe_df.iloc[:, self.recipe_df_time_header_index].max())
             )
 
             # clear the "Progress Bar" and "Remaining Time" columns in the recipe table
@@ -2031,8 +2049,9 @@ class PicoController:
 
             self.current_index = index
             row = self.recipe_df.iloc[index]
-            target_time_ns = convert_minutes_to_ns(float(row.iloc[0]))
-
+            target_time_ns = convert_minutes_to_ns(
+                float(row.iloc[self.recipe_df_time_header_index])
+            )
             elapsed_time_ns = (
                 time.monotonic_ns() - self.start_time_ns - self.pause_duration_ns
             )
@@ -2063,7 +2082,7 @@ class PicoController:
                 col: row[col] for col in row.index if col.startswith("Valve")
             }
             auto_sampler_actions_slots = {
-                col: row[col] for col in row.index if col.startswith("Autosampler_slot")
+                col: row[col] for col in row.index if col.startswith("Autosampler")
             }
             auto_sampler_actions_positions = {
                 col: row[col]
@@ -2176,7 +2195,9 @@ class PicoController:
 
         # Update the recipe table with individual progress and remaining time
         for i, child in self.recipe_rows:
-            time_stamp_ns = convert_minutes_to_ns(float(self.recipe_df.iloc[i].iloc[0]))
+            time_stamp_ns = convert_minutes_to_ns(
+                float(self.recipe_df.iloc[i].iloc[self.recipe_df_time_header_index])
+            )
 
             # if the time stamp is in the future, break the loop
             if elapsed_time_ns < time_stamp_ns:
@@ -2185,7 +2206,9 @@ class PicoController:
                 # Calculate progress for each step
                 if i < len(self.recipe_df) - 1:
                     next_row = self.recipe_df.iloc[i + 1]
-                    next_time_stamp_ns = convert_minutes_to_ns(float(next_row.iloc[0]))
+                    next_time_stamp_ns = convert_minutes_to_ns(
+                        float(next_row.iloc[self.recipe_df_time_header_index])
+                    )
                     time_interval = next_time_stamp_ns - time_stamp_ns
                     if time_interval > 0:
                         # handle the case where the next row has the same timestamp
@@ -2413,65 +2436,13 @@ class PicoController:
                 message=f"An error occurred in function minimize_to_tray_icon: {e}",
             )
 
-    def browse_file(self):
-        file_path = filedialog.askopenfilename(
-            title="Select Excel File",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
-        )
-        if file_path:
-            self.gae_file_path.set(file_path)
-            self.update_file_history(file_path)
-            self.load_sheets(file_path)
-
-    def update_file_history(self, file_path):
-        if file_path not in self.file_history:
-            self.file_history[file_path] = []
-            # Limit the history to the last 10 entries
-            if len(self.file_history) > 10:
-                self.file_history.popitem(last=False)
-            # Update the combobox values
-            self.gae_file_entry["values"] = list(self.file_history.keys())
-            self.gae_file_entry.set(file_path)
-
-    def load_sheets(self, file_path):
-        try:
-            xl = pd.ExcelFile(file_path)
-            self.file_history[file_path] = xl.sheet_names
-            self.gae_sheet_dropdown["values"] = xl.sheet_names
-            if "export_GSequence" in xl.sheet_names:
-                self.gae_sheet_name.set("export_GSequence")
-            else:
-                self.gae_sheet_name.set(str(xl.sheet_names[0]))
-        except Exception as e:
-            messagebox.showerror("Error", f"Error loading sheets: {e}")
-
-    def update_sheet_dropdown(self, event):
-        file_path = self.gae_file_path.get()
-        if file_path:
-            self.load_sheets(file_path)
-
-    def convert_to_gsequence(self):
-        excel_path = self.gae_file_path.get()
-        sheet_name = self.gae_sheet_name.get()
-        if not excel_path:
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message="Please select an Excel file.",
-            )
+    def convert_to_gsequence(self, response):
+        if response == "No" or self.eChem_sequence_df is None:
             return
-        if not sheet_name:
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message="Please select a sheet name.",
-            )
-            return
-
         try:
             # Generate GSequence
             new_method_tree = generate_gsequence(
-                excel_path, sheet_name, "combined_sequencer_methods.xml"
+                self.eChem_sequence_df, "combined_sequencer_methods.xml"
             )
             if new_method_tree is not None:
                 non_blocking_messagebox(

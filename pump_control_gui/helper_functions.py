@@ -7,6 +7,7 @@ import re
 import sys
 import psutil
 import logging
+import datetime
 import pandas as pd
 import xml.etree.ElementTree as ET
 
@@ -382,104 +383,109 @@ def delay(
     return new_tree
 
 
-def generate_gsequence(
-    excel_path, sheet_name, template_method_path
-) -> ET.ElementTree | None:
+def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
     """
-    Generate GSequence XML from the provided Excel file.
+    Generate GSequence XML from the provided DataFrame and template method XML.
 
     Args:
-        excel_path (str): Path to the Excel file.
-        sheet_name (str): Sheet name containing method definitions.
+        df (pd.DataFrame): DataFrame containing the methods to be included in the GSequence.
         template_method_path (str): Path to the template method XML file.
 
     Returns:
         ET.ElementTree: The generated GSequence XML tree.
     """
-    try:
-        # Read the Excel file
-        df = pd.read_excel(excel_path, sheet_name=sheet_name)
-        # Read the template method XML file
-        template_method_tree = ET.parse(template_method_path)
+    # Read the template method XML file
+    template_method_tree = ET.parse(template_method_path)
+    steps_header = df.columns[0]  # Get the first column name
+    # Create the root element
+    new_method_root = ET.Element("GamrySequence")
+    name_tag = ET.SubElement(new_method_root, "name")
+    name_tag.text = "Gamry Sequence"
+    version_tag = ET.SubElement(new_method_root, "version")
+    version_tag.text = "7.10.3.14563"
+    charge_counter = 1  # filename counter for the output data files
+    for _, row in df.iterrows():  # Add methods to the sequence
+        method_name = row[steps_header]
+        if method_name == "wait_for_digital":
+            # "Wait for Digital In" method, hardcoded to wait for all inputs to be low
+            method_tree = wait_for_digital(
+                template_method_tree,
+                DIGIN0="Low",
+                DIGIN1="Low",
+                DIGIN2="Low",
+                DIGIN3="Low",
+            )
+            new_method_root.append(method_tree.getroot())
+        elif method_name == "group_data_files":
+            # Add "Group Data Files" method
+            date_string = datetime.datetime.now().strftime("%Y-%m-%d")
+            method_tree = group_data_files(
+                template=template_method_tree,
+                group_name=f"{date_string} Auto Echem Sequence",
+                group_type_index=0,
+                runtime_setup_checked=False,
+            )
+            new_method_root.append(method_tree.getroot())
 
-        # Validate the input data
-        if "method" not in df.columns:
-            raise ValueError("The selected sheet does not contain a 'method' column.")
-
-        # Create the root element
-        new_method_root = ET.Element("GamrySequence")
-        name_tag = ET.SubElement(new_method_root, "name")
-        name_tag.text = "Gamry Sequence"
-        version_tag = ET.SubElement(new_method_root, "version")
-        version_tag.text = "7.10.3.14563"
-
-        # Add methods to the sequence
-        for _, row in df.iterrows():
-            method_name = row["method"]
-
-            if method_name == "wait_for_digital":
-                # Add "Wait for Digital In" method
-                method_tree = wait_for_digital(
-                    template_method_tree,
-                    DIGIN0="Low",
-                    DIGIN1="High",
-                    DIGIN2="Low",
-                    DIGIN3="Low",
+        elif method_name == "charge":
+            reaction_charge = float(row.get("Reaction Charge (mA h)", "None"))
+            current = float(row.get("Current (A)", "None"))
+            working_connection = row.get("Working Connection", "None")
+            logging.debug(
+                f"Reaction Charge: {reaction_charge}, Current: {current}, Working Connection: {working_connection}"
+            )
+            if (
+                reaction_charge == "None"
+                or current == "None"
+                or working_connection == "None"
+            ):
+                raise ValueError(
+                    "Missing at least one required values for charge method: "
+                    "'Reaction Charge (mA h)', 'Current (A)', or 'Working Connection'."
                 )
-                new_method_root.append(method_tree.getroot())
+            # Add "Charge" method
+            method_tree = charge(
+                template=template_method_tree,
+                title=f"PWR Charge {charge_counter}",
+                output=f"PWRCHARGE {charge_counter}.DTA",
+                capacity=1.0,
+                cell_type_index=1,
+                working_connection_index=1
+                if "negative" in working_connection.lower()
+                else 0,
+                expected_max_v=10.0,
+                charge_mode_value=current,
+                charge_mode_index=0,
+                max_charge_time_index=3,
+                max_charge_time_value=2.0,
+                sample_time_value=10.0,
+                charge_stop_at1_index=7,
+                charge_stop_at1_value=reaction_charge,
+                charge_stop_at2_index=0,
+                charge_stop_at2_value=0,
+                voltage_finish_checked=False,
+                ir_comp_checked=False,
+            )
+            new_method_root.append(method_tree.getroot())
 
-            elif method_name == "group_data_files":
-                # Add "Group Data Files" method
-                method_tree = group_data_files(
-                    template=template_method_tree,
-                    group_name="241220 Auto Echem Screen",
-                    group_type_index=0,
-                    runtime_setup_checked=False,
-                )
-                new_method_root.append(method_tree.getroot())
+        elif method_name == "delay":
+            delay_value = float(row.get("Delays", "None"))
+            logging.debug(f"Delay: {delay_value}")
+            if delay_value == "None":
+                raise ValueError("Missing required value for delay method: 'Delays'.")
+            # Add "Delay" method
+            method_tree = delay(
+                template=template_method_tree,
+                delay_value=delay_value,
+                delay_style_index=1,
+                delay_variable="None",
+            )
+            new_method_root.append(method_tree.getroot())
 
-            elif method_name == "charge":
-                # Add "Charge" method
-                method_tree = charge(
-                    template=template_method_tree,
-                    title="PWR Charge 1",
-                    output="PWRCHARGE 1.DTA",
-                    capacity=1.0,
-                    cell_type_index=1,
-                    working_connection_index=1,
-                    expected_max_v=10.0,
-                    charge_mode_value=0.01,
-                    charge_mode_index=0,
-                    max_charge_time_index=3,
-                    max_charge_time_value=2.0,
-                    sample_time_value=10.0,
-                    charge_stop_at1_index=7,
-                    charge_stop_at1_value=0.1072,
-                    charge_stop_at2_index=0,
-                    charge_stop_at2_value=0.0,
-                    voltage_finish_checked=False,
-                    ir_comp_checked=False,
-                )
-                new_method_root.append(method_tree.getroot())
+        else:
+            raise ValueError(f"Unknown method: {method_name}")
 
-            elif method_name == "delay":
-                # Add "Delay" method
-                method_tree = delay(
-                    template=template_method_tree,
-                    delay_value=9.58,
-                    delay_style_index=1,
-                    delay_variable="None",
-                )
-                new_method_root.append(method_tree.getroot())
-
-            else:
-                raise ValueError(f"Unknown method: {method_name}")
-
-        # Create a new XML tree and return it
-        new_method_tree = ET.ElementTree(new_method_root)
-        ET.indent(new_method_root)
-        return new_method_tree
-
-    except Exception as e:
-        messagebox.showerror("Error", f"Error generating GSequence: {e}")
-        return None
+    # Create a new XML tree and return it
+    new_method_tree = ET.ElementTree(new_method_root)
+    ET.indent(new_method_root)
+    return new_method_tree
