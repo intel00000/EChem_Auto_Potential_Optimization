@@ -394,8 +394,6 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
         ET.ElementTree: The generated GSequence XML tree.
     """
     # Read the template method XML file
-    with open(template_method_path, "r") as file:
-        template_method_tree = ET.parse(file)
     steps_header = df.columns[0]  # Get the first column name
     # Create the root element
     new_method_root = ET.Element("GamrySequence")
@@ -405,6 +403,8 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
     version_tag.text = "7.10.3.14563"
     charge_counter = 1  # filename counter for the output data files
     for _, row in df.iterrows():  # Add methods to the sequence
+        with open(template_method_path, "r") as file:
+            template_method_tree = ET.parse(file)
         method_name = row[steps_header]
         if method_name == "wait_for_digital":
             # "Wait for Digital In" method, hardcoded to wait for all inputs to be low
@@ -445,7 +445,7 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
                 template=template_method_tree,
                 title=f"PWR Charge {charge_counter}",
                 output=f"PWRCHARGE {charge_counter}.DTA",
-                capacity=1.0,
+                capacity=10,
                 cell_type_index=1,
                 working_connection_index=1
                 if "negative" in working_connection.lower()
@@ -464,6 +464,7 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
                 ir_comp_checked=False,
             )
             new_method_root.append(method_tree.getroot())
+            charge_counter += 1
 
         elif method_name == "delay":
             delay_value = float(row.get("Delays", "None"))

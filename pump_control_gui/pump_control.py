@@ -210,7 +210,12 @@ class PicoController:
         # first in the port_select_frame
         # Create a row for each potential pump controller
         for controller_id in range(1, self.num_controllers + 1):
-            self.add_pump_controller_widgets(controller_id=controller_id)
+            self.add_pump_controller_widgets(
+                port_label="Pump Controller", controller_id=controller_id
+            )
+        self.add_pump_controller_widgets(
+            port_label="Potentiostat Controller", controller_id=self.num_controllers
+        )
         current_row = self.port_select_frame.grid_size()[1]
         # second in the port_select_frame
         self.port_label_as = ttk.Label(self.port_select_frame, text="Autosampler:")
@@ -592,14 +597,14 @@ class PicoController:
         current_row += self.eChem_sequence_frame.grid_size()[1]
         current_row += 1
 
-    def add_pump_controller_widgets(self, controller_id):
+    def add_pump_controller_widgets(self, port_label, controller_id):
         # update the pump_controllers dictionary
         self.pump_controllers[controller_id] = serial.Serial()
         self.pump_controllers_connected[controller_id] = False
         """Adds the combobox and buttons for selecting and connecting a pump controller."""
         row = controller_id - 1  # Zero-indexed for row position
         port_label = ttk.Label(
-            self.port_select_frame, text=f"Pump controller {controller_id}:"
+            self.port_select_frame, text=f"{port_label} {controller_id}:"
         )
         port_label.grid(
             row=row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -1818,9 +1823,17 @@ class PicoController:
                 )
                 # check if the time points are in ascending order
                 if not self.recipe_df[recipe_header].is_monotonic_increasing:
+                    # record the index of the first time point that is not in order
+                    for index, value in enumerate(
+                        self.recipe_df[recipe_header].values[:-1]
+                    ):
+                        if value > self.recipe_df[recipe_header].values[index + 1]:
+                            self.recipe_df_time_header_index = index
+                            break
                     raise ValueError(
-                        "Time points are required in monotonically increasing order."
+                        f"Time points are required in monotonically increasing order, at index {self.recipe_df_time_header_index} with value {self.recipe_df[recipe_header].values[self.recipe_df_time_header_index]} VS next value {self.recipe_df[recipe_header].values[self.recipe_df_time_header_index + 1]}.\n Please check the recipe file."
                     )
+
                 # check if there is duplicate time points
                 if self.recipe_df[recipe_header].duplicated().any():
                     raise ValueError("Duplicate time points are not allowed.")
