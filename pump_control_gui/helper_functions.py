@@ -5,6 +5,7 @@ from tkinter import messagebox
 import os
 import re
 import sys
+import json
 import psutil
 import logging
 import datetime
@@ -14,8 +15,10 @@ import xml.etree.ElementTree as ET
 # LOCK_FILE = os.path.join(str(os.getenv("pump_control")), "lockfile.txt")
 if os.name == "nt":
     LOCK_FILE = os.path.join(str(os.getenv("APPDATA")), "pump_control", "lockfile.txt")
+    CONFIG_FILE = os.path.join(str(os.getenv("APPDATA")), "pump_control", "config.json")
 else:
     LOCK_FILE = os.path.join("log", "lockfile.txt")
+    CONFIG_FILE = os.path.join("log", "config.json")
 
 NANOSECONDS_PER_DAY = 24 * 60 * 60 * 1_000_000_000
 NANOSECONDS_PER_HOUR = 60 * 60 * 1_000_000_000
@@ -486,3 +489,27 @@ def generate_gsequence(df, template_method_path) -> ET.ElementTree | None:
     new_method_tree = ET.ElementTree(new_method_root)
     ET.indent(new_method_root)
     return new_method_tree
+
+
+def get_config() -> dict:
+    """
+    Load the configuration from the config.json file.
+
+    Returns:
+        dict: The configuration dictionary.
+    """
+    if not os.path.exists(CONFIG_FILE):
+        return {}
+    with open(CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+
+def save_config(config: dict) -> None:
+    """
+    Save the configuration to the config.json file.
+
+    Args:
+        config (dict): The configuration dictionary to save.
+    """
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f, indent=4)

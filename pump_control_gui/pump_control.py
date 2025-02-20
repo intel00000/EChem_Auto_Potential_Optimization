@@ -32,6 +32,8 @@ from helper_functions import (
     convert_ns_to_timestr,
     process_pump_actions,
     generate_gsequence,
+    get_config,
+    save_config,
 )
 
 pico_vid = 0x2E8A  # Pi Pico vendor ID
@@ -53,6 +55,7 @@ class PicoController:
         self.root = root
         self.root.title("Pump Control & Automation")
         self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
+        self.config = get_config()
         self.root_button_frame = ttk.Frame(self.root)
         self.root_button_frame.pack(side="bottom", anchor="se")
         self.sizeGrip = ttk.Sizegrip(self.root_button_frame)
@@ -419,22 +422,6 @@ class PicoController:
         )
         self.clear_recipe_button.config(state=tk.DISABLED)
         temp_col_counter += 1
-        self.generate_sequence_button = ttk.Button(
-            self.recipe_frame_buttons,
-            text="Generate GSequence",
-            command=lambda: non_blocking_custom_messagebox(
-                parent=self.root,
-                title="Convert to GSequence?",
-                message="Convert EChem sequence to a GSequence file?",
-                buttons=["Yes", "No"],
-                callback=self.convert_to_gsequence,
-            ),
-        )
-        self.generate_sequence_button.grid(
-            row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
-        )
-        self.generate_sequence_button.config(state=tk.DISABLED)
-        temp_col_counter += 1
         self.start_button = ttk.Button(
             self.recipe_frame_buttons, text="Start", command=self.start_procedure
         )
@@ -469,10 +456,86 @@ class PicoController:
         )
         self.continue_button.config(state=tk.DISABLED)
 
-        # second row in the recipe frame, containing the recipe table
+        # second row in the recipe_frame_buttons, containing the gSequence and generate button
+        self.gSquence_save_frame = ttk.Frame(self.recipe_frame_buttons)
+        self.gSquence_save_frame.grid(
+            row=1,
+            column=0,
+            columnspan=4,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        temp_col_counter = 0
+        self.gSquence_save_path_label = ttk.Label(
+            self.gSquence_save_frame, text="Save Directory:"
+        )
+        self.gSquence_save_path_label.grid(
+            row=0,
+            column=temp_col_counter,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        self.gSquence_save_path_entry = ttk.Combobox(
+            self.gSquence_save_frame,
+            state="readonly",
+            width=35,
+        )
+        temp_col_counter += 1
+        self.gSquence_save_path_entry.grid(
+            row=0,
+            column=temp_col_counter,
+            columnspan=3,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        # update the combobox from the config file
+        self.gSquence_save_path_entry["values"] = self.config.get(
+            "gSequence_save_path_history", []
+        )
+        if len(self.gSquence_save_path_entry["values"]) > 0:
+            self.gSquence_save_path_entry.current(0)
+        temp_col_counter = 4
+        self.gSquence_save_path_set_button = ttk.Button(
+            self.recipe_frame_buttons,
+            text="Set",
+            command=self.set_gSequence_save_path,
+        )
+        self.gSquence_save_path_set_button.grid(
+            row=1, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
+        temp_col_counter += 1
+        self.gSquence_save_path_entry_clear_button = ttk.Button(
+            self.recipe_frame_buttons,
+            text="Clear",
+            command=self.clear_gSequence_save_path_history,
+        )
+        self.gSquence_save_path_entry_clear_button.grid(
+            row=1, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
+        temp_col_counter += 1
+        self.generate_sequence_button = ttk.Button(
+            self.recipe_frame_buttons,
+            text="Generate",
+            command=lambda: non_blocking_custom_messagebox(
+                parent=self.root,
+                title="Convert to GSequence?",
+                message="Convert EChem sequence to a GSequence file?",
+                buttons=["Yes", "No"],
+                callback=self.convert_to_gsequence,
+            ),
+        )
+        self.generate_sequence_button.grid(
+            row=1, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
+        )
+        self.generate_sequence_button.config(state=tk.DISABLED)
+
+        # second row in the recipe_frame, containing the recipe table
         self.recipe_table_frame = ttk.Frame(self.recipe_frame)
         self.recipe_table_frame.grid(
-            row=1,
+            row=2,
             column=0,
             columnspan=local_columnspan,
             padx=global_pad_x,
@@ -2499,6 +2562,9 @@ class PicoController:
                     message="GSequence generated successfully, select a save location.",
                 )
                 # Save the file
+                init_dir = self.gSquence_save_path_entry.get()
+                if not os.path.exists(init_dir):
+                    init_dir = os.getcwd()
                 save_path = filedialog.asksaveasfilename(
                     title="Save GSequence File",
                     defaultextension=".GSequence",
@@ -2506,11 +2572,20 @@ class PicoController:
                         ("GSequence files", "*.GSequence"),
                         ("All files", "*.*"),
                     ],
+                    initialdir=init_dir,
+                    initialfile=f"{datetime.now().strftime('%Y%m%d_%H%M%S')} Method.GSequence",
                 )
                 if save_path:
                     new_method_tree.write(
                         save_path, encoding="utf-8", xml_declaration=True
                     )
+                    # update the config file with the new path
+                    temp_dir_set = set(
+                        self.config.get("gSequence_save_path_history", [])
+                    )
+                    temp_dir_set.add(os.path.dirname(save_path))
+                    self.config["gSequence_save_path_history"] = list(temp_dir_set)
+                    save_config(self.config)
                     non_blocking_messagebox(
                         parent=self.root,
                         title="Success",
@@ -2521,6 +2596,56 @@ class PicoController:
                 parent=self.root,
                 title="Error",
                 message=f"Error generating GSequence: {e}",
+            )
+
+    def set_gSequence_save_path(self):
+        """
+        Set the GSequence save path to the selected directory.
+        """
+        try:
+            # Get the selected directory
+            selected_directory = filedialog.askdirectory(
+                title="Select GSequence Save Directory"
+            )
+            if selected_directory:
+                # Update the config file with the new path
+                temp_dir_set = set(self.config.get("gSequence_save_path_history", []))
+                temp_dir_set.add(selected_directory)
+                temp_dir_list = list(temp_dir_set)
+                self.config["gSequence_save_path_history"] = temp_dir_list
+                save_config(self.config)
+                self.gSquence_save_path_entry["values"] = temp_dir_list
+                self.gSquence_save_path_entry.set(selected_directory)
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Success",
+                    message=f"GSequence save path set to {selected_directory}",
+                )
+        except Exception as e:
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"Error setting GSequence save path: {e}",
+            )
+
+    def clear_gSequence_save_path_history(self):
+        """
+        Clear the history of saved GSequence paths from the configuration file and from the combo box.
+        """
+        try:
+            self.config["gSequence_save_path_history"] = []
+            save_config(self.config)
+            self.gSquence_save_path_entry.set("")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Success",
+                message="GSequence save path history cleared.",
+            )
+        except Exception as e:
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"Error clearing GSequence save path history: {e}",
             )
 
 
