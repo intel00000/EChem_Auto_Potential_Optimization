@@ -493,10 +493,13 @@ class PicoController:
         )
         # update the combobox from the config file
         self.gSquence_save_path_entry["values"] = self.config.get(
-            "gSequence_save_path_history", []
+            "gSequence_save_dir_history", []
         )
         if len(self.gSquence_save_path_entry["values"]) > 0:
             self.gSquence_save_path_entry.current(0)
+        self.gSquence_save_path_entry.bind(
+            "<<ComboboxSelected>>", self.update_directory_history
+        )
         temp_col_counter = 4
         self.gSquence_save_path_set_button = ttk.Button(
             self.recipe_frame_buttons,
@@ -2580,11 +2583,13 @@ class PicoController:
                         save_path, encoding="utf-8", xml_declaration=True
                     )
                     # update the config file with the new path
-                    temp_dir_set = set(
-                        self.config.get("gSequence_save_path_history", [])
-                    )
-                    temp_dir_set.add(os.path.dirname(save_path))
-                    self.config["gSequence_save_path_history"] = list(temp_dir_set)
+                    save_dir = os.path.dirname(save_path)
+                    temp_dir_list = self.config.get("gSequence_save_dir_history", [])
+                    if save_dir not in temp_dir_list:
+                        temp_dir_list.insert(0, save_dir)
+                    self.config["gSequence_save_dir_history"] = temp_dir_list
+                    self.gSquence_save_path_entry["values"] = temp_dir_list
+                    self.gSquence_save_path_entry.current(0)
                     save_config(self.config)
                     non_blocking_messagebox(
                         parent=self.root,
@@ -2609,13 +2614,13 @@ class PicoController:
             )
             if selected_directory:
                 # Update the config file with the new path
-                temp_dir_set = set(self.config.get("gSequence_save_path_history", []))
-                temp_dir_set.add(selected_directory)
-                temp_dir_list = list(temp_dir_set)
-                self.config["gSequence_save_path_history"] = temp_dir_list
-                save_config(self.config)
+                temp_dir_list = self.config.get("gSequence_save_dir_history", [])
+                if selected_directory not in temp_dir_list:
+                    temp_dir_list.insert(0, selected_directory)
+                self.config["gSequence_save_dir_history"] = temp_dir_list
                 self.gSquence_save_path_entry["values"] = temp_dir_list
-                self.gSquence_save_path_entry.set(selected_directory)
+                self.gSquence_save_path_entry.current(0)
+                save_config(self.config)
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Success",
@@ -2633,9 +2638,10 @@ class PicoController:
         Clear the history of saved GSequence paths from the configuration file and from the combo box.
         """
         try:
-            self.config["gSequence_save_path_history"] = []
-            save_config(self.config)
+            self.config["gSequence_save_dir_history"] = []
+            self.gSquence_save_path_entry["values"] = []
             self.gSquence_save_path_entry.set("")
+            save_config(self.config)
             non_blocking_messagebox(
                 parent=self.root,
                 title="Success",
@@ -2647,6 +2653,22 @@ class PicoController:
                 title="Error",
                 message=f"Error clearing GSequence save path history: {e}",
             )
+
+    def update_directory_history(self, event):
+        """
+        reorder the self.config["gSequence_save_dir_history"] to make the currently selected item to be at the top
+        """
+        try:
+            selected_directory = self.gSquence_save_path_entry.get()
+            if selected_directory and selected_directory != "":
+                temp_dir_list = self.config.get("gSequence_save_dir_history", [])
+                if selected_directory in temp_dir_list:
+                    temp_dir_list.remove(selected_directory)
+                temp_dir_list.insert(0, selected_directory)
+                self.config["gSequence_save_dir_history"] = temp_dir_list
+                self.gSquence_save_path_entry["values"] = temp_dir_list
+        except Exception as e:
+            logging.error(f"Error updating GSequence save path history: {e}")
 
 
 root = tk.Tk()
