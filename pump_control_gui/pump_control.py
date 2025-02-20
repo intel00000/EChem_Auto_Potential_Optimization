@@ -2573,7 +2573,7 @@ class PicoController:
                         ("All files", "*.*"),
                     ],
                     initialdir=init_dir,
-                    initialfile=f"{datetime.now().strftime('%Y%m%d_%H%M%S')} Method.GSequence",
+                    initialfile=f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')} Auto Echem Sequence.GSequence",
                 )
                 if save_path:
                     new_method_tree.write(
