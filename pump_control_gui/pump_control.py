@@ -34,6 +34,8 @@ from helper_functions import (
     generate_gsequence,
     get_config,
     save_config,
+    setProcessDpiAwareness,
+    getScalingFactor,
 )
 
 pico_vid = 0x2E8A  # Pi Pico vendor ID
@@ -187,9 +189,10 @@ class PicoController:
             notebook = notebook
         notebook.update_idletasks()
         current_tab = notebook.nametowidget(notebook.select())
-        self.root.geometry(
-            f"{current_tab.winfo_reqwidth() + 10}x{current_tab.winfo_reqheight() + 48}"
-        )
+        scaling_factor = getScalingFactor()
+        new_width = int(current_tab.winfo_reqwidth() + 10 * scaling_factor)
+        new_height = int(current_tab.winfo_reqheight() + 48 * scaling_factor)
+        self.root.geometry(f"{new_width}x{new_height}")
 
     def create_manual_control_page(self, root_frame):
         current_row = 0
@@ -2671,6 +2674,8 @@ class PicoController:
             logging.error(f"Error updating GSequence save path history: {e}")
 
 
+# set dpi awareness to avoid scaling issues
+setProcessDpiAwareness()
 root = tk.Tk()
 root.withdraw()
 root.resizable(True, True)

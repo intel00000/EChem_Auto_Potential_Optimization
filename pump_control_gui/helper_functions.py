@@ -5,6 +5,7 @@ from tkinter import messagebox
 import os
 import re
 import sys
+import ctypes
 import json
 import psutil
 import logging
@@ -513,3 +514,37 @@ def save_config(config: dict) -> None:
     """
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=4)
+
+
+def setProcessDpiAwareness() -> None:
+    """
+    Set the DPI awareness for the application to ensure proper scaling on high-DPI displays.
+    """
+    if os.name == "nt":
+        ProcessDpiAwarenessSet = False
+        try:
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+            ProcessDpiAwarenessSet = True
+        except Exception as _:
+            pass
+        if not ProcessDpiAwarenessSet:
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+            except Exception as _:
+                pass
+
+
+def getScalingFactor() -> float:
+    """
+    Get the scaling factor for the application based on the current DPI settings.
+
+    Returns:
+        float: The scaling factor.
+    """
+    scaleFactor = 1.0
+    if os.name == "nt":
+        try:
+            scaleFactor = ctypes.windll.shcore.GetScaleFactorForDevice(0) / 100
+        except Exception as _:
+            pass
+    return scaleFactor
