@@ -1,10 +1,10 @@
 # main.py
 
-import pump_control_pico
+import bootloader
 
 
 def main():
-    pump_control_pico.main()
+    bootloader.bootloader()
 
 
 if __name__ == "__main__":

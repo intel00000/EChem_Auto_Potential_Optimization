@@ -13,6 +13,7 @@ Lib/
 Scripts/
 
 # ignore MicroPico extension idenity file
+temp/
 .micropico
 
 # exclude by extension
