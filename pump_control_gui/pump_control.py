@@ -142,13 +142,13 @@ class PicoController:
         )
         # first row in the rtc_time_frame, containing the current rtc time from the Pico
         self.current_time_label = ttk.Label(
-            self.rtc_time_frame, text="Pump Controller Time: --:--:--"
+            self.rtc_time_frame, text="Pump Controllers Time: "
         )
-        self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSE")
+        self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSEW")
         self.current_time_label_as = ttk.Label(
             self.rtc_time_frame, text=self.autosamplers_rtc_time
         )
-        self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSE")
+        self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSEW")
 
         # a notebook widget to hold the tabs
         self.notebook = ttk.Notebook(
@@ -190,8 +190,16 @@ class PicoController:
         notebook.update_idletasks()
         current_tab = notebook.nametowidget(notebook.select())
         scaling_factor = getScalingFactor()
-        new_width = int(current_tab.winfo_reqwidth() + 10 * scaling_factor)
-        new_height = int(current_tab.winfo_reqheight() + 48 * scaling_factor)
+
+        new_width = max(
+            int(current_tab.winfo_reqwidth() + 10 * scaling_factor),
+            int(self.root_button_frame.winfo_reqwidth()),
+        )
+        new_height = int(
+            current_tab.winfo_reqheight()
+            + self.root_button_frame.winfo_reqheight()
+            + 30 * scaling_factor
+        )
         self.root.geometry(f"{new_width}x{new_height}")
 
     def create_manual_control_page(self, root_frame):
@@ -861,6 +869,7 @@ class PicoController:
                 serial_port_widget["disconnect_button"].config(state=tk.NORMAL)
                 serial_port_widget["reset_button"].config(state=tk.NORMAL)
                 self.set_manual_control_buttons_state(tk.NORMAL)
+                self.on_tab_change(event=None, notebook=self.notebook)
             except Exception as e:
                 serial_port_widget["status_label"].config(text="Status: Not connected")
                 self.pump_controllers_connected[controller_id] = False
@@ -914,6 +923,7 @@ class PicoController:
                 self.refresh_ports(instant=True)
                 self.set_autosampler_buttons_state(tk.NORMAL)
                 self.autosamplers_send_queue.put("config")  # Populate the slots
+                self.on_tab_change(event=None, notebook=self.notebook)
             except Exception as e:
                 self.status_label_as.config(text="Status: Not connected")
                 logging.error(f"Error: {e}")
@@ -1011,6 +1021,7 @@ class PicoController:
                         self.pump_controllers_send_queue.put(temp_queue.get())
 
                     self.refresh_ports(instant=True)  # refresh the ports immediately
+                    self.on_tab_change(event=None, notebook=self.notebook)
                     logging.info(f"Disconnected from Pico {controller_id}")
                     if show_message:
                         non_blocking_messagebox(
@@ -1036,7 +1047,7 @@ class PicoController:
                 self.set_autosampler_buttons_state(tk.DISABLED)
                 while not self.autosamplers_send_queue.empty():  # empty the queue
                     self.autosamplers_send_queue.get()
-
+                self.on_tab_change(event=None, notebook=self.notebook)
                 logging.info("Disconnected from Autosampler")
                 if show_message:
                     non_blocking_messagebox(
