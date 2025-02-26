@@ -1940,7 +1940,11 @@ class PicoController:
                 )
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
-                    self.recipe_table.column(col, width=len(col) * 10, anchor="center")
+                    self.recipe_table.column(
+                        col,
+                        width=int(len(col) * 10 * getScalingFactor()),
+                        anchor="center",
+                    )
 
                 for index, row in self.recipe_df.iterrows():
                     # Convert all cells to strings, allow up to 2 significant figures for floats
@@ -1988,7 +1992,9 @@ class PicoController:
                 for col in columns:
                     self.eChem_sequence_table.heading(col, text=col)
                     self.eChem_sequence_table.column(
-                        col, width=len(col) * 10, anchor="center"
+                        col,
+                        width=int(len(col) * 10 * getScalingFactor()),
+                        anchor="center",
                     )
                 for index, row in self.eChem_sequence_df.iterrows():
                     # Convert all cells to strings, allow up to 2 significant figures for floats
