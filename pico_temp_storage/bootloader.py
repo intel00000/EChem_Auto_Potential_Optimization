@@ -1,3 +1,5 @@
+import os
+import gc
 import sys
 import json
 import hashlib
@@ -17,7 +19,7 @@ def update_firmware():
     file_checksum = hashlib.sha256()
     total_received = 0
 
-    # define a function here to reset the instance field
+    # function to reset the instance field
     def reset_fields():
         nonlocal filename, file_handler, file_checksum, total_received
         filename = None
@@ -30,17 +32,8 @@ def update_firmware():
         file_checksum = hashlib.sha256()
         total_received = 0
 
-    # the format will be in json
-    # the other side will first send a json with the file name, checksum and size
-    # e.g.
-    # { filename: "pump_control_pico.py", size: "size of the file in bytes", chunk_index: 1, chunk_size: 1024, chunk_data_b64: file content in base64, checksum: "checksum using sha256", finish: "False", reset: "False" }
-    # with chunks indicating the number of chunks and chunk_size indicating the size of each chunk
-    # then the other side will send the gzipped file content in chunks
-    # once received here, we will perform a checksum and size check
-    # if the other side sends a json with "finish": "True", this mean the transfer for this file is complete, we will perform the checksum and size check, then write the file to flash, then send back a success message
-    # if the checksum and size do not match, we will send back a failure message and request the file again
-    # if the other side sends a json with "reset": "True", this mean the entire update is complete, we will perform machine.reset()
     while True:
+        gc.collect()
         header_line = sys.stdin.readline().strip()
         if not header_line:
             continue
@@ -48,6 +41,49 @@ def update_firmware():
             payload = json.loads(header_line)
         except Exception as e:
             sys.stdout.write(f"Error: Invalid JSON payload received, error: {e}.\n")
+            continue
+        # Report available space on the disk if request_disc_available_space is True
+        if payload.get("request_disc_available_space", False):
+            stat = os.statvfs(os.getcwd())
+            total = stat[0] * stat[2]
+            free = stat[1] * stat[3]
+            sys.stdout.write(
+                f"Info: Available space on the disk: {free} bytes, total space: {total} bytes.\n"
+            )
+            continue
+        # Report all files state as dict, with filename as key and os.stat as value
+        if payload.get("request_dir_list", False):
+            sys.stdout.write("Info: Requesting directory list...\n")
+            files = os.listdir(os.getcwd())
+            file_list = {}
+            for file in files:
+                file_list[file] = os.stat(file)
+            sys.stdout.write(f"Info: Directory list: {json.dumps(file_list)}\n")
+            continue
+        # Report current available memory if request_memory is True
+        if payload.get("request_memory", False):
+            # perform a gc.collect() to free up memory
+            gc.collect()
+            free_memory = gc.mem_free()
+            allocated_memory = gc.mem_alloc()
+            sys.stdout.write(
+                f"Info: free Memory {free_memory} bytes, total Memory {allocated_memory + free_memory} bytes.\n"
+            )
+            continue
+        # Remove a file if remove_file_request is True
+        if payload.get("remove_file_request", False):
+            filename = payload.get("filename", None)
+            if filename:
+                try:
+                    os.remove(filename)
+                    sys.stdout.write(f"Success: Removed file {filename}.\n")
+                except Exception as e:
+                    sys.stdout.write(f"Error: Failed to remove file {filename}: {e}.\n")
+            continue
+        # Restart the file transfer if restart is True
+        if payload.get("restart", False):
+            reset_fields()
+            sys.stdout.write("Success: Restarting file transfer...\n")
             continue
         # If the sender indicates the entire update is complete, then reboot.
         if payload.get("reset", False):
@@ -124,7 +160,6 @@ def create_default_config() -> dict:
 
 
 def bootloader():
-    # Try to read the config file
     try:
         with open(CONFIG_FILE, "r") as f:
             config_data = f.read()
@@ -153,7 +188,6 @@ def bootloader():
         elif mode == "update_firmware":
             update_firmware()
         else:
-            # Invalid mode, revert to default firmware
             import pump_control_pico
 
             pump_control_pico.main()
