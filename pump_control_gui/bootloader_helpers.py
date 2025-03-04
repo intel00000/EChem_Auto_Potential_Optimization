@@ -1,12 +1,14 @@
 import os
 import re
 import json
+import time
 import base64
 import serial
 import hashlib
 import logging
 
 
+# enter the bootloader by sending a json with set_mode as update_firmware and later rebooting the device
 def enter_bootloader(serial_port_obj: serial.Serial):
     # set a "0:set_mode:update_firmware" command to the serial port
     if not serial_port_obj.is_open:
@@ -48,7 +50,7 @@ def enter_controller(serial_port: serial.Serial) -> bool:
 
 
 def reset_board(serial_port_obj: serial.Serial):
-    if not serial_port_obj.is_open:
+    if not serial_port_obj and not serial_port_obj.is_open:
         return
     """Reset the board by sending a soft reset command over serial. ONLY WORKS with MicroPython."""
     pythonInject = [
@@ -57,12 +59,24 @@ def reset_board(serial_port_obj: serial.Serial):
     ]
     # interrupt the currently running code
     serial_port_obj.write(b"\x03")  # Ctrl+C
-    serial_port_obj.write(b"\x03")  # Ctrl+C
+    # just consumed all the output until the prompt, try up to 10 seconds
+    time_start = time.time()
+    while time.time() - time_start < 10:
+        line = serial_port_obj.readline().decode("utf-8").strip()
+        if "MicroPython v" in line:
+            break
     serial_port_obj.write(b"\x01")  # switch to raw REPL mode & inject code
+    time.sleep(0.1)
+    time_start = time.time()
+    while time.time() - time_start < 10:
+        line = serial_port_obj.readline().decode("utf-8").strip()
+        if ">>>" in line:
+            break
     for code in pythonInject:
         serial_port_obj.write(bytes(code + "\n", "utf-8"))
     serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
     serial_port_obj.close()
+    time.sleep(1)
 
 
 # request available space on the disk by sending a json with request_disc_available_space as true
@@ -92,7 +106,7 @@ def request_disc_available_space(serial_port: serial.Serial) -> tuple[int, int]:
 
 
 # request all files stat on the disk by sending a json with request_dir_list as true
-def request_dir_list(serial_port: serial.Serial):
+def request_dir_list(serial_port: serial.Serial) -> dict:
     header = {
         "request_dir_list": True,
     }

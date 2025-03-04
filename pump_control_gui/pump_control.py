@@ -1,11 +1,9 @@
 # pyserial imports
-from turtle import st
 import serial
 import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
-from tkinter import font
 from tkinter import ttk, messagebox, filedialog
 import pystray
 from PIL import Image
