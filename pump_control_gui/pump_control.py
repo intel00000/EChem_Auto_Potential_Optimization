@@ -1,9 +1,11 @@
 # pyserial imports
+from turtle import st
 import serial
 import serial.tools.list_ports
 
 # gui imports
 import tkinter as tk
+from tkinter import font
 from tkinter import ttk, messagebox, filedialog
 import pystray
 from PIL import Image
@@ -17,6 +19,7 @@ import logging
 import pandas as pd
 from queue import Queue
 from datetime import datetime, timedelta
+import bootloader_helpers
 from tkinter_helpers import (
     non_blocking_messagebox,
     non_blocking_custom_messagebox,
@@ -50,6 +53,8 @@ global_pad_E = 3
 
 NANOSECONDS_PER_SECOND = 1_000_000_000
 NANOSECONDS_PER_MILLISECOND = 1_000_000
+NORMAL_FONT_SIZE = 10
+LARGE_FONT_SIZE = 11
 
 
 class PicoController:
@@ -124,7 +129,7 @@ class PicoController:
             pass
         log_filename = os.path.join("log", f"pump_control_run_{runtime}.log")
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=logging.INFO,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
@@ -162,25 +167,228 @@ class PicoController:
         self.manual_control_tab = ttk.Frame(self.root)
         self.create_manual_control_page(self.manual_control_tab)
         self.notebook.add(
-            self.manual_control_tab, text="Hardware control", sticky="NSEW"
+            self.manual_control_tab, text="Hardware Control", sticky="NSEW"
         )
 
         # root frame for the experiment scheduler page
         self.experiment_scheduler_tab = ttk.Frame(self.root)
         self.create_experiment_scheduler_page(self.experiment_scheduler_tab)
         self.notebook.add(
-            self.experiment_scheduler_tab, text="Experiment scheduler", sticky="NSEW"
+            self.experiment_scheduler_tab, text="Experiment Scheduler", sticky="NSEW"
         )
 
         # root frame for the generate automation sequence page
         self.eChem_sequence_view = ttk.Frame(self.root)
         self.create_eChem_sequence_view_page(self.eChem_sequence_view)
         self.notebook.add(
-            self.eChem_sequence_view, text="EChem sequence viewer", sticky="NSEW"
+            self.eChem_sequence_view, text="EChem Sequence Viewer", sticky="NSEW"
+        )
+
+        # root frame for the flashing firmware page
+        self.flash_firmware_tab = ttk.Frame(self.root)
+        self.create_flash_firmware_page(self.flash_firmware_tab)
+        self.notebook.add(
+            self.flash_firmware_tab, text="Firmware Update", sticky="NSEW"
         )
 
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_change)
+
+        style = ttk.Style()
+        style.configure(
+            ".",
+            font=(None, NORMAL_FONT_SIZE),
+        )
+        style.configure(
+            "Treeview",
+            font=(None, NORMAL_FONT_SIZE),
+            rowheight=int(NORMAL_FONT_SIZE * 3),
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=(None, LARGE_FONT_SIZE),
+            rowheight=int(LARGE_FONT_SIZE * 3),
+        )
         self.root.after(self.main_loop_interval_ms, self.main_loop)
+
+    # the flash firmware page
+    def create_flash_firmware_page(self, root_frame):
+        self.create_flash_serial_obj = serial.Serial()
+        columnspan = 6
+        self.flash_firmware_frame = ttk.Labelframe(
+            root_frame,
+            text="Select Serial Port",
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+        )
+        self.flash_firmware_frame.grid(
+            row=0,
+            columnspan=columnspan,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+
+        local_row = 0
+        local_column = 0
+        # first in the flash_firmware_frame
+        self.port_label_ff = ttk.Label(self.flash_firmware_frame, text="Port: ")
+        self.port_label_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.port_combobox_ff = ttk.Combobox(
+            self.flash_firmware_frame, state="readonly", width=26
+        )
+        self.port_combobox_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.connect_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Connect",
+            command=lambda: self.connect(
+                self.create_flash_serial_obj, self.port_combobox_ff.get()
+            ),
+            state=tk.NORMAL,
+        )
+        self.connect_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.disconnect_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Disconnect",
+            command=lambda: self.disconnect(self.create_flash_serial_obj),
+            state=tk.DISABLED,
+        )
+        self.disconnect_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.reset_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Reset",
+            command=lambda: self.reset_board(self.create_flash_serial_obj),
+            state=tk.DISABLED,
+        )
+        self.reset_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.status_label_ff = ttk.Label(
+            self.flash_firmware_frame, text="Status: Not connected"
+        )
+        self.status_label_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+
+        # second row in the flash_firmware_frame
+        local_row += 1
+        local_column = 0
+        self.mode_label_ff = ttk.Label(
+            self.flash_firmware_frame, text="Current Mode: N/A"
+        )
+        self.mode_label_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 2
+        self.enter_bootloader_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Bootloader Mode",
+            command=lambda: self.switch_mode(mode="bootloader"),
+            state=tk.DISABLED,
+        )
+        self.enter_bootloader_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.enter_controller_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Controller Mode",
+            command=lambda: self.switch_mode(mode="controller"),
+            state=tk.DISABLED,
+        )
+        self.enter_controller_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+
+        local_row += 1
+        local_column = 0
+        self.space_label_ff = ttk.Label(
+            self.flash_firmware_frame, text="Available Space: N/A"
+        )
+        self.space_label_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_row += 1
+
+        # next will be a table to show all the files on the disk
+        self.file_table_frame_ff = ttk.Frame(self.flash_firmware_frame)
+        self.file_table_frame_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=columnspan,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        self.file_table_ff = ttk.Treeview(
+            self.file_table_frame_ff,
+            columns=["filename", "size"],
+            show="headings",
+        )
+        self.scrollbar_ff = ttk.Scrollbar(
+            self.file_table_frame_ff,
+            orient="vertical",
+            command=self.file_table_ff.yview,
+        )
+        self.file_table_ff.pack(side="left", fill="both", expand=True)
+        self.scrollbar_ff.pack(side="right", fill="y")
+        self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
 
     def on_tab_change(self, event, notebook=None):
         if notebook is None:
@@ -201,6 +409,7 @@ class PicoController:
             + 30 * scaling_factor
         )
         self.root.geometry(f"{new_width}x{new_height}")
+        self.refresh_ports(instant=True)
 
     def create_manual_control_page(self, root_frame):
         current_row = 0
@@ -237,7 +446,7 @@ class PicoController:
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_as = ttk.Combobox(
-            self.port_select_frame, state="readonly", width=30
+            self.port_select_frame, state="readonly", width=26
         )
         self.port_combobox_as.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
@@ -391,7 +600,7 @@ class PicoController:
     # add the widgets under the provided root_frame
     def create_experiment_scheduler_page(self, root_frame):
         current_row = 0  # Row Counter
-        local_columnspan = 8
+        local_columnspan = 7
 
         # Recipe frame
         self.recipe_frame = ttk.Labelframe(
@@ -511,7 +720,7 @@ class PicoController:
         self.gSquence_save_path_entry.bind(
             "<<ComboboxSelected>>", self.update_directory_history
         )
-        temp_col_counter = 4
+        temp_col_counter += 3
         self.gSquence_save_path_set_button = ttk.Button(
             self.recipe_frame_buttons,
             text="Set",
@@ -523,7 +732,7 @@ class PicoController:
         temp_col_counter += 1
         self.gSquence_save_path_entry_clear_button = ttk.Button(
             self.recipe_frame_buttons,
-            text="Clear",
+            text="Clear History",
             command=self.clear_gSequence_save_path_history,
         )
         self.gSquence_save_path_entry_clear_button.grid(
@@ -547,17 +756,21 @@ class PicoController:
         self.generate_sequence_button.config(state=tk.DISABLED)
 
         # second row in the recipe_frame, containing the recipe table
-        self.recipe_table_frame = ttk.Frame(self.recipe_frame)
+        self.recipe_table_frame = ttk.LabelFrame(
+            self.recipe_frame,
+            text="Recipe Viewer",
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+        )
         self.recipe_table_frame.grid(
             row=2,
             column=0,
-            columnspan=local_columnspan,
+            columnspan=local_columnspan - 1,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
         self.recipe_table = ttk.Treeview(
-            self.recipe_table_frame, columns=["", "", ""], show="headings"
+            self.recipe_table_frame, columns=["", "", "", "", ""], show="headings"
         )
         self.scrollbar = ttk.Scrollbar(
             self.recipe_table_frame,
@@ -565,10 +778,8 @@ class PicoController:
             command=self.recipe_table.yview,
         )
         self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-        self.scrollbar.grid(row=0, column=1, sticky="NS")
-        self.recipe_table.grid(
-            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
-        )
+        self.recipe_table.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
         # update the current row
         current_row += self.recipe_frame.grid_size()[1]
 
@@ -651,26 +862,21 @@ class PicoController:
         )
         self.eChem_sequence_table = ttk.Treeview(
             self.eChem_sequence_table_frame,
-            columns=["", "", ""],
+            columns=["", "", "", "", ""],
             show="headings",
         )
-        self.eChem_sequence_table.grid(
-            row=0,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
+        self.eChem_sequence_table.pack(
+            side="left",
+            fill="both",
+            expand=True,
         )
         self.scrollbar_EC = ttk.Scrollbar(
             self.eChem_sequence_table_frame,
             orient="vertical",
             command=self.eChem_sequence_table.yview,
         )
-        self.scrollbar_EC.grid(row=0, column=local_columnspan, sticky="NS")
+        self.scrollbar_EC.pack(side="right", fill="y")
         self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
-
-        # update the current row
         current_row += self.eChem_sequence_frame.grid_size()[1]
         current_row += 1
 
@@ -686,25 +892,25 @@ class PicoController:
         port_label.grid(
             row=row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        port_combobox = ttk.Combobox(self.port_select_frame, state="readonly", width=30)
+        port_combobox = ttk.Combobox(self.port_select_frame, state="readonly", width=26)
         port_combobox.grid(row=row, column=1, padx=global_pad_x, pady=global_pad_y)
         connect_button = ttk.Button(
             self.port_select_frame,
             text="Connect",
-            command=lambda: self.connect(controller_id),
+            command=lambda: self.connect_pc(controller_id),
         )
         connect_button.grid(row=row, column=2, padx=global_pad_x, pady=global_pad_y)
         disconnect_button = ttk.Button(
             self.port_select_frame,
             text="Disconnect",
-            command=lambda: self.disconnect(controller_id),
+            command=lambda: self.disconnect_pc(controller_id),
         )
         disconnect_button.grid(row=row, column=3, padx=global_pad_x, pady=global_pad_y)
         disconnect_button.config(state=tk.DISABLED)
         reset_button = ttk.Button(
             self.port_select_frame,
             text="Reset",
-            command=lambda: self.reset(controller_id),
+            command=lambda: self.reset_pc(controller_id),
         )
         reset_button.grid(
             row=row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -751,6 +957,12 @@ class PicoController:
             )
 
     def refresh_ports(self, instant=False):
+        current_tab = self.notebook.nametowidget(self.notebook.select())
+        if (
+            current_tab != self.manual_control_tab
+            and current_tab != self.flash_firmware_tab
+        ):
+            return
         # check if all serial objects in the self.pump_controllers dictionary are connected
         pump_ctls_all_connected = all(
             [
@@ -758,7 +970,12 @@ class PicoController:
                 for serial_port_obj in self.pump_controllers.values()
             ]
         )
-        if not pump_ctls_all_connected or not self.autosamplers:
+        if (
+            not pump_ctls_all_connected
+            or not self.autosamplers
+            or not self.create_flash_serial_obj.is_open
+        ):
+            # if not all connected, refresh the ports
             if (
                 time.monotonic_ns() - self.last_port_refresh_ns
                 < self.port_refresh_interval_ns
@@ -795,43 +1012,220 @@ class PicoController:
                     logging.error(f"Error: {e}")
 
             # go through the pump controllers dictionary and update the comboboxes in the corresponding frame
-            for id, widgets in self.pump_controllers_id_to_widget_map.items():
-                serial_port_obj = self.pump_controllers[id]
-                if (
-                    serial_port_obj and not serial_port_obj.is_open
-                ):  # don't update the combobox if the port is already connected
-                    widgets["combobox"]["values"] = ports
-                    if widgets["combobox"].get() not in ports:
+            if current_tab == self.manual_control_tab:
+                for id, widgets in self.pump_controllers_id_to_widget_map.items():
+                    serial_port_obj = self.pump_controllers[id]
+                    if (
+                        serial_port_obj and not serial_port_obj.is_open
+                    ):  # don't update the combobox if the port is already connected
+                        widgets["combobox"]["values"] = ports
+                        if widgets["combobox"].get() not in ports:
+                            if len(ports) > 0:
+                                widgets["combobox"].current(0)
+                            else:
+                                widgets["combobox"].set("")
+                if not self.autosamplers:
+                    self.port_combobox_as["values"] = ports
+                    # if current value is in the list, don't change it
+                    if self.port_combobox_as.get() not in ports:
                         if len(ports) > 0:
-                            widgets["combobox"].current(0)
+                            self.port_combobox_as.current(0)
                         else:
-                            widgets["combobox"].set("")
-            if not self.autosamplers:
-                self.port_combobox_as["values"] = ports
-                # if current value is in the list, don't change it
-                if self.port_combobox_as.get() not in ports:
-                    if len(ports) > 0:
-                        self.port_combobox_as.current(0)
-                    else:
-                        self.port_combobox_as.set("")
+                            self.port_combobox_as.set("")
+            elif current_tab == self.flash_firmware_tab:
+                if not self.create_flash_serial_obj.is_open:
+                    self.port_combobox_ff["values"] = ports
+                    if self.port_combobox_ff.get() not in ports:
+                        if len(ports) > 0:
+                            self.port_combobox_ff.current(0)
+                        else:
+                            self.port_combobox_ff.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
 
-    def connect(self, controller_id):
+    # simply establish a connection to the selected port, all this does is to open the port
+    # that all
+    def connect(self, serial_port_obj, COM_port):
+        # parse the COM port using regex expression "^(COM\d+)"
+        parsed_port = re.match(r"^(COM\d+)", COM_port)
+        if parsed_port:
+            parsed_port = parsed_port.group(1)
+            if serial_port_obj.is_open:
+                if (
+                    messagebox.askyesno(
+                        "Disconnect",
+                        f"Disconnect from current port {serial_port_obj.port}?",
+                    )
+                    == tk.YES
+                ):
+                    self.disconnect(serial_port_obj)
+                else:
+                    return
+            try:
+                serial_port_obj.port = parsed_port
+                serial_port_obj.timeout = self.timeout
+                serial_port_obj.open()
+                # we have to distinguish between the firmware update mode and the controller mode
+                serial_port_obj.write("0:ping\n".encode())  # identify Pico type
+                response = serial_port_obj.readline().decode("utf-8").strip()
+                # if we have a response, we are in the controller mode
+                if "Control Version" in response:
+                    self.mode_label_ff.config(text="Current Mode: Controller")
+                    self.enter_bootloader_button_ff.config(state=tk.NORMAL)
+                    self.enter_controller_button_ff.config(state=tk.DISABLED)
+                elif "Error: Invalid JSON payload" in response:
+                    self.mode_label_ff.config(text="Current Mode: Firmware Update")
+                    self.enter_bootloader_button_ff.config(state=tk.DISABLED)
+                    self.enter_controller_button_ff.config(state=tk.NORMAL)
+                    available_space, total_space = (
+                        bootloader_helpers.request_disc_available_space(serial_port_obj)
+                    )
+                    available_space_mb = available_space / (1024 * 1024)
+                    total_space_mb = total_space / (1024 * 1024)
+                    self.space_label_ff.config(
+                        text=f"Available Space: {available_space_mb:.3f} / {total_space_mb:.3f} MB"
+                    )
+
+                    files_stats = bootloader_helpers.request_dir_list(serial_port_obj)
+                    for child in self.file_table_frame_ff.winfo_children():
+                        child.destroy()
+                    headings = ["filename", "size"]
+                    self.file_table_ff = ttk.Treeview(
+                        self.file_table_frame_ff,
+                        columns=headings,
+                        show="headings",
+                    )
+                    for heading in headings:
+                        self.file_table_ff.heading(heading, text=heading)
+                        self.file_table_ff.column(heading, anchor="center")
+                    self.scrollbar_ff = ttk.Scrollbar(
+                        self.file_table_frame_ff,
+                        orient="vertical",
+                        command=self.file_table_ff.yview,
+                    )
+                    self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
+                    self.file_table_ff.pack(side="left", fill="both", expand=True)
+                    self.scrollbar_ff.pack(side="right", fill="y")
+                    for filename, stats in files_stats.items():
+                        size = stats[-4]
+                        if size == 0:
+                            size = "DIR"
+                        else:
+                            if size < 1024:
+                                size = f"{size} Bytes"
+                            elif size < 1024 * 1024:
+                                size = f"{size / 1024:.3f} KB"
+                            else:
+                                size = f"{size / (1024 * 1024):.3f} MB"
+                        self.file_table_ff.insert("", "end", values=(filename, size))
+
+                # enable the buttons
+                self.disconnect_button_ff.config(state=tk.NORMAL)
+                self.reset_button_ff.config(state=tk.NORMAL)
+                logging.info(f"Connected to {parsed_port} for firmware update")
+                self.status_label_ff.config(text=f"Status: Connected to {parsed_port}")
+                self.refresh_ports(instant=True)  # refresh the ports immediately
+                self.on_tab_change(event=None, notebook=self.notebook)
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function connect: {e}",
+                )
+
+    def disconnect(self, serial_port_obj):
+        if serial_port_obj.is_open:
+            logging.info(f"Disconnected from {serial_port_obj.port}")
+            serial_port_obj.close()
+            if serial_port_obj == self.create_flash_serial_obj:
+                self.disconnect_button_ff.config(state=tk.DISABLED)
+                self.reset_button_ff.config(state=tk.DISABLED)
+                self.status_label_ff.config(text="Status: Not connected")
+                self.mode_label_ff.config(text="Current Mode: N/A")
+                self.space_label_ff.config(text="Available Space: N/A")
+                self.enter_bootloader_button_ff.config(state=tk.DISABLED)
+                self.enter_controller_button_ff.config(state=tk.DISABLED)
+                for child in self.file_table_frame_ff.winfo_children():
+                    child.destroy()
+                self.file_table_ff = ttk.Treeview(
+                    self.file_table_frame_ff,
+                    columns=["filename", "size"],
+                    show="headings",
+                )
+                self.scrollbar_ff = ttk.Scrollbar(
+                    self.file_table_frame_ff,
+                    orient="vertical",
+                    command=self.file_table_ff.yview,
+                )
+                self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
+                self.file_table_ff.pack(side="left", fill="both", expand=True)
+                self.scrollbar_ff.pack(side="right", fill="y")
+            self.refresh_ports(instant=True)
+
+    def switch_mode(self, mode: str):
+        # set a "0:set_mode:update_firmware" command to the serial port
+        if self.create_flash_serial_obj and not self.create_flash_serial_obj.is_open:
+            return
+        try:
+            if mode == "bootloader":
+                bootloader_helpers.enter_bootloader(self.create_flash_serial_obj)
+            elif mode == "controller":
+                bootloader_helpers.enter_controller(self.create_flash_serial_obj)
+            self.status_label_ff.config(text="Status: Reconnecting...")
+            self.mode_label_ff.config(text="Current Mode: N/A")
+            self.space_label_ff.config(text="Available Space: N/A")
+            self.flash_firmware_frame.update()
+            # update the frame
+            self.disconnect(self.create_flash_serial_obj)
+            for _ in range(10):
+                self.refresh_ports(instant=True)
+                for value in self.port_combobox_ff["values"]:
+                    if self.create_flash_serial_obj.port in value:
+                        time.sleep(1)
+                        self.connect(
+                            self.create_flash_serial_obj,
+                            self.create_flash_serial_obj.port,
+                        )
+                        return
+                time.sleep(0.5)
+        except Exception as e:
+            logging.error(f"Error: {e}")
+
+    def reset_board(self, serial_port_obj: serial.Serial):
+        if not serial_port_obj.is_open:
+            return
+        """Reset the board by sending a soft reset command over serial. ONLY WORKS with MicroPython."""
+        pythonInject = [
+            "import machine",
+            "machine.reset()",
+        ]
+        # interrupt the currently running code
+        serial_port_obj.write(b"\x03")  # Ctrl+C
+        serial_port_obj.write(b"\x03")  # Ctrl+C
+        serial_port_obj.write(b"\x01")  # switch to raw REPL mode & inject code
+        for code in pythonInject:
+            serial_port_obj.write(bytes(code + "\n", "utf-8"))
+        serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
+        self.disconnect(serial_port_obj)
+        self.refresh_ports(instant=True)
+
+    def connect_pc(self, controller_id):
         selected_port = self.pump_controllers_id_to_widget_map[controller_id][
             "combobox"
         ].get()
-        if selected_port:
-            parsed_port = selected_port.split("(")[0].strip()
+        parsed_port = re.match(r"^(COM\d+)", selected_port)
+        if parsed_port:
+            parsed_port = parsed_port.group(1)
             if self.pump_controllers[controller_id].is_open:
                 if (  # if already connected, pop a confirmation message before disconnecting
                     messagebox.askyesno(
                         "Disconnect",
-                        f"Disconnect from current port {parsed_port}?",
+                        f"Disconnect from current port {self.pump_controllers[controller_id].port}?",
                     )
                     == tk.YES
                 ):
                     # suppress the message for the disconnect
-                    self.disconnect(controller_id=controller_id, show_message=False)
+                    self.disconnect_pc(controller_id=controller_id, show_message=False)
                 else:
                     return
             try:  # Attempt to connect to the selected port
@@ -845,7 +1239,7 @@ class PicoController:
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
                 if "Pico Pump Control Version" not in response:
-                    self.disconnect(controller_id=controller_id, show_message=False)
+                    self.disconnect_pc(controller_id=controller_id, show_message=False)
                     non_blocking_messagebox(
                         parent=self.root,
                         title="Error",
@@ -888,13 +1282,14 @@ class PicoController:
 
     def connect_as(self):
         selected_port = self.port_combobox_as.get()
-        if selected_port:
-            parsed_port = selected_port.split("(")[0].strip()
+        parsed_port = re.match(r"^(COM\d+)", selected_port)
+        if parsed_port:
+            parsed_port = parsed_port.group(1)
             if self.autosamplers:
                 if (
                     messagebox.askyesno(
                         "Disconnect",
-                        f"Disconnect from current port {parsed_port}?",
+                        f"Disconnect from current port {self.autosamplers.port}?",
                     )
                     == tk.YES
                 ):
@@ -985,7 +1380,7 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
-    def disconnect(self, controller_id, show_message=True):
+    def disconnect_pc(self, controller_id, show_message=True):
         if self.pump_controllers[controller_id]:
             serial_port_obj = self.pump_controllers[controller_id]
             serial_port_widget = self.pump_controllers_id_to_widget_map[controller_id]
@@ -1064,7 +1459,7 @@ class PicoController:
                     message=f"An error occurred: {e}",
                 )
 
-    def reset(self, controller_id):
+    def reset_pc(self, controller_id):
         try:
             if self.pump_controllers[controller_id].is_open:
                 if messagebox.askyesno(
@@ -1375,7 +1770,7 @@ class PicoController:
                         f"Error: Trying to send command to disconnected controller {controller_id}"
                     )
             except serial.SerialException as e:
-                self.disconnect(controller_id, False)
+                self.disconnect_pc(controller_id, False)
                 logging.error(f"Error: controller {controller_id} {e}")
                 non_blocking_messagebox(
                     parent=self.root,
@@ -1383,7 +1778,7 @@ class PicoController:
                     message=f"Failed to send command to pump controller {controller_id} with error: {e}",
                 )
             except Exception as e:
-                self.disconnect(controller_id, False)
+                self.disconnect_pc(controller_id, False)
                 logging.error(f"Error: controller {controller_id} {e}")
                 non_blocking_messagebox(
                     parent=self.root,
@@ -1446,7 +1841,7 @@ class PicoController:
                             message=f"Pump Controller {controller_id}: {response}",
                         )
         except serial.SerialException as e:
-            self.disconnect(controller_id, False)
+            self.disconnect_pc(controller_id, False)
             logging.error(f"Error: controller {controller_id} {e}")
             non_blocking_messagebox(
                 parent=self.root,
@@ -1454,7 +1849,7 @@ class PicoController:
                 message=f"Failed to read from pump controller {controller_id} with error: {e}",
             )
         except Exception as e:
-            self.disconnect(controller_id, False)
+            self.disconnect_pc(controller_id, False)
             logging.error(f"Error: controller {controller_id} {e}")
             non_blocking_messagebox(
                 parent=self.root,
@@ -1923,6 +2318,9 @@ class PicoController:
                     "Progress",
                     "Remaining Time",
                 ]
+                # delete the original recipe table
+                for child in self.recipe_table_frame.winfo_children():
+                    child.destroy()
                 self.recipe_table = ttk.Treeview(
                     self.recipe_table_frame, columns=columns, show="headings"
                 )
@@ -1933,11 +2331,9 @@ class PicoController:
                     command=self.recipe_table.yview,
                 )
                 self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-                self.scrollbar.grid(row=0, column=1, sticky="NS")
+                self.scrollbar.pack(side="right", fill="y")
+                self.recipe_table.pack(side="left", fill="both", expand=True)
 
-                self.recipe_table.grid(
-                    row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
-                )
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
                     self.recipe_table.column(
@@ -1966,25 +2362,25 @@ class PicoController:
                 self.on_tab_change(event=None, notebook=self.notebook)
 
                 # now setup the eChem table
+                for child in self.eChem_sequence_table_frame.winfo_children():
+                    child.destroy()
                 columns = list(self.eChem_sequence_df.columns)
                 self.eChem_sequence_table = ttk.Treeview(
                     self.eChem_sequence_table_frame,
                     columns=columns,
                     show="headings",
                 )
-                self.eChem_sequence_table.grid(
-                    row=0,
-                    column=0,
-                    padx=global_pad_x,
-                    pady=global_pad_y,
-                    sticky="NSEW",
-                )
                 self.scrollbar_EC = ttk.Scrollbar(
                     self.eChem_sequence_table_frame,
                     orient="vertical",
                     command=self.eChem_sequence_table.yview,
                 )
-                self.scrollbar_EC.grid(row=0, column=1, sticky="NS")
+                self.eChem_sequence_table.pack(
+                    side="left",
+                    fill="both",
+                    expand=True,
+                )
+                self.scrollbar_EC.pack(side="right", fill="y")
                 self.eChem_sequence_table.configure(
                     yscrollcommand=self.scrollbar_EC.set
                 )
@@ -2042,7 +2438,7 @@ class PicoController:
                 child.destroy()
             # recreate the recipe table
             self.recipe_table = ttk.Treeview(
-                self.recipe_table_frame, columns=["", "", ""], show="headings"
+                self.recipe_table_frame, columns=["", "", "", "", ""], show="headings"
             )
             self.scrollbar = ttk.Scrollbar(
                 self.recipe_table_frame,
@@ -2050,10 +2446,8 @@ class PicoController:
                 command=self.recipe_table.yview,
             )
             self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-            self.scrollbar.grid(row=0, column=1, sticky="NS")
-            self.recipe_table.grid(
-                row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="NSEW"
-            )
+            self.scrollbar.pack(side="right", fill="y")
+            self.recipe_table.pack(side="left", fill="both", expand=True)
             # clear the progress bar
             self.total_progress_bar["value"] = 0
             self.remaining_time_value.config(text="")
@@ -2068,23 +2462,20 @@ class PicoController:
             # recreate the eChem table
             self.eChem_sequence_table = ttk.Treeview(
                 self.eChem_sequence_table_frame,
-                columns=["", "", ""],
+                columns=["", "", "", "", ""],
                 show="headings",
-            )
-            self.eChem_sequence_table.grid(
-                row=0,
-                column=0,
-                columnspan=8,
-                padx=global_pad_x,
-                pady=global_pad_y,
-                sticky="NSEW",
             )
             self.scrollbar_EC = ttk.Scrollbar(
                 self.eChem_sequence_table_frame,
                 orient="vertical",
                 command=self.eChem_sequence_table.yview,
             )
-            self.scrollbar_EC.grid(row=0, column=8, sticky="NS")
+            self.eChem_sequence_table.pack(
+                side="left",
+                fill="both",
+                expand=True,
+            )
+            self.scrollbar_EC.pack(side="right", fill="y")
             self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
 
             # disable all procedure buttons
@@ -2093,6 +2484,8 @@ class PicoController:
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
             self.continue_button.config(state=tk.DISABLED)
+            self.on_tab_change(event=None, notebook=self.notebook)
+            logging.info("Recipe cleared successfully.")
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -2512,7 +2905,7 @@ class PicoController:
             non_blocking_custom_messagebox(
                 parent=self.root,
                 title="Quit",
-                message="Do you want to quit or minimize to tray?",
+                message="Quit or minimize to tray?",
                 buttons=["Quit", "Minimize", "Cancel"],
                 callback=self.on_closing_handle,
             )
@@ -2534,7 +2927,7 @@ class PicoController:
         # close all connections
         for id, connection_status in self.pump_controllers_connected.items():
             if connection_status:
-                self.disconnect(id, show_message=False)
+                self.disconnect_pc(id, show_message=False)
         if self.autosamplers:
             self.disconnect_as(show_message=False)
         root.quit()
