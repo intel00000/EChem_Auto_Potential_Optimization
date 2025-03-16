@@ -60,7 +60,7 @@ public:
           isPoweredOn(false),
           currentPosition(-1),
           failSafePosition(0),
-          currentDirection(true), {}
+          currentDirection(true) {}
 
     void begin()
     {
