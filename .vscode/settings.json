@@ -34,5 +34,17 @@
     },
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "files.associations": {
+        "format": "cpp",
+        "initializer_list": "cpp",
+        "list": "cpp",
+        "vector": "cpp",
+        "xhash": "cpp",
+        "xstring": "cpp",
+        "xutility": "cpp",
+        "ostream": "cpp",
+        "xlocale": "cpp",
+        "xlocinfo": "cpp"
     }
 }
