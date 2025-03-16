@@ -1,11 +1,13 @@
-import machine
-import json
 import sys
-import select
 import time
+import json
 import array
-from uctypes import addressof
+import select
+import machine
 import pwm_dma_fade_onetime
+from uctypes import addressof
+from neopixel import NeoPixel
+from bootloader_util import set_bootloader_mode
 
 # this is a program to control a stepper motor
 MAX_POSITION = 16000
@@ -28,6 +30,8 @@ class Autosampler:
         self.enable = machine.Pin(
             enable_pin, machine.Pin.OUT, machine.Pin.PULL_UP, value=1
         )
+
+        # Initialize autosampler state
         # current position of the autosampler, current_position = 0 is the rightmost position
         self.current_position = -1
         # fail safe position of the autosampler
@@ -40,10 +44,14 @@ class Autosampler:
 
         # the autosampler_config is a dictionary that stores a predefined set of positions for the autosampler
         self.autosampler_config = {}
-        self.is_power_on = False  # power status of the autosampler
-        self.time_interval_between_steps_ms = 3  # time interval between steps in ms
+        # power status of the autosampler
+        self.is_power_on = False
+
+        # time interval between steps in milliseconds
+        self.time_interval_between_steps_ms = 5
 
         self.rtc = machine.RTC()  # RTC setup
+
         self.version = "0.01"  # version of the autosampler control program
 
         # Load configuration and status
@@ -53,30 +61,28 @@ class Autosampler:
     def write_message(self, message) -> None:
         sys.stdout.write(f"{message}\n")
 
-    def ping(self) -> None:
-        self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
+    def send_status(self) -> None:
+        status = f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}"
+        self.write_message(f"{status}")
 
     def send_config(self) -> None:
+        # assemble in json format
         self.write_message(
             f"Autosampler Configuration: {json.dumps(self.autosampler_config)}"
         )
 
+    def ping(self) -> None:
+        self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
+
     def hard_reset(self) -> None:
-        self.save_status()
         self.write_message("Success: Performing hard reset.")
         machine.reset()
 
-    def send_status(self) -> None:
-        self.write_message(
-            f"Autosampler Status: position: {self.current_position}, direction: {self.direction_map[self.current_direction]}"
-        )
-
-    def save_status(self) -> None:
+    def save_status(self, write_message=True) -> None:
         try:
             with open(STATUS_FILE, "w") as f:
-                f.write(
-                    f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
-                )
+                output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
+                f.write(output)
         except Exception as e:
             self.write_message(f"Error: Could not save status, {e}")
 
@@ -96,7 +102,7 @@ class Autosampler:
             self.current_position = -1
             self.current_direction = 1
             self.write_message(
-                f"Warning: Status file not found. Initialized with defaults."
+                "Warning: Status file not found. Initialized with defaults."
             )
         except Exception as e:
             self.write_message(f"Error: Could not load status, {e}")
@@ -125,7 +131,7 @@ class Autosampler:
             self.autosampler_config = {}
             self.fail_safe_position = 0
             self.write_message(
-                f"Warning: Config file not found. Initialized with defaults."
+                "Warning: Config file not found. Initialized with defaults."
             )
         except Exception as e:
             self.write_message(f"Error: Could not load configuration, {e}")
@@ -174,7 +180,7 @@ class Autosampler:
             self.enable.value(1)
             self.is_power_on = False
 
-    def move_to_position(self, position, write_console=True) -> None:
+    def move_to_position(self, position) -> None:
         position = int(position)
         # position cannot be negative or exceed MAX_POSITION
         if position < 0 or position > MAX_POSITION:
@@ -187,10 +193,9 @@ class Autosampler:
         start_time = time.ticks_us()
         self.move_auto_sampler(position - self.current_position)
         end_time = time.ticks_us()
-        if write_console:
-            self.write_message(
-                f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
-            )
+        self.write_message(
+            f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
+        )
 
     def move_to_slot(self, slot) -> None:
         if slot not in self.autosampler_config:
@@ -200,16 +205,16 @@ class Autosampler:
 
         initial_position = self.current_position
         start_time = time.ticks_us()
-        self.move_to_position(position, write_console=False)
+        self.move_to_position(position)
         end_time = time.ticks_us()
         self.write_message(
-            f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time)/1000000} seconds. relative position: {position - initial_position}"
+            f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
         )
 
     def move_to_fail_safe(self) -> None:
         self.write_message("Moving to fail-safe position.")
         position = int(self.fail_safe_position)
-        self.move_to_position(position, write_console=False)
+        self.move_to_position(position)
 
     def toggle_direction(self) -> None:
         self.current_direction = 1 - self.current_direction
@@ -223,85 +228,45 @@ class Autosampler:
         self.current_position = 0
         self.write_message("Success: Autosampler position reset to initial position.")
 
-    def add_slot(self, name: str, position: str) -> None:
-        try:
-            if position.isdigit():
-                slot_position = int(position)
-            else:
-                raise ValueError("Position must be a positive integer.")
-            if slot_position < 0 or slot_position > MAX_POSITION:
-                self.write_message(
-                    f"Error: Slot position {slot_position} exceeds maximum {MAX_POSITION}."
-                )
-                return
-
-            slot_name = name.strip()
-            self.autosampler_config[slot_name] = slot_position
-            self.write_message(
-                f"Success: Slot '{slot_name}' added at position {slot_position}."
-            )
-        except Exception as e:
-            self.write_message(
-                f"Error: add_slot, {e}, command format: addslot:[slot_name:str]:[position:int]"
-            )
-
-    def remove_slot(self, name: str) -> None:
-        try:
-            slot_name = name.strip()
-            if slot_name in self.autosampler_config:
-                del self.autosampler_config[slot_name]
-                self.write_message(f"Success: Slot '{slot_name}' removed.")
-            else:
-                self.write_message(f"Error: Slot '{slot_name}' does not exist.")
-        except Exception as e:
-            self.write_message(
-                f"Error: remove_slot, {e}, command format: removeslot:slot_name"
-            )
-
-    def move_one_step(self, direction: str) -> None:
-        direction = direction.strip().lower()
-        if direction == "left":
-            self.current_direction = 1
-            if self.current_position == MAX_POSITION:
-                self.write_message("Error: Autosampler is already at the leftmost position.")
-                return
-        elif direction == "right":
-            self.current_direction = 0
-            if self.current_position == 0:
-                self.write_message("Error: Autosampler is already at the rightmost position.")
-                return
-        else:
-            self.write_message("Error: Invalid direction. Format: move:[left/right]")
-            return
-
-        self.direction.value(self.current_direction)
-        self.pulse.value(0)
-        self.pulse.value(1)
-        self.current_position -= 1 * (1 - 2 * self.current_direction)
-        time.sleep_ms(self.time_interval_between_steps_ms)
-        self.save_status()
-        self.write_message(
-            f"Success: Moved one step {self.direction_map[self.current_direction]}, current position: {self.current_position}"
-        )
-
 
 def main():
     autosampler = Autosampler(
         pulse_pin=PULSE_PIN, direction_pin=DIRECTION_PIN, enable_pin=ENABLE_PIN
     )
 
-    # DMA setup for fading LED
-    fade_buffer = array.array(
-        "I",
-        [(i * i) << 16 for i in range(0, 256, 1)],
-    )
-    secondary_config_data = bytearray(16)
-    (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
-        fade_buffer_addr=addressof(fade_buffer),
-        fade_buffer_len=len(fade_buffer),
-        secondary_config_data_addr=addressof(secondary_config_data),
-        frequency=10240,
-    )
+    led_mode = -1
+    try:  # first method, DMA fade, only avilable on regular Pico
+        fade_buffer = array.array(
+            "I",
+            [(i * i) << 16 for i in range(0, 256, 1)],
+        )
+        secondary_config_data = bytearray(16)
+        (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
+            fade_buffer_addr=addressof(fade_buffer),
+            fade_buffer_len=len(fade_buffer),
+            secondary_config_data_addr=addressof(secondary_config_data),
+            frequency=10240,
+        )
+        led_mode = 0
+    except Exception as _:
+        pass
+    if led_mode == -1:  # second method is for the led with NeoPixel
+        try:
+            led = machine.Pin("LED", machine.Pin.OUT)
+            np = NeoPixel(led, 1)
+            # set to red
+            np[0] = (0, 10, 0)
+            np.write()
+            led_mode = 1
+        except Exception as _:
+            pass
+    if led_mode == -1:  # third method is for the led on single GPIO pin
+        try:
+            led = machine.Pin("LED", machine.Pin.OUT)
+            led.value(1)
+            led_mode = 2
+        except Exception as _:
+            pass
 
     # Create a poll object to monitor stdin, which will block until there is input for reading
     poll_obj = select.poll()
@@ -314,14 +279,13 @@ def main():
         "status": "send_status",
         "config": "send_config",
         "save_config": "save_config",
+        "save_status": "save_status",
         "shutdown": "shutdown",
         "reset": "hard_reset",
         "ping": "ping",
         "time": "get_time",
         "stime": "set_time",
-        "move": "move_one_step",
-        "addslot": "add_slot",
-        "removeslot": "remove_slot",
+        "set_mode": "set_bootloader_mode",
     }
     commands_mapping_string = ", ".join(
         [f"{key} - {value}" for key, value in commands.items()]
@@ -334,7 +298,18 @@ def main():
 
             if poll_results:
                 data = sys.stdin.readline().strip()
-                dma_secondary.active(1)
+                if led_mode == 0:
+                    dma_secondary.active(1)
+                elif led_mode == 1:
+                    np[0] = (0, 0, 0)
+                    np.write()
+                    time.sleep_ms(25)
+                    np[0] = (0, 10, 0)
+                    np.write()
+                elif led_mode == 2:
+                    led.value(0)
+                    time.sleep_ms(25)
+                    led.value(1)
 
                 if not data or data == "":
                     autosampler.write_message("Error: Empty input.")
@@ -358,6 +333,20 @@ def main():
                     else:
                         autosampler.write_message(
                             "Error: Invalid input, expected format 'stime:year:month:day:hour:minute:second'"
+                        )
+                elif command == "set_mode":
+                    if len(parts) == 2:
+                        mode = str(parts[1])
+                        try:
+                            set_bootloader_mode(mode)
+                            autosampler.write_message(
+                                f"Success: controller set to {mode} mode"
+                            )
+                        except Exception as e:
+                            autosampler.write_message(f"Error: {e}")
+                    else:
+                        autosampler.write_message(
+                            "Error: Invalid input, expected format '0:set_mode:mode', mode can be either 'pump' or 'autosampler' or 'update_firmware'"
                         )
                 elif command in commands:
                     method = getattr(autosampler, commands[command], None)

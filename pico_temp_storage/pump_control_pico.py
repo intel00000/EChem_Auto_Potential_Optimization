@@ -1,12 +1,15 @@
-from machine import Pin, reset, RTC
-from uctypes import addressof, struct, UINT32
-import pwm_dma_fade_onetime
-import array
-import sys
-import select
-import gc
-import json
 import os
+import gc
+import sys
+import json
+import time
+import array
+import select
+import pwm_dma_fade_onetime
+from neopixel import NeoPixel
+from uctypes import addressof
+from machine import Pin, reset, RTC
+from bootloader_util import set_bootloader_mode
 
 # a dictionary to store the pumps, the key is the pump number and the value is the pump instance
 rtc = RTC()
@@ -288,6 +291,7 @@ commands = {
     "save": "save_pumps",
     "time": "get_time",
     "stime": "set_time",
+    "set_mode": "set_bootloader_mode",
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -301,20 +305,42 @@ def main():
         [f"'{key}': '{value}'" for key, value in commands.items()]
     )
 
-    fade_buffer = array.array(
-        "I",
-        [(i * i) << 16 for i in range(0, 256, 1)],
-    )
-    secondary_config_data = bytearray(16)
-    (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
-        fade_buffer_addr=addressof(fade_buffer),
-        fade_buffer_len=len(fade_buffer),
-        secondary_config_data_addr=addressof(secondary_config_data),
-        frequency=10240,
-    )
+    led_mode = -1
+    try:  # first method, DMA fade, only avilable on regular Pico
+        fade_buffer = array.array(
+            "I",
+            [(i * i) << 16 for i in range(0, 256, 1)],
+        )
+        secondary_config_data = bytearray(16)
+        (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
+            fade_buffer_addr=addressof(fade_buffer),
+            fade_buffer_len=len(fade_buffer),
+            secondary_config_data_addr=addressof(secondary_config_data),
+            frequency=10240,
+        )
+        led_mode = 0
+    except Exception as _:
+        pass
+    if led_mode == -1:  # second method is for the led with NeoPixel
+        try:
+            led = Pin("LED", Pin.OUT)
+            np = NeoPixel(led, 1)
+            # set to red
+            np[0] = (0, 10, 0)
+            np.write()
+            led_mode = 1
+        except Exception as _:
+            pass
+    if led_mode == -1:  # third method is for the led on single GPIO pin
+        try:
+            led = Pin("LED", Pin.OUT)
+            led.value(1)
+            led_mode = 2
+        except Exception as _:
+            pass
+
     # Load the pumps at startup
     load_pumps()
-
     while True:
         try:
             # Wait for input on stdin
@@ -323,7 +349,18 @@ def main():
             if poll_results:
                 # Read the data from stdin (PC console input) and strip the newline character
                 data = sys.stdin.readline().strip()
-                dma_secondary.active(1)
+                if led_mode == 0:
+                    dma_secondary.active(1)
+                elif led_mode == 1:
+                    np[0] = (0, 0, 0)
+                    np.write()
+                    time.sleep_ms(25)
+                    np[0] = (0, 10, 0)
+                    np.write()
+                elif led_mode == 2:
+                    led.value(0)
+                    time.sleep_ms(25)
+                    led.value(1)
 
                 # Validate the input data
                 if not data or data == "":
@@ -391,6 +428,18 @@ def main():
                             write_message(
                                 "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
                             )
+                    elif command == "set_mode":
+                        if len(parts) == 3:
+                            mode = str(parts[2])
+                            try:
+                                set_bootloader_mode(mode)
+                                write_message(f"Success: bootloader set to {mode} mode")
+                            except Exception as e:
+                                write_message(f"Error: {e}")
+                        else:
+                            write_message(
+                                "Error: Invalid input, expected format '0:set_mode:mode', mode can be either 'pump' or 'autosampler' or 'update_firmware'"
+                            )
                     elif pump_num == 0:
                         if command == "st":
                             send_status(0)
@@ -414,7 +463,7 @@ def main():
                                         method()
                         else:
                             write_message(
-                                f"Error: Invalid command for pump 0 '{command}', available commands are: "
+                                f"Error: Invalid command for pump '0' '{command}', available commands are: "
                                 + commands_mapping_string
                             )
 
