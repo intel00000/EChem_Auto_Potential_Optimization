@@ -8,9 +8,9 @@ float version = 0.01;    // version of the code
 
 const int MAX_POSITION = 16000;               // Maximum position of the stepper motor
 const int TIME_INTERVAL_BETWEEN_STEPS_MS = 3; // Time interval between steps in microseconds
-const int PULSE_PIN = 12;
-const int DIRECTION_PIN = 14;
-const int ENABLE_PIN = 7;
+const int PULSE_PIN = 7;
+const int DIRECTION_PIN = 16;
+const int ENABLE_PIN = 18;
 const char STANDARD_DELIMITER = ':';
 const int MAX_BUFFER_SIZE = 300;    // Maximum buffer size for input string
 const int BAUD_RATE = 115200;       // Baud rate for serial communication
