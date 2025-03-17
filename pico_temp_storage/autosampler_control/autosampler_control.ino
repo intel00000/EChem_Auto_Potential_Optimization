@@ -1,20 +1,33 @@
 #include <VFS.h>
 #include <LittleFS.h>
+#include <ArduinoJson.h>
 
 const bool DEBUG = true; // Set to true to enable debug messages
 
 String inputString = ""; // a string to hold incoming data
 float version = 0.01;    // version of the code
 
-const int MAX_POSITION = 16000;               // Maximum position of the stepper motor
-const int TIME_INTERVAL_BETWEEN_STEPS_MS = 3; // Time interval between steps in microseconds
-const int PULSE_PIN = 7;
-const int DIRECTION_PIN = 16;
-const int ENABLE_PIN = 18;
+const int MAX_POSITION = 16000; // Maximum position of the stepper motor
+const int PULSE_PIN = 12;
+const int DIRECTION_PIN = 14;
+const int ENABLE_PIN = 15;
 const char STANDARD_DELIMITER = ':';
 const int MAX_BUFFER_SIZE = 300;    // Maximum buffer size for input string
 const int BAUD_RATE = 115200;       // Baud rate for serial communication
 const pin_size_t led = LED_BUILTIN; // LED pin for debugging
+
+const int rampProfileLength = 80;
+// Ramp profile in milliseconds
+const unsigned int rampProfile[rampProfileLength] = {
+    20, 20, 20, 20, 20, 19, 19, 19, 19, 19,
+    18, 18, 18, 18, 18, 17, 17, 17, 17, 17,
+    16, 16, 16, 16, 16, 15, 15, 15, 15, 15,
+    14, 14, 14, 14, 14, 13, 13, 13, 13, 13,
+    12, 12, 12, 12, 12, 11, 11, 11, 11, 11,
+    10, 10, 10, 10, 10,
+    9, 9, 9, 9, 8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6,
+    5, 5, 5, 4, 4, 4, 3, 3, 3};
+;
 
 class Autosampler
 {
@@ -30,16 +43,20 @@ private:
 
     volatile bool moveInProgress = false;
     volatile bool stopRequested = false;
+    volatile int stepsTaken = 0;
     volatile int stepsRemaining = 0;
 
     unsigned long lastStepTime = 0;
     unsigned long moveStartTime = 0;
+
+    JsonDocument slotsConfig; // JSON object to hold the slots configuration
 
     void stopMovementWrapUp()
     {
         if (moveInProgress)
         {
             moveInProgress = false;
+            stepsTaken = 0;
             stepsRemaining = 0;
             stopRequested = false;
             saveConfiguration();
@@ -50,6 +67,29 @@ private:
                 Serial.printf("Info: Movement stopped, total time taken: %d seconds, currentPosition=%d\n", timeTaken, currentPosition);
             }
         }
+    }
+
+    unsigned int getStepInterval()
+    {
+        unsigned int interval;
+
+        if (stepsTaken < rampProfileLength)
+        {
+            // Ramp-up phase
+            interval = rampProfile[stepsTaken];
+        }
+        else if (stepsRemaining <= rampProfileLength)
+        {
+            // Ramp-down phase
+            interval = rampProfile[stepsRemaining - 1];
+        }
+        else
+        {
+            // Constant (steady) speed
+            interval = rampProfile[rampProfileLength - 1];
+        }
+
+        return interval;
     }
 
 public:
@@ -147,6 +187,7 @@ public:
         digitalWrite(directionPin, currentDirection ? HIGH : LOW);
 
         stepsRemaining = abs(steps);
+        stepsTaken = 0;
         moveInProgress = true;
         stopRequested = false;
 
@@ -164,20 +205,18 @@ public:
             return;
         }
         unsigned long currentTime = millis();
-        if (currentTime - lastStepTime >= TIME_INTERVAL_BETWEEN_STEPS_MS)
+        unsigned int stepInterval = getStepInterval();
+        if (currentTime - lastStepTime >= stepInterval)
         {
             digitalWrite(pulsePin, HIGH);
             delayMicroseconds(1);
             digitalWrite(pulsePin, LOW);
 
             stepsRemaining--;
+            stepsTaken++;
             currentPosition += currentDirection ? 1 : -1;
             lastStepTime = currentTime;
 
-            if (DEBUG)
-            {
-                Serial.printf("Info: One step taken, currentPosition=%d, stepsRemaining=%d\n", currentPosition, stepsRemaining);
-            }
             if (stepsRemaining <= 0)
             {
                 stopMovementWrapUp();

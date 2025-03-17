@@ -1,0 +1,6 @@
+openpyxl
+pandas
+psutil
+pyserial
+python-tkdnd
+pystray
