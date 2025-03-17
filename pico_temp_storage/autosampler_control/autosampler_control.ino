@@ -49,7 +49,7 @@ private:
     unsigned long lastStepTime = 0;
     unsigned long moveStartTime = 0;
 
-    JsonDocument slotsConfig; // JSON object to hold the slots configuration
+    DynamicJsonDocument slotsConfig(1024); // JSON object to store slot positions
 
     void stopMovementWrapUp()
     {
@@ -68,7 +68,6 @@ private:
             }
         }
     }
-
     unsigned int getStepInterval()
     {
         unsigned int interval;
@@ -91,26 +90,28 @@ private:
 
         return interval;
     }
-
-public:
-    Autosampler(uint8_t pulse, uint8_t direction, uint8_t enable)
-        : pulsePin(pulse),
-          directionPin(direction),
-          enablePin(enable),
-          isPoweredOn(false),
-          currentPosition(-1),
-          failSafePosition(0),
-          currentDirection(true) {}
-
-    void begin()
+    void saveConfiguration(bool initialValues = false)
     {
-        pinMode(pulsePin, OUTPUT);
-        pinMode(directionPin, OUTPUT);
-        pinMode(enablePin, OUTPUT);
-        digitalWrite(pulsePin, LOW);
-        digitalWrite(directionPin, LOW);
-        digitalWrite(enablePin, HIGH); // disable motor initially
-
+        // Save the current position and direction to the configuration file
+        File configFile = LittleFS.open("/autosampler_config.txt", "w");
+        if (configFile)
+        {
+            if (initialValues)
+            {
+                currentPosition = 0;
+                currentDirection = true;
+            }
+            configFile.printf("%d,%d,%s\n", currentPosition, currentDirection, currentDirection ? "Left" : "Right");
+            configFile.close();
+            Serial.println("Info: Configuration saved.");
+        }
+        else
+        {
+            Serial.println("Error: Unable to save configuration file.");
+        }
+    }
+    void loadConfiguration()
+    {
         // attempt to read the configuration from LittleFS
         // the format is "currentPosition, currentDirection(either 1/0), currentDirection(either Left/Right)"
         File configFile = LittleFS.open("/autosampler_config.txt", "r");
@@ -138,25 +139,77 @@ public:
             saveConfiguration(true);
         }
     }
-    void saveConfiguration(bool initialValues = false)
+    void saveSlotsConfig(bool initialValues = false)
     {
-        // Save the current position and direction to the configuration file
-        File configFile = LittleFS.open("/autosampler_config.txt", "w");
-        if (configFile)
+        File file = LittleFS.open("/slots_config.json", "w");
+        if (!file)
         {
-            if (initialValues)
-            {
-                currentPosition = 0;
-                currentDirection = true;
-            }
-            configFile.printf("%d,%d,%s\n", currentPosition, currentDirection, currentDirection ? "Left" : "Right");
-            configFile.close();
-            Serial.println("Info: Configuration saved.");
+            Serial.println("Error: Unable to open slots configuration file.");
+            return;
+        }
+        DeserializationError error = deserializeJson(slotsConfig, file);
+        if (error || initialValues)
+        {
+            Serial.println("Info: initializing slots configuration.");
+            // save a default configuration
+            slotsConfig.clear();
+            slotsConfig["waste"] = 0;
+            slotsConfig["fail-safe"] = 0;
+            slotsConfig["0"] = 0;
+            // save the default configuration
+            serializeJsonPretty(slotsConfig, file);
+            file.close();
         }
         else
         {
-            Serial.println("Error: Unable to save configuration file.");
+            serializeJsonPretty(slotsConfig, file);
+            file.close();
+            Serial.println("Info: Slots configuration saved.");
         }
+    }
+    void loadSlotsConfig()
+    {
+        File file = LittleFS.open("/slots_config.json", "r");
+        if (file)
+        {
+            DeserializationError error = deserializeJson(slotsConfig, file);
+            file.close();
+            if (error)
+            {
+                saveSlotsConfig(true);
+            }
+            else
+            {
+                Serial.println("Info: Slots configuration loaded.");
+            }
+        }
+        else
+        {
+            saveSlotsConfig(true);
+        }
+    }
+
+public:
+    Autosampler(uint8_t pulse, uint8_t direction, uint8_t enable)
+        : pulsePin(pulse),
+          directionPin(direction),
+          enablePin(enable),
+          isPoweredOn(false),
+          currentPosition(-1),
+          failSafePosition(0),
+          currentDirection(true) {}
+
+    void begin()
+    {
+        pinMode(pulsePin, OUTPUT);
+        pinMode(directionPin, OUTPUT);
+        pinMode(enablePin, OUTPUT);
+        digitalWrite(pulsePin, LOW);
+        digitalWrite(directionPin, LOW);
+        digitalWrite(enablePin, HIGH); // disable motor initially
+
+        loadConfiguration();
+        loadSlotsConfig();
     }
 
     void enableStepper(bool enable)
@@ -254,6 +307,41 @@ public:
     {
         failSafePosition = constrain(position, 0, MAX_POSITION);
         saveConfiguration();
+    }
+    void moveToSlot(String slot)
+    {
+        if (!slotsConfig[slot].is<JsonVariant>())
+        {
+            Serial.printf("Error: Slot %s not found.\n", slot);
+            return;
+        }
+        targetPosition = slotsConfig[slot].as<int>();
+        Serial.printf("Info: Moving to slot %s\n", slot);
+        moveToPosition(targetPosition);
+    }
+    void setSlotPosition(String slot, int position)
+    {
+        if (slotsConfig[slot].is<JsonVariant>())
+        {
+            Serial.printf("Success: Slot %s position updated to %d\n", slot, position);
+        }
+        else
+        {
+            Serial.printf("Success: Slot %s position set to %d\n", slot, position);
+        }
+        slotsConfig[slot] = constrain(position, 0, MAX_POSITION);
+        saveSlotsConfig();
+    }
+    void deleteSlotPosition(String slot)
+    {
+        if (!slotsConfig[slot].is<JsonVariant>())
+        {
+            Serial.printf("Error: Slot %s not found.\n", slot);
+            return;
+        }
+        slotsConfig.remove(slot);
+        saveSlotsConfig();
+        Serial.printf("Success: Slot %s deleted.\n", slot);
     }
 };
 

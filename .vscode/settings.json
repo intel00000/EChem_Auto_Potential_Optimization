@@ -45,6 +45,9 @@
         "xutility": "cpp",
         "ostream": "cpp",
         "xlocale": "cpp",
-        "xlocinfo": "cpp"
+        "xlocinfo": "cpp",
+        "fstream": "cpp",
+        "xlocmes": "cpp",
+        "xmemory": "cpp"
     }
 }
