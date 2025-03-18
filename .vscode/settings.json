@@ -48,6 +48,10 @@
         "xlocinfo": "cpp",
         "fstream": "cpp",
         "xlocmes": "cpp",
-        "xmemory": "cpp"
+        "xmemory": "cpp",
+        "istream": "cpp",
+        "exception": "cpp",
+        "memory": "cpp",
+        "optional": "cpp"
     }
 }

@@ -127,7 +127,7 @@ class PicoController:
             pass
         log_filename = os.path.join("log", f"pump_control_run_{runtime}.log")
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.DEBUG,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
@@ -1062,6 +1062,8 @@ class PicoController:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
+                serial_port_obj.reset_input_buffer()
+                serial_port_obj.reset_output_buffer()
                 # we have to distinguish between the firmware update mode and the controller mode
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
@@ -1234,6 +1236,8 @@ class PicoController:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
+                serial_port_obj.reset_input_buffer()
+                serial_port_obj.reset_output_buffer()
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
                 if "Pico Pump Control Version" not in response:
@@ -1296,7 +1300,9 @@ class PicoController:
                     return
             try:
                 self.autosamplers = serial.Serial(parsed_port, timeout=self.timeout)
-                self.autosamplers.write("0:ping\n".encode())  # identify Pico type
+                self.autosamplers.reset_input_buffer()
+                self.autosamplers.reset_output_buffer()
+                self.autosamplers.write("ping\n".encode())  # identify Pico type
                 response = self.autosamplers.readline().decode("utf-8").strip()
                 if "Pico Autosampler Control Version" not in response:
                     self.disconnect_as(show_message=False)
@@ -1307,7 +1313,7 @@ class PicoController:
                     )
                     return
                 now = datetime.now()  # synchronize the RTC with the PC time
-                sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+                sync_command = f"stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
                 self.autosamplers.write(f"{sync_command}\n".encode())
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
@@ -1315,7 +1321,7 @@ class PicoController:
                 logging.info(f"Connected to Autosampler at {selected_port}")
                 self.refresh_ports(instant=True)
                 self.set_autosampler_buttons_state(tk.NORMAL)
-                self.autosamplers_send_queue.put("config")  # Populate the slots
+                self.autosamplers_send_queue.put("dumpSlotsConfig")
                 self.on_tab_change(event=None, notebook=self.notebook)
             except Exception as e:
                 self.status_label_as.config(text="Status: Not connected")
@@ -1343,7 +1349,7 @@ class PicoController:
                 if connection_status:
                     self.pump_controllers_send_queue.put(f"{id}:0:time")
             if self.autosamplers:
-                self.autosamplers_send_queue.put("0:time")
+                self.autosamplers_send_queue.put("gtime")
             self.last_time_query = current_time
 
     def parse_rtc_time(self, controller_id, response, is_Autosampler=False) -> None:
@@ -1479,7 +1485,7 @@ class PicoController:
                 if messagebox.askyesno(
                     "Reset", "Are you sure you want to reset the Autosampler?"
                 ):
-                    self.autosamplers_send_queue.put("0:reset")
+                    self.autosamplers_send_queue.put("reset")
                     logging.info("Signal sent for Autosampler reset.")
             except Exception as e:
                 logging.error(f"Error: {e}")
@@ -1903,10 +1909,10 @@ class PicoController:
                 if "RTC Time" not in response:
                     logging.debug(f"Autosampler -> PC: {response}")
 
-                if "Autosampler Configuration:" in response:
+                if "Info: Slots configuration: " in response:
                     # Extract the JSON part of the response
                     config_str = response.replace(
-                        "Autosampler Configuration:", ""
+                        "Info: Slots configuration: ", ""
                     ).strip()
                     try:
                         autosampler_config = json.loads(config_str)
@@ -1971,7 +1977,7 @@ class PicoController:
                 if position is None:
                     position = self.position_entry_as.get().strip()
                 if position and position.isdigit():
-                    command = f"position:{position}"
+                    command = f"moveTo:{position}"
                     self.autosamplers_send_queue.put(command)
                     logging.info(f"Autosampler command sent: {command}")
                 else:
@@ -1994,7 +2000,7 @@ class PicoController:
                 if slot is None:
                     slot = self.slot_combobox_as.get().strip()
                 if slot:
-                    command = f"slot:{slot}"
+                    command = f"moveToSlot:{slot}"
                     self.autosamplers_send_queue.put(command)
             except Exception as e:
                 logging.error(f"Error: {e}")
