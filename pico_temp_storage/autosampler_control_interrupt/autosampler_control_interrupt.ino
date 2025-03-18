@@ -1,9 +1,11 @@
 #include <VFS.h>
+#include <Ticker.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/time.h"
 
 #include "helpers.h"
 
@@ -33,8 +35,6 @@ const int rampProfile[] = {
 ;
 const int rampProfileLength = sizeof(rampProfile) / sizeof(rampProfile[0]);
 
-const float dutyCycle = 0.5; // Duty cycle for the PWM signal
-
 class Autosampler
 {
 private:
@@ -52,21 +52,30 @@ private:
     volatile int stepsTaken = 0;
     volatile int stepsRemaining = 0;
     unsigned long moveStartTime = 0;
-    unsigned long lastUpdateTime = 0;
 
     JsonDocument slotsConfig; // JSON object to store slot positions
+    alarm_pool_t *pool;
+    alarm_id_t moveAlarmId = -1; // Store alarm ID
+
+    static int64_t updateMovementCallback(alarm_id_t id, void *user_data)
+    {
+        Autosampler *self = static_cast<Autosampler *>(user_data); // Cast void pointer to Autosampler pointer
+        self->updateMovement();
+        return 0;
+    }
     void stopMovementWrapUp()
     {
         if (moveInProgress)
         {
             moveInProgress = false;
-            stopRequested = false;
             stepsTaken = 0;
             stepsRemaining = 0;
-            lastUpdateTime = 0;
-
+            stopRequested = false;
             saveConfiguration();
             enableStepper(false);
+            // Schedule a delayed update to check for further movement
+            // moveAlarmId = add_alarm_in_ms(rampProfile[0], updateMovementCallback, this, false);
+            moveAlarmId = alarm_pool_add_alarm_in_us(pool, rampProfile[0], updateMovementCallback, this, false);
             if (DEBUG)
             {
                 double timeTaken = (micros() - moveStartTime) / 1e6;
@@ -79,9 +88,9 @@ private:
         digitalWrite(enablePin, enable ? LOW : HIGH); // LOW enables driver
         isPoweredOn = enable;
     }
-    int getStepInterval()
+    unsigned int getStepInterval()
     {
-        int interval;
+        unsigned int interval;
 
         if (stepsTaken < rampProfileLength)
         {
@@ -200,6 +209,8 @@ private:
     }
 
 public:
+    Ticker updateMovementTicker; // Ticker to update the movement
+
     Autosampler(uint8_t pulse, uint8_t direction, uint8_t enable)
         : pulsePin(pulse),
           directionPin(direction),
@@ -218,6 +229,7 @@ public:
         digitalWrite(directionPin, LOW);
         digitalWrite(enablePin, HIGH); // disable motor initially
 
+        pool = alarm_pool_create_with_unused_hardware_alarm(1); // create an alarm pool
         loadConfiguration();
         loadSlotsConfig();
     }
@@ -249,7 +261,6 @@ public:
         stepsTaken = 0;
         stepsRemaining = abs(steps);
         moveStartTime = micros();
-        lastUpdateTime = 0;
 
         enableStepper(true);
     }
@@ -257,6 +268,8 @@ public:
     {
         if (!moveInProgress)
         {
+            // moveAlarmId = add_alarm_in_ms(rampProfile[0], updateMovementCallback, this, false);
+            moveAlarmId = alarm_pool_add_alarm_in_us(pool, rampProfile[0], updateMovementCallback, this, false);
             return;
         }
         if (stopRequested)
@@ -265,34 +278,26 @@ public:
             Serial.println("Info: Movement interrupted by user");
             return;
         }
-
         unsigned long interval = getStepInterval();
-        unsigned long currentTime = micros();
-        if (currentTime < lastUpdateTime) // skip if the timer has overflowed
+        digitalWrite(pulsePin, HIGH);
+        delayMicroseconds((unsigned int)interval);
+        digitalWrite(pulsePin, LOW);
+        stepsRemaining--;
+        stepsTaken++;
+        currentPosition += currentDirection ? 1 : -1;
+
+        if (DEBUG)
         {
-            lastUpdateTime = currentTime;
+            getCurrentTime();
+            Serial.printf("DEBUG: One step taken, stepsTaken=%d, stepsRemaining=%d, currentPosition=%d, interval=%luμs\n", stepsTaken, stepsRemaining, currentPosition, interval);
+        }
+        if (stepsRemaining <= 0)
+        {
+            stopMovementWrapUp();
             return;
         }
-        if (currentTime - lastUpdateTime >= interval)
-        {
-            if (DEBUG)
-            {
-                getCurrentTime();
-                Serial.printf("DEBUG: One step taken, stepsTaken=%d, stepsRemaining=%d, currentPosition=%d, interval=%luμs\n", stepsTaken, stepsRemaining, currentPosition, interval);
-            }
-            lastUpdateTime = currentTime;
-            digitalWrite(pulsePin, HIGH);
-            sleep_us((uint64_t)interval * dutyCycle);
-            digitalWrite(pulsePin, LOW);
-            stepsRemaining--;
-            stepsTaken++;
-            currentPosition += currentDirection ? 1 : -1;
-            if (stepsRemaining <= 0)
-            {
-                stopMovementWrapUp();
-                return;
-            }
-        }
+        // moveAlarmId = add_alarm_in_ms(interval, updateMovementCallback, this, false);
+        moveAlarmId = alarm_pool_add_alarm_in_us(pool, interval, updateMovementCallback, this, false);
     }
     void stopMovement()
     {
@@ -645,11 +650,11 @@ void setup()
     }
 
     autosampler.begin(); // Initialize the autosampler
+    autosampler.updateMovement();
 }
 
 void loop()
 {
-    autosampler.updateMovement();
     if (stringComplete)
     {
         parseInputString();
