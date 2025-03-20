@@ -234,7 +234,7 @@ public:
     {
         if (moveInProgress)
         {
-            Serial.println("ERROR: Movement already in progress, interrupting current movement...");
+            Serial.println("INFO: Movement already in progress, interrupting current movement...");
             stopMovementWrapUp();
         }
         position = constrain(position, 0, MAX_POSITION);
@@ -245,7 +245,7 @@ public:
         }
         if (steps == 0)
         {
-            Serial.println("SUCCESS: Already at the target position.");
+            Serial.println("INFO: Already at the target position.");
             return;
         }
 
@@ -256,10 +256,10 @@ public:
         stopRequested = false;
         stepsTaken = 0;
         stepsRemaining = abs(steps);
-        moveStartTime = micros();
         lastUpdateTime = 0;
 
         enableStepper(true);
+        moveStartTime = micros();
     }
     void updateMovement()
     {
@@ -360,7 +360,7 @@ public:
         slotsConfig[slot] = constrain(position, 0, MAX_POSITION);
         saveSlotsConfig();
     }
-    void deleteSlotPosition(String slot)
+    void deleteSlot(String slot)
     {
         if (!slotsConfig[slot].is<JsonVariant>())
         {
@@ -454,7 +454,7 @@ void parseInputString()
         Serial.println("    stop - Stop the autosampler movement.");
         Serial.println("    moveToSlot:<slot> - Move to a specific slot.");
         Serial.println("    setSlotPosition:<slot>:<position> - Set the position of a slot.");
-        Serial.println("    deleteSlotPosition:<slot> - Delete the position of a slot.");
+        Serial.println("    deleteSlot:<slot> - Delete the position of a slot.");
         Serial.println("    dumpSlotsConfig - Dump the slots configuration.");
         Serial.println("    stime:<year>:<month>:<day>:<hour>:<minute>:<second> - Set the RTC time on the device.");
         Serial.println("    gtime - Get the RTC time on the device.");
@@ -489,21 +489,22 @@ void parseInputString()
         Serial.println("PING: Autosampler Control Version " + String(version));
     }
     else if (command.equalsIgnoreCase("stime")) // set the RTC time on device
-    // format "stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+    // format "stime:{now.year}:{now.month}:{now.day}:{now.dotw}:{now.hour}:{now.minute}:{now.second}"
     {
-        if (valueCount == 7)
+        if (valueCount == 8)
         {
             int year = values[1].toInt();
             int month = values[2].toInt();
             int day = values[3].toInt();
-            int hour = values[4].toInt();
-            int minute = values[5].toInt();
-            int second = values[6].toInt();
-            setDateTime(year, month, day, hour, minute, second);
+            int dotw = values[4].toInt();
+            int hour = values[5].toInt();
+            int minute = values[6].toInt();
+            int second = values[7].toInt();
+            setDateTime(year, month, day, dotw, hour, minute, second);
         }
         else
         {
-            Serial.println("ERROR: Invalid command format, expected format is stime:<year>:<month>:<day>:<hour>:<minute>:<second>");
+            Serial.println("ERROR: Invalid command format, expected format is stime:<year>:<month>:<day>:{now.dotw}:<hour>:<minute>:<second>");
         }
     }
     else if (command.equalsIgnoreCase("gtime")) // get the RTC time on device
@@ -525,7 +526,7 @@ void parseInputString()
                 Serial.println("ERROR: Invalid position value, expected an integer.");
             }
             autosampler.setCurrentPosition(position);
-            Serial.println("INFO: Position set to: " + String(autosampler.getCurrentPosition()));
+            Serial.println("SUCCESS: Position set to: " + String(autosampler.getCurrentPosition()));
         }
         else
         {
@@ -595,16 +596,16 @@ void parseInputString()
             Serial.println("ERROR: Invalid command format, expected format is setSlotPosition:<slot>:<position>");
         }
     }
-    else if (command.equalsIgnoreCase("deleteSlotPosition"))
+    else if (command.equalsIgnoreCase("deleteSlot"))
     {
         if (valueCount == 2)
         {
             String slot = values[1];
-            autosampler.deleteSlotPosition(slot);
+            autosampler.deleteSlot(slot);
         }
         else
         {
-            Serial.println("ERROR: Invalid command format, expected format is deleteSlotPosition:<slot>");
+            Serial.println("ERROR: Invalid command format, expected format is deleteSlot:<slot>");
         }
     }
     else if (command.equalsIgnoreCase("dumpSlotsConfig"))

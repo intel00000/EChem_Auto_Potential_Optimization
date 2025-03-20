@@ -13,7 +13,7 @@
 
 void getCurrentTime();
 void printDateTime();
-void setDateTime(int year, int month, int day, int hour, int minute, int second);
+void setDateTime(int year, int month, int day, int dotw, int hour, int minute, int second);
 void hardwareReset();
 
 #endif

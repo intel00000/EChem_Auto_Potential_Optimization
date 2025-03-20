@@ -564,31 +564,140 @@ class PicoController:
             sticky="NSEW",
         )
         # Text Entry for Position
-        self.position_entry_as = ttk.Entry(self.manual_control_frame_as, width=15)
+        self.position_entry_label_as = ttk.Label(
+            self.manual_control_frame_as, text="Target position:"
+        )
+        self.position_entry_label_as.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.position_entry_as = ttk.Entry(self.manual_control_frame_as)
         self.position_entry_as.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.goto_position_button_as = ttk.Button(
             self.manual_control_frame_as,
-            text="Go to Position",
+            text="Go to",
             command=self.goto_position_as,
         )
         self.goto_position_button_as.grid(
-            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        # Dropdown and Button for Slots
-        self.slot_combobox_as = ttk.Combobox(
-            self.manual_control_frame_as, state="readonly", width=15
-        )
-        self.slot_combobox_as.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.goto_slot_button_as = ttk.Button(
-            self.manual_control_frame_as, text="Go to Slot", command=self.goto_slot_as
+        self.stop_movement_button_as = ttk.Button(
+            self.manual_control_frame_as,
+            text="Stop",
+            command=self.stop_movement_as,
         )
-        self.goto_slot_button_as.grid(
+        self.stop_movement_button_as.grid(
             row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
+        self.set_position_button_as = ttk.Button(
+            self.manual_control_frame_as,
+            text="Set",
+            command=self.set_position_as,
+        )
+        self.set_position_button_as.grid(
+            row=0, column=5, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.current_position_label_as = ttk.Label(
+            self.manual_control_frame_as, text="Current position: "
+        )
+        self.current_position_label_as.grid(
+            row=0, column=6, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.current_position_value_as = ttk.Label(
+            self.manual_control_frame_as, text="N/A"
+        )
+        self.current_position_value_as.grid(
+            row=0, column=7, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+
+        # Slots selection
+        self.slot_label_as = ttk.Label(
+            self.manual_control_frame_as, text="Available slots:"
+        )
+        self.slot_label_as.grid(
+            row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.slot_combobox_as = ttk.Combobox(
+            self.manual_control_frame_as, state="readonly", width=17
+        )
+        self.slot_combobox_as.grid(
+            row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.goto_slot_button_as = ttk.Button(
+            self.manual_control_frame_as, text="Go to slot", command=self.goto_slot_as
+        )
+        self.goto_slot_button_as.grid(
+            row=1, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.delete_slot_button_as = ttk.Button(
+            self.manual_control_frame_as,
+            text="Delete slot",
+            command=self.delete_slot_as,
+        )
+        self.delete_slot_button_as.grid(
+            row=1, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+
+        self.update_slot_label_as = ttk.Label(
+            self.manual_control_frame_as, text="Update slot:"
+        )
+        self.update_slot_label_as.grid(
+            row=2, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.update_slot_slotname_as = ttk.Entry(
+            self.manual_control_frame_as, foreground="gray"
+        )
+        self.update_slot_slotname_as.insert(0, "Enter slot name here...")
+        self.update_slot_slotname_as.grid(
+            row=2, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        # call update_Entry_callback during focus in and out to update the Entry field
+        self.update_slot_slotname_as.bind(
+            "<FocusIn>",
+            lambda event: self.update_Entry_callback(
+                self.update_slot_slotname_as, event, "Enter slot name here..."
+            ),
+        )
+        self.update_slot_slotname_as.bind(
+            "<FocusOut>",
+            lambda event: self.update_Entry_callback(
+                self.update_slot_slotname_as, event, "Enter slot name here..."
+            ),
+        )
+        self.update_slot_position_as = ttk.Entry(
+            self.manual_control_frame_as, foreground="gray"
+        )
+        self.update_slot_position_as.grid(
+            row=2,
+            column=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        self.update_slot_position_as.insert(0, "Enter position here...")
+        # call update_Entry_callback during focus in and out to update the Entry field
+        self.update_slot_position_as.bind(
+            "<FocusIn>",
+            lambda event: self.update_Entry_callback(
+                self.update_slot_position_as, event, "Enter position here..."
+            ),
+        )
+        self.update_slot_position_as.bind(
+            "<FocusOut>",
+            lambda event: self.update_Entry_callback(
+                self.update_slot_position_as, event, "Enter position here..."
+            ),
+        )
+        self.update_slot_button_as = ttk.Button(
+            self.manual_control_frame_as,
+            text="Update slot",
+            command=self.update_slot_as,
+        )
+        self.update_slot_button_as.grid(
+            row=2, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+
         # update the current row
         current_row += self.manual_control_frame_as.grid_size()[1]
 
@@ -1313,7 +1422,7 @@ class PicoController:
                     )
                     return
                 now = datetime.now()  # synchronize the RTC with the PC time
-                sync_command = f"stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+                sync_command = f"stime:{now.year}:{now.month}:{now.day}:{now.isoweekday() - 1}:{now.hour}:{now.minute}:{now.second}"
                 self.autosamplers.write(f"{sync_command}\n".encode())
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
@@ -1335,10 +1444,19 @@ class PicoController:
     def set_autosampler_buttons_state(self, state) -> None:
         self.disconnect_button_as.config(state=state)
         self.reset_button_as.config(state=state)
+
         self.position_entry_as.config(state=state)
         self.goto_position_button_as.config(state=state)
+        self.stop_movement_button_as.config(state=state)
+        self.set_position_button_as.config(state=state)
+
         self.slot_combobox_as.config(state=state)
         self.goto_slot_button_as.config(state=state)
+        self.delete_slot_button_as.config(state=state)
+
+        self.update_slot_slotname_as.config(state=state)
+        self.update_slot_position_as.config(state=state)
+        self.update_slot_button_as.config(state=state)
 
     def query_rtc_time(self) -> None:
         """Send a request to the Pico to get the current RTC time every second."""
@@ -1350,6 +1468,7 @@ class PicoController:
                     self.pump_controllers_send_queue.put(f"{id}:0:time")
             if self.autosamplers:
                 self.autosamplers_send_queue.put("gtime")
+                self.autosamplers_send_queue.put("getPosition")
             self.last_time_query = current_time
 
     def parse_rtc_time(self, controller_id, response, is_Autosampler=False) -> None:
@@ -1366,6 +1485,41 @@ class PicoController:
                 self.autosamplers_rtc_time = f"Autosampler Time: {rtc_time}"
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
+
+    def parse_autosampler_config(self, response) -> None:
+        # Extract the JSON part of the response
+        config_str = response.replace("INFO: Slots configuration: ", "").strip()
+        try:
+            autosampler_config = json.loads(config_str)
+            slots = list(autosampler_config.keys())
+            slots.sort(
+                key=lambda x: (
+                    not x.isdigit(),
+                    int(x) if x.isdigit() else x,
+                )
+            )
+            self.slot_combobox_as["values"] = slots
+            if slots:
+                self.slot_combobox_as.current(0)  # Set the first slot as default
+            logging.info(f"Slots populated: {slots}")
+        except json.JSONDecodeError as e:
+            logging.error(f"Error decoding autosampler configuration: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message="Failed to parse autosampler configuration with error: {e}",
+            )
+
+    def parse_autosampler_position(self, response) -> None:
+        # format INFO: Current position: <position>
+        match = re.search(r"position: (\d+)", response)
+        if match:
+            current_position = match.group(1)
+            self.current_position_value_as.config(text=f"{current_position}")
+        else:
+            logging.error(
+                f"Failed to parse autosampler position from response: {response}"
+            )
 
     def update_rtc_time_display(self) -> None:
         try:
@@ -1443,6 +1597,9 @@ class PicoController:
                 self.autosamplers.close()
                 self.autosamplers = None
                 self.status_label_as.config(text="Status: Not connected")
+                self.current_position_value_as.config(text="N/A")
+                self.autosamplers_rtc_time = "Autosampler Time: --:--:--"
+                self.slot_combobox_as.set("")
                 self.set_autosampler_buttons_state(tk.DISABLED)
                 while not self.autosamplers_send_queue.empty():  # empty the queue
                     self.autosamplers_send_queue.get()
@@ -1795,7 +1952,7 @@ class PicoController:
             if self.autosamplers and not self.autosamplers_send_queue.empty():
                 command = self.autosamplers_send_queue.get(block=False)
                 self.autosamplers.write(f"{command}\n".encode())
-                if "time" not in command:
+                if "gtime" not in command and "getPosition" not in command:
                     logging.debug(f"PC -> Autosampler: {command}")
         except serial.SerialException as e:
             self.disconnect_as(False)
@@ -1906,38 +2063,13 @@ class PicoController:
             if self.autosamplers and self.autosamplers.in_waiting:
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
-                if "RTC Time" not in response:
+                if "RTC Time" not in response and "Current position" not in response:
                     logging.debug(f"Autosampler -> PC: {response}")
 
                 if "INFO: Slots configuration: " in response:
-                    # Extract the JSON part of the response
-                    config_str = response.replace(
-                        "INFO: Slots configuration: ", ""
-                    ).strip()
-                    try:
-                        autosampler_config = json.loads(config_str)
-                        slots = list(autosampler_config.keys())
-                        # the slow have pure number and alplabet string
-                        # sort the slots by the number first and then the alphabet
-                        slots.sort(
-                            key=lambda x: (
-                                not x.isdigit(),
-                                int(x) if x.isdigit() else x,
-                            )
-                        )
-                        self.slot_combobox_as["values"] = slots
-                        if slots:
-                            self.slot_combobox_as.current(
-                                0
-                            )  # Set the first slot as default
-                        logging.info(f"Slots populated: {slots}")
-                    except json.JSONDecodeError as e:
-                        logging.error(f"Error decoding autosampler configuration: {e}")
-                        non_blocking_messagebox(
-                            parent=self.root,
-                            title="Error",
-                            message="Failed to parse autosampler configuration with error: {e}",
-                        )
+                    self.parse_autosampler_config(response)
+                elif "INFO: Current position: " in response:
+                    self.parse_autosampler_position(response)
                 elif "RTC Time" in response:
                     self.parse_rtc_time(
                         controller_id=None, response=response, is_Autosampler=True
@@ -2009,6 +2141,109 @@ class PicoController:
                     title="Error",
                     message=f"An error occurred in function goto_slot_as: {e}",
                 )
+
+    def stop_movement_as(self):
+        if self.autosamplers:
+            try:
+                self.autosamplers_send_queue.put("stop")
+                logging.info("Stopping Autosampler movement")
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function stop_movement_as: {e}",
+                )
+
+    def set_position_as(self, position=None):
+        if self.autosamplers:
+            try:
+                if position is None:
+                    position = self.position_entry_as.get().strip()
+                if position and position.isdigit():
+                    command = f"setPosition:{position}"
+                    self.autosamplers_send_queue.put(command)
+                    logging.info(f"Autosampler command sent: {command}")
+                else:
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Error",
+                        message="Invalid input, please enter a valid position number.",
+                    )
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function set_position_as: {e}",
+                )
+
+    def delete_slot_as(self, slot=None):
+        if self.autosamplers:
+            try:
+                if slot is None:
+                    slot = self.slot_combobox_as.get().strip()
+                if slot:
+                    command = f"deleteSlot:{slot}"
+                    self.autosamplers_send_queue.put(command)
+                    self.autosamplers_send_queue.put("dumpSlotsConfig")
+                    logging.info(f"Autosampler command sent: {command}")
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function delete_slot_as: {e}",
+                )
+
+    def update_slot_as(self, slot=None, position=None):
+        if self.autosamplers:
+            try:
+                # either provide both slot and position or use the current values from the UI
+                if slot is None:
+                    slot = self.update_slot_slotname_as.get().strip()
+                if not slot or slot == "":
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Error",
+                        message="empty slot name is not allowed.",
+                    )
+                    return
+                if position is None:
+                    position = self.update_slot_position_as.get().strip()
+                if not position or not position.isdigit():
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Error",
+                        message="Invalid position, please enter a valid integer value.",
+                    )
+                    return
+                command = f"setSlotPosition:{slot}:{int(position)}"
+                self.autosamplers_send_queue.put(command)
+                self.autosamplers_send_queue.put("dumpSlotsConfig")
+                logging.info(f"Updating Autosampler slot {slot} to position {position}")
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function update_slot_as: {e}",
+                )
+
+    def update_Entry_callback(
+        self, entry_obj: tk.Entry, event=None, default_value="placeholder"
+    ):  # use this to put a default grey text in the text entry
+        # if it's a focus out even,we check if the value is empty and set it to the default value
+        # if it's a focus in event, we check if the value is the default value and clear it
+        if event:
+            if event.type == tk.EventType.FocusIn and entry_obj.get() == default_value:
+                entry_obj.delete(0, tk.END)
+                entry_obj.insert(0, "")
+                entry_obj["foreground"] = "black"
+            if event.type == tk.EventType.FocusOut and entry_obj.get() == "":
+                entry_obj.delete(0, tk.END)
+                entry_obj.insert(0, default_value)
+                entry_obj["foreground"] = "grey"
 
     def add_pump_widgets(self, controller_id, response):
         try:
