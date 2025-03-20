@@ -1304,7 +1304,7 @@ class PicoController:
                 self.autosamplers.reset_output_buffer()
                 self.autosamplers.write("ping\n".encode())  # identify Pico type
                 response = self.autosamplers.readline().decode("utf-8").strip()
-                if "Pico Autosampler Control Version" not in response:
+                if "Autosampler Control Version" not in response:
                     self.disconnect_as(show_message=False)
                     non_blocking_messagebox(
                         parent=self.root,
@@ -1909,10 +1909,10 @@ class PicoController:
                 if "RTC Time" not in response:
                     logging.debug(f"Autosampler -> PC: {response}")
 
-                if "Info: Slots configuration: " in response:
+                if "INFO: Slots configuration: " in response:
                     # Extract the JSON part of the response
                     config_str = response.replace(
-                        "Info: Slots configuration: ", ""
+                        "INFO: Slots configuration: ", ""
                     ).strip()
                     try:
                         autosampler_config = json.loads(config_str)
@@ -1942,13 +1942,13 @@ class PicoController:
                     self.parse_rtc_time(
                         controller_id=None, response=response, is_Autosampler=True
                     )
-                elif "Error" in response:
+                elif "ERROR" in response:
                     non_blocking_messagebox(
                         parent=self.root,
                         title="Error",
                         message=f"Autosampler: {response}",
                     )
-                elif "Success" in response:
+                elif "SUCCESS" in response:
                     non_blocking_messagebox(
                         parent=self.root,
                         title="Success",

@@ -1,11 +1,8 @@
-#include <VFS.h>
-#include <Ticker.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "pico/time.h"
 
 #include "helpers.h"
 
@@ -35,6 +32,8 @@ const int rampProfile[] = {
 ;
 const int rampProfileLength = sizeof(rampProfile) / sizeof(rampProfile[0]);
 
+const float dutyCycle = 0.5; // Duty cycle for the PWM signal
+
 class Autosampler
 {
 private:
@@ -57,10 +56,16 @@ private:
     alarm_pool_t *pool;
     alarm_id_t moveAlarmId = -1; // Store alarm ID
 
+    static int64_t setPinLowCallback(alarm_id_t id, void *user_data)
+    {
+        Autosampler *self = static_cast<Autosampler *>(user_data);
+        digitalWrite(self->pulsePin, LOW);
+        return 0;
+    }
     static int64_t updateMovementCallback(alarm_id_t id, void *user_data)
     {
         Autosampler *self = static_cast<Autosampler *>(user_data); // Cast void pointer to Autosampler pointer
-        self->updateMovement();
+        self->updateMovementScheduled = true;
         return 0;
     }
     void stopMovementWrapUp()
@@ -73,14 +78,8 @@ private:
             stopRequested = false;
             saveConfiguration();
             enableStepper(false);
-            // Schedule a delayed update to check for further movement
-            // moveAlarmId = add_alarm_in_ms(rampProfile[0], updateMovementCallback, this, false);
-            moveAlarmId = alarm_pool_add_alarm_in_us(pool, rampProfile[0], updateMovementCallback, this, false);
-            if (DEBUG)
-            {
-                double timeTaken = (micros() - moveStartTime) / 1e6;
-                Serial.printf("DEBUG: Movement stopped, total time taken: %fs, currentPosition=%d\n", timeTaken, currentPosition);
-            }
+            double timeTaken = (micros() - moveStartTime) / 1e6;
+            Serial.printf("DEBUG: Movement stopped, total time taken: %fs, currentPosition=%d\n", timeTaken, currentPosition);
         }
     }
     void enableStepper(bool enable)
@@ -123,11 +122,14 @@ private:
             }
             configFile.printf("%d,%d,%s\n", currentPosition, currentDirection, currentDirection ? "Left" : "Right");
             configFile.close();
-            Serial.println("Info: Configuration saved.");
+            if (DEBUG)
+            {
+                Serial.printf("DEBUG: Configuration saved, currentPosition=%d, currentDirection=%d\n", currentPosition, (int)currentDirection);
+            }
         }
         else
         {
-            Serial.println("Error: Unable to save configuration file.");
+            Serial.println("ERROR: Unable to save configuration file.");
         }
     }
     void loadConfiguration()
@@ -144,7 +146,7 @@ private:
             int currentDirectionTemp;
             if (sscanf(content.c_str(), "%d,%d,%s", &currentPosition, &currentDirectionTemp, direction) != 3)
             {
-                Serial.println("Error: Unable to parse configuration file.");
+                Serial.println("ERROR: Unable to parse configuration file.");
                 saveConfiguration(true);
             }
             currentDirection = (currentDirectionTemp == 1); // 1 for left, 0 for right
@@ -164,12 +166,12 @@ private:
         File file = LittleFS.open("/slots_config.json", "w");
         if (!file)
         {
-            Serial.println("Error: Unable to open slots configuration file.");
+            Serial.println("ERROR: Unable to open slots configuration file.");
             return;
         }
         if (initialValues)
         {
-            Serial.println("Info: initializing slots configuration.");
+            Serial.println("INFO: initializing slots configuration.");
             // save a default configuration
             slotsConfig.clear();
             slotsConfig["waste"] = 0;
@@ -183,7 +185,10 @@ private:
         {
             serializeJsonPretty(slotsConfig, file);
             file.close();
-            Serial.println("Info: Slots configuration saved.");
+            if (DEBUG)
+            {
+                Serial.printf("DEBUG: Slots configuration saved: ");
+            }
         }
     }
     void loadSlotsConfig()
@@ -191,15 +196,20 @@ private:
         File file = LittleFS.open("/slots_config.json", "r");
         if (file)
         {
-            DeserializationError error = deserializeJson(slotsConfig, file);
+            DeserializationError ERROR = deserializeJson(slotsConfig, file);
             file.close();
-            if (error)
+            if (ERROR)
             {
                 saveSlotsConfig(true);
             }
             else
             {
-                Serial.println("Info: Slots configuration loaded.");
+                if (DEBUG)
+                {
+                    Serial.printf("DEBUG: Slots configuration loaded: ");
+                    serializeJson(slotsConfig, Serial);
+                    Serial.println();
+                }
             }
         }
         else
@@ -209,8 +219,7 @@ private:
     }
 
 public:
-    Ticker updateMovementTicker; // Ticker to update the movement
-
+    volatile bool updateMovementScheduled = false;
     Autosampler(uint8_t pulse, uint8_t direction, uint8_t enable)
         : pulsePin(pulse),
           directionPin(direction),
@@ -229,16 +238,18 @@ public:
         digitalWrite(directionPin, LOW);
         digitalWrite(enablePin, HIGH); // disable motor initially
 
-        pool = alarm_pool_create_with_unused_hardware_alarm(1); // create an alarm pool
+        pool = alarm_pool_create_with_unused_hardware_alarm(2);   // create an alarm pool
+        irq_set_priority(alarm_pool_timer_alarm_num(pool), 0x00); // set highest priority for the alarm pool timer
         loadConfiguration();
         loadSlotsConfig();
+        failSafePosition = slotsConfig["fail-safe"].as<int>();
     }
 
     void moveToPosition(int position)
     {
         if (moveInProgress)
         {
-            Serial.println("Error: Movement already in progress, you should stop the current movement first.");
+            Serial.println("ERROR: Movement already in progress, this movement command will be ignored. If you want to change the position, you should stop the current movement first.");
             return;
         }
         position = constrain(position, 0, MAX_POSITION);
@@ -249,7 +260,7 @@ public:
         }
         if (steps == 0)
         {
-            Serial.println("Success: Already at the target position.");
+            Serial.println("SUCCESS: Already at the target position.");
             return;
         }
 
@@ -263,25 +274,27 @@ public:
         moveStartTime = micros();
 
         enableStepper(true);
+
+        moveAlarmId = alarm_pool_add_alarm_in_us(pool, 0, updateMovementCallback, this, true);
     }
     void updateMovement()
     {
         if (!moveInProgress)
         {
-            // moveAlarmId = add_alarm_in_ms(rampProfile[0], updateMovementCallback, this, false);
-            moveAlarmId = alarm_pool_add_alarm_in_us(pool, rampProfile[0], updateMovementCallback, this, false);
             return;
         }
         if (stopRequested)
         {
             stopMovementWrapUp();
-            Serial.println("Info: Movement interrupted by user");
+            Serial.println("INFO: Movement interrupted by user");
             return;
         }
         unsigned long interval = getStepInterval();
         digitalWrite(pulsePin, HIGH);
-        delayMicroseconds((unsigned int)interval);
-        digitalWrite(pulsePin, LOW);
+        // schedule the next callback to set the pin low after the duty cycle
+        // and schedule the next updateMovement callback after the full interval
+        moveAlarmId = alarm_pool_add_alarm_in_us(pool, interval * dutyCycle, setPinLowCallback, this, false);
+        moveAlarmId = alarm_pool_add_alarm_in_us(pool, interval, updateMovementCallback, this, false);
         stepsRemaining--;
         stepsTaken++;
         currentPosition += currentDirection ? 1 : -1;
@@ -294,10 +307,8 @@ public:
         if (stepsRemaining <= 0)
         {
             stopMovementWrapUp();
-            return;
+            Serial.printf("INFO: movement completed, currentPosition=%d\n", currentPosition);
         }
-        // moveAlarmId = add_alarm_in_ms(interval, updateMovementCallback, this, false);
-        moveAlarmId = alarm_pool_add_alarm_in_us(pool, interval, updateMovementCallback, this, false);
     }
     void stopMovement()
     {
@@ -329,28 +340,29 @@ public:
     void setFailSafePosition(int position)
     {
         failSafePosition = constrain(position, 0, MAX_POSITION);
-        saveConfiguration();
+        slotsConfig["fail-safe"] = failSafePosition;
+        saveSlotsConfig();
     }
     void moveToSlot(String slot)
     {
         if (!slotsConfig[slot].is<JsonVariant>())
         {
-            Serial.printf("Error: Slot %s not found.\n", slot);
+            Serial.printf("ERROR: Slot %s not found.\n", slot.c_str());
             return;
         }
         int targetPosition = slotsConfig[slot].as<int>();
-        Serial.printf("Info: Moving to slot %s\n", slot);
+        Serial.printf("INFO: Moving to slot %s\n", slot.c_str());
         moveToPosition(targetPosition);
     }
     void setSlotPosition(String slot, int position)
     {
         if (slotsConfig[slot].is<JsonVariant>())
         {
-            Serial.printf("Success: Slot %s position updated to %d\n", slot, position);
+            Serial.printf("SUCCESS: Slot %s position updated to %d\n", slot.c_str(), position);
         }
         else
         {
-            Serial.printf("Success: Slot %s position set to %d\n", slot, position);
+            Serial.printf("SUCCESS: Slot %s position set to %d\n", slot.c_str(), position);
         }
         slotsConfig[slot] = constrain(position, 0, MAX_POSITION);
         saveSlotsConfig();
@@ -359,16 +371,21 @@ public:
     {
         if (!slotsConfig[slot].is<JsonVariant>())
         {
-            Serial.printf("Error: Slot %s not found.\n", slot);
+            Serial.printf("ERROR: Slot %s not found.\n", slot.c_str());
+            return;
+        }
+        if (slot.equalsIgnoreCase("fail-safe"))
+        {
+            Serial.println("ERROR: Cannot delete fail-safe slot.");
             return;
         }
         slotsConfig.remove(slot);
         saveSlotsConfig();
-        Serial.printf("Success: Slot %s deleted.\n", slot);
+        Serial.printf("SUCCESS: Slot %s deleted.\n", slot.c_str());
     }
     void dumpSlotsConfig()
     {
-        Serial.print("Info: Slots configuration: ");
+        Serial.print("INFO: Slots configuration: ");
         serializeJson(slotsConfig, Serial);
         Serial.println();
     }
@@ -382,7 +399,7 @@ void parseInputString()
     inputString.trim(); // trim
     if (inputString.length() == 0)
     {
-        Serial.println("Error: Empty command.");
+        Serial.println("ERROR: Empty command.");
         return;
     }
     // split the input string into values
@@ -409,14 +426,13 @@ void parseInputString()
 
     if (valueCount <= 0)
     {
-        Serial.println("Error: Invalid command format, expected format is <command>:<value1>:<value2>...");
+        Serial.println("ERROR: Invalid command format, expected format is <command>:<value1>:<value2>...");
         return;
     }
 
     String command = values[0];
 
-    // print back the parsed values
-    if (DEBUG)
+    if (DEBUG) // print back the parsed values
     {
         Serial.print("DEBUG: Command received: ");
         for (int i = 0; i < valueCount; i++)
@@ -432,7 +448,7 @@ void parseInputString()
 
     if (command == "help")
     {
-        Serial.println("Info: Autosampler control commands:");
+        Serial.println("INFO: Autosampler control commands:");
         Serial.println("    help - Show this help message.");
         Serial.println("    ping - Check the connection to the autosampler.");
         Serial.println("    setPosition:<position> - Set the current position of the autosampler.");
@@ -451,12 +467,12 @@ void parseInputString()
         Serial.println("    gtime - Get the RTC time on the device.");
         Serial.println("    reset - Reset the device.");
     }
-    else if (command == "stop")
+    else if (command.equalsIgnoreCase("stop"))
     {
         autosampler.stopMovement();
-        Serial.println("Info: Movement stopped.");
+        Serial.println("INFO: Movement stopped.");
     }
-    else if (command == "moveTo")
+    else if (command.equalsIgnoreCase("moveTo"))
     {
         if (valueCount == 2)
         {
@@ -464,25 +480,25 @@ void parseInputString()
             // check if position is a int using C++ method
             if (targetPosition == 0 && values[1] != "0")
             {
-                Serial.println("Error: Invalid target position value, expected an integer.");
+                Serial.println("ERROR: Invalid target position value, expected an integer.");
             }
             else
             {
                 autosampler.moveToPosition(targetPosition);
-                Serial.println("Info: Moving to position " + String(autosampler.getCurrentPosition()));
+                Serial.println("INFO: Moving to position " + String(autosampler.getCurrentPosition()));
             }
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is moveTo:<position>");
+            Serial.println("ERROR: Invalid command format, expected format is moveTo:<position>");
         }
     }
-    else if (command == "ping")
+    else if (command.equalsIgnoreCase("ping"))
     {
-        Serial.println("Ping: Pico Autosampler Control Version " + String(version));
+        Serial.println("PING: Autosampler Control Version " + String(version));
     }
-    else if (command == "stime") // set the RTC time on device
-    // format "0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+    else if (command.equalsIgnoreCase("stime")) // set the RTC time on device
+    // format "stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
     {
         if (valueCount == 7)
         {
@@ -496,18 +512,18 @@ void parseInputString()
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is stime:<year>:<month>:<day>:<hour>:<minute>:<second>");
+            Serial.println("ERROR: Invalid command format, expected format is stime:<year>:<month>:<day>:<hour>:<minute>:<second>");
         }
     }
-    else if (command == "gtime") // get the RTC time on device
+    else if (command.equalsIgnoreCase("gtime")) // get the RTC time on device
     {
         printDateTime();
     }
-    else if (command == "reset")
+    else if (command.equalsIgnoreCase("reset"))
     {
         hardwareReset();
     }
-    else if (command == "setPosition")
+    else if (command.equalsIgnoreCase("setPosition"))
     {
         if (valueCount == 2)
         {
@@ -515,103 +531,106 @@ void parseInputString()
             // check if position is a int using C++ method
             if (position == 0 && values[1] != "0")
             {
-                Serial.println("Error: Invalid position value, expected an integer.");
+                Serial.println("ERROR: Invalid position value, expected an integer.");
             }
             autosampler.setCurrentPosition(position);
-            Serial.println("Info: Position set to: " + String(autosampler.getCurrentPosition()));
+            Serial.println("INFO: Position set to: " + String(autosampler.getCurrentPosition()));
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is setPosition:<position>");
+            Serial.println("ERROR: Invalid command format, expected format is setPosition:<position>");
         }
     }
-    else if (command == "getPosition")
+    else if (command.equalsIgnoreCase("getPosition"))
     {
-        Serial.println("Info: Current position: " + String(autosampler.getCurrentPosition()));
+        Serial.println("INFO: Current position: " + String(autosampler.getCurrentPosition()));
     }
-    else if (command == "setDirection")
+    else if (command.equalsIgnoreCase("setDirection"))
     {
         if (valueCount == 2)
         {
             bool direction = (values[1] == "1" || values[1].equalsIgnoreCase("left"));
             if (direction)
             {
-                Serial.println("Info: Direction set to: Left");
+                Serial.println("INFO: Direction set to: Left");
             }
             else
             {
-                Serial.println("Info: Direction set to: Right");
+                Serial.println("INFO: Direction set to: Right");
             }
             autosampler.setCurrentDirection(direction);
-            Serial.println("Info: Direction set to: " + String(autosampler.getCurrentDirection()));
+            Serial.println("INFO: Direction set to: " + String(autosampler.getCurrentDirection()));
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is setDirection:<direction>");
+            Serial.println("ERROR: Invalid command format, expected format is setDirection:<direction>");
         }
     }
-    else if (command == "getDirection")
+    else if (command.equalsIgnoreCase("getDirection"))
     {
-        Serial.println("Info: Current direction: " + autosampler.getCurrentDirection());
+        Serial.println("INFO: Current direction: " + autosampler.getCurrentDirection());
     }
-    else if (command == "getFailSafePosition")
+    else if (command.equalsIgnoreCase("getFailSafePosition"))
     {
-        Serial.println("Info: Fail safe position: " + String(autosampler.getFailSafePosition()));
+        Serial.println("INFO: Fail safe position: " + String(autosampler.getFailSafePosition()));
     }
-    else if (command == "setFailSafePosition")
+    else if (command.equalsIgnoreCase("setFailSafePosition"))
     {
         if (valueCount == 2)
         {
             int failSafePosition = values[1].toInt();
             autosampler.setFailSafePosition(failSafePosition);
-            Serial.println("Info: Fail safe position set to: " + String(autosampler.getFailSafePosition()));
+            Serial.println("INFO: Fail safe position set to: " + String(autosampler.getFailSafePosition()));
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is setFailSafePosition:<position>");
+            Serial.println("ERROR: Invalid command format, expected format is setFailSafePosition:<position>");
         }
     }
-    else if (command == "moveToSlot")
+    else if (command.equalsIgnoreCase("moveToSlot"))
     {
         if (valueCount == 2)
         {
-            autosampler.moveToSlot(values[1]);
+            String slot = values[1];
+            autosampler.moveToSlot(slot);
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is moveToSlot:<slot>");
+            Serial.println("ERROR: Invalid command format, expected format is moveToSlot:<slot>");
         }
     }
-    else if (command == "setSlotPosition")
+    else if (command.equalsIgnoreCase("setSlotPosition"))
     {
         if (valueCount == 3)
         {
+            String slot = values[1];
             int position = values[2].toInt();
-            autosampler.setSlotPosition(values[1], position);
+            autosampler.setSlotPosition(slot, position);
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is setSlotPosition:<slot>:<position>");
+            Serial.println("ERROR: Invalid command format, expected format is setSlotPosition:<slot>:<position>");
         }
     }
-    else if (command == "deleteSlotPosition")
+    else if (command.equalsIgnoreCase("deleteSlotPosition"))
     {
         if (valueCount == 2)
         {
-            autosampler.deleteSlotPosition(values[1]);
+            String slot = values[1];
+            autosampler.deleteSlotPosition(slot);
         }
         else
         {
-            Serial.println("Error: Invalid command format, expected format is deleteSlotPosition:<slot>");
+            Serial.println("ERROR: Invalid command format, expected format is deleteSlotPosition:<slot>");
         }
     }
-    else if (command == "dumpSlotsConfig")
+    else if (command.equalsIgnoreCase("dumpSlotsConfig"))
     {
         autosampler.dumpSlotsConfig();
     }
     else
     {
-        Serial.println("Error: Unknown command, type '0:help' for a list of commands.");
+        Serial.println("ERROR: Unknown command, type 'help' for a list of commands.");
     }
 
     stringComplete = false;
@@ -650,11 +669,15 @@ void setup()
     }
 
     autosampler.begin(); // Initialize the autosampler
-    autosampler.updateMovement();
 }
 
 void loop()
 {
+    if (autosampler.updateMovementScheduled)
+    {
+        autosampler.updateMovement();
+        autosampler.updateMovementScheduled = false;
+    }
     if (stringComplete)
     {
         parseInputString();
@@ -677,7 +700,7 @@ void serialEvent()
         }
         else if (inputString.length() >= MAX_BUFFER_SIZE)
         {
-            Serial.println("Error: Input command too long.");
+            Serial.println("ERROR: Input command too long.");
             inputString = "";
         }
         digitalWrite(LED_PIN, HIGH);
