@@ -203,6 +203,7 @@ void parseInputString()
 
     // push the number of pulses to gate to the PIO state machine
     pio_sm_put_blocking(pio, sm, N);
+    unsigned long waitStart = millis();
     Serial.printf("Queued %d pulses to gate...\n", N);
 
     // 3) If T>0, we'll forcibly exit after T seconds
@@ -211,8 +212,6 @@ void parseInputString()
         Serial.printf("Waiting %f seconds, then forcing exit mid-way\n", T);
         delayMicroseconds((uint)(T * 1000000)); // wait T seconds
         gpio_put(JMP_PIN, 1);                   // forcibly exit
-        delay(50);
-        gpio_put(JMP_PIN, 0);
     }
     else
     {
@@ -222,26 +221,26 @@ void parseInputString()
     // 4) Wait for pio_irq_fired => gating done
     // But if there's no forced exit, the SM will exit after N pulses.
     // If forced exit, it might exit mid-step.
-    unsigned long waitStart = millis();
-    unsigned long TIMEOUT_MS = (T * 1.1f * 1000);
+    unsigned long TIMEOUT_MS = (unsigned long)(T * 1.1f * 1000);
     // in case T is large, we wait T + a little
     while (!pio_irq_fired)
     {
-        if (millis() - waitStart > TIMEOUT_MS)
+        if (TIMEOUT_MS > 0 and millis() - waitStart > TIMEOUT_MS)
         {
             Serial.printf("ERROR: Timeout waiting for pio signal completion after %lu ms\n", TIMEOUT_MS);
-            break;
         }
-        delay(10);
     }
-
+    unsigned long finishTime = millis();
     if (pio_irq_fired)
     {
         pio_irq_fired = false;
         Serial.println("Gating completed or forcibly exited!");
-        float frequency = (float)g_pulseCount / ((millis() - waitStart) / 1000.0f);
-        Serial.printf("Counted %d pulses on the test pin, frequency = %f Hz\n", g_pulseCount, frequency);
+        float waitTime = (float)(finishTime - waitStart) / 1000.0f; // seconds
+        float frequency = (float)g_pulseCount / waitTime;           // Hz
+        Serial.printf("Counted %d pulses on the test pin, waited %f seconds, frequency = %f Hz\n", g_pulseCount, waitTime, frequency);
     }
+
+    gpio_put(JMP_PIN, 0);
 }
 
 void serialEvent()
