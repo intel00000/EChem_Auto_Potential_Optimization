@@ -1490,6 +1490,7 @@ class PicoController:
         # Extract the JSON part of the response
         config_str = response.replace("INFO: Slots configuration: ", "").strip()
         try:
+            previous_value = self.slot_combobox_as.get()
             autosampler_config = json.loads(config_str)
             slots = list(autosampler_config.keys())
             slots.sort(
@@ -1499,8 +1500,12 @@ class PicoController:
                 )
             )
             self.slot_combobox_as["values"] = slots
-            if slots:
-                self.slot_combobox_as.current(0)  # Set the first slot as default
+
+            if previous_value in slots:
+                self.slot_combobox_as.current(slots.index(previous_value))
+            else:
+                if len(slots) > 0:
+                    self.slot_combobox_as.current(0)
             logging.info(f"Slots populated: {slots}")
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding autosampler configuration: {e}")

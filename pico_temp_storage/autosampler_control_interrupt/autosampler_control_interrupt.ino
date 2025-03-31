@@ -8,7 +8,7 @@
 
 #define LED_PIN LED_BUILTIN
 
-const bool DEBUG = true; // Set to true to enable debug messages
+const bool DEBUG = false; // Set to true to enable debug messages
 
 String inputString = "";              // a string to hold incoming data
 volatile bool stringComplete = false; // whether the string is complete
@@ -16,7 +16,7 @@ volatile bool stringComplete = false; // whether the string is complete
 const float version = 0.01;     // version of the code
 const int MAX_POSITION = 16000; // Maximum position of the stepper motor
 
-const int PULSE_PIN = 12;
+const int PULSE_PIN = 22;
 const int DIRECTION_PIN = 14;
 const int ENABLE_PIN = 15;
 
@@ -632,9 +632,6 @@ void parseInputString()
     {
         Serial.println("ERROR: Unknown command, type 'help' for a list of commands.");
     }
-
-    stringComplete = false;
-    inputString = ""; // clear the input string
 }
 
 void setup()
@@ -681,6 +678,8 @@ void loop()
     if (stringComplete)
     {
         parseInputString();
+        stringComplete = false;
+        inputString = ""; // clear the input string
     }
 }
 

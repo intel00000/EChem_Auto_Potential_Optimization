@@ -28,7 +28,7 @@ const int BAUD_RATE = 115200;    // Baud rate for serial communication
 const int rampProfile[] = {
     10'000, 10'000, 10'000, 10'000, 10'000,
     9'000, 9'000, 9'000, 9'000, 8'000, 8'000, 8'000, 8'000, 7'000, 7'000, 7'000, 7'000, 6'000, 6'000, 6'000, 6'000,
-    5'000, 5'000, 5'000, 4'000, 4'000, 4'000, 3'000, 3'000, 3'000, 2'000, 2'000};
+    5'000, 5'000, 5'000, 4'000, 4'000, 4'000, 3'000, 3'000};
 ;
 const int rampProfileLength = sizeof(rampProfile) / sizeof(rampProfile[0]);
 
@@ -616,9 +616,6 @@ void parseInputString()
     {
         Serial.println("ERROR: Unknown command, type 'help' for a list of commands.");
     }
-
-    stringComplete = false;
-    inputString = ""; // clear the input string
 }
 
 void setup()
@@ -661,6 +658,8 @@ void loop()
     if (stringComplete)
     {
         parseInputString();
+        stringComplete = false;
+        inputString = ""; // clear the input string
     }
 }
 
