@@ -58,7 +58,15 @@ oled = SSD1306_I2C(width, height, i2c, addr=oled_address)
 
 # Function to display elapsed time since boot
 def display_elapsed_time():
-    global start_time, adc2_sum, temp_sum, adc2_avg, temp_avg, count, adc2_voltage, temp_celsius
+    global \
+        start_time, \
+        adc2_sum, \
+        temp_sum, \
+        adc2_avg, \
+        temp_avg, \
+        count, \
+        adc2_voltage, \
+        temp_celsius
     oled.fill(0)  # clear the display
     oled.show()
     oled.fill(1)  # fill the display with white

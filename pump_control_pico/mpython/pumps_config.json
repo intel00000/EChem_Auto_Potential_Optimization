@@ -1,0 +1,42 @@
+{
+	"1": {
+		"power_pin_id": 18,
+		"direction_pin_id": 17,
+		"initial_power_pin_value": 0,
+		"initial_direction_pin_value": 0,
+		"power_status": "OFF",
+		"direction_status": "CW"
+	},
+	"2": {
+		"power_pin_id": 16,
+		"direction_pin_id": 14,
+		"initial_power_pin_value": 0,
+		"initial_direction_pin_value": 0,
+		"power_status": "OFF",
+		"direction_status": "CW"
+	},
+	"3": {
+		"power_pin_id": 7,
+		"direction_pin_id": 15,
+		"initial_power_pin_value": 0,
+		"initial_direction_pin_value": 0,
+		"power_status": "OFF",
+		"direction_status": "CW"
+	},
+	"4": {
+		"power_pin_id": 0,
+		"direction_pin_id": 1,
+		"initial_power_pin_value": 0,
+		"initial_direction_pin_value": 0,
+		"power_status": "OFF",
+		"direction_status": "CW"
+	},
+	"5": {
+		"power_pin_id": 2,
+		"direction_pin_id": 3,
+		"initial_power_pin_value": 0,
+		"initial_direction_pin_value": 0,
+		"power_status": "OFF",
+		"direction_status": "CW"
+	}
+}

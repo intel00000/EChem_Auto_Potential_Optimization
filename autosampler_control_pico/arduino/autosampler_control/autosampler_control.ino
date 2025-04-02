@@ -13,7 +13,8 @@ const bool DEBUG = false; // Set to true to enable debug messages
 String inputString = "";              // a string to hold incoming data
 volatile bool stringComplete = false; // whether the string is complete
 
-const float version = 0.01;     // version of the code
+const float version = 1.0;      // Version of the autosampler control software
+const int MIN_POSITION = 0;     // Minimum position of the stepper motor
 const int MAX_POSITION = 16000; // Maximum position of the stepper motor
 
 const int PULSE_PIN = 12;
@@ -28,7 +29,7 @@ const int BAUD_RATE = 115200;    // Baud rate for serial communication
 const int rampProfile[] = {
     10'000, 10'000, 10'000, 10'000, 10'000,
     9'000, 9'000, 9'000, 9'000, 8'000, 8'000, 8'000, 8'000, 7'000, 7'000, 7'000, 7'000, 6'000, 6'000, 6'000, 6'000,
-    5'000, 5'000, 5'000, 4'000, 4'000, 4'000, 3'000, 3'000};
+    5'000, 5'000, 5'000};
 ;
 const int rampProfileLength = sizeof(rampProfile) / sizeof(rampProfile[0]);
 
@@ -376,6 +377,14 @@ public:
         saveSlotsConfig();
         Serial.printf("SUCCESS: Slot %s deleted.\n", slot.c_str());
     }
+    void moveToLeftMost()
+    {
+        moveToPosition(MAX_POSITION);
+    }
+    void moveToRightMost()
+    {
+        moveToPosition(MIN_POSITION);
+    }
     void dumpSlotsConfig()
     {
         Serial.print("INFO: Slots configuration: ");
@@ -451,6 +460,8 @@ void parseInputString()
         Serial.println("    getFailSafePosition - Get the fail safe position of the autosampler.");
         Serial.println("    setFailSafePosition:<position> - Set the fail safe position of the autosampler.");
         Serial.println("    moveTo:<position> - Move to a specific position.");
+        Serial.println("    moveToLeftMost - Move to the left most position.");
+        Serial.println("    moveToRightMost - Move to the right most position.");
         Serial.println("    stop - Stop the autosampler movement.");
         Serial.println("    moveToSlot:<slot> - Move to a specific slot.");
         Serial.println("    setSlotPosition:<slot>:<position> - Set the position of a slot.");
@@ -611,6 +622,14 @@ void parseInputString()
     else if (command.equalsIgnoreCase("dumpSlotsConfig"))
     {
         autosampler.dumpSlotsConfig();
+    }
+    else if (command.equalsIgnoreCase("moveToLeftMost"))
+    {
+        autosampler.moveToLeftMost();
+    }
+    else if (command.equalsIgnoreCase("moveToRightMost"))
+    {
+        autosampler.moveToRightMost();
     }
     else
     {
