@@ -90,6 +90,7 @@ class PicoController:
         self.autosamplers = None
         self.autosamplers_send_queue = Queue()
         self.autosamplers_rtc_time = "Autosampler Time: --:--:--"
+        self.autosamplers_slots = {}
 
         # Dataframe to store the recipe
         self.recipe_df = None
@@ -579,6 +580,22 @@ class PicoController:
             text="Go to",
             command=self.goto_position_as,
         )
+        self.current_position_frame_as = ttk.Frame(self.manual_control_frame_as)
+        self.current_position_frame_as.grid(
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.current_position_label_as = ttk.Label(
+            self.current_position_frame_as, text="Current position: "
+        )
+        self.current_position_label_as.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.current_position_value_as = ttk.Label(
+            self.current_position_frame_as, text="N/A"
+        )
+        self.current_position_value_as.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
         self.goto_position_button_as.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
@@ -598,18 +615,6 @@ class PicoController:
         self.set_position_button_as.grid(
             row=0, column=5, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.current_position_label_as = ttk.Label(
-            self.manual_control_frame_as, text="Current position: "
-        )
-        self.current_position_label_as.grid(
-            row=0, column=6, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        self.current_position_value_as = ttk.Label(
-            self.manual_control_frame_as, text="N/A"
-        )
-        self.current_position_value_as.grid(
-            row=0, column=7, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
 
         # Slots selection
         self.slot_label_as = ttk.Label(
@@ -623,6 +628,25 @@ class PicoController:
         )
         self.slot_combobox_as.grid(
             row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        # on change of the slot_combobox_as, update the slot position label
+        self.slot_combobox_as.bind(
+            "<<ComboboxSelected>>",
+            self.on_slot_combobox_selected,
+        )
+        self.slot_position_frame_as = ttk.Frame(self.manual_control_frame_as)
+        self.slot_position_frame_as.grid(
+            row=1, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.slot_position_label_as = ttk.Label(
+            self.slot_position_frame_as, text="Slot position:"
+        )
+        self.slot_position_label_as.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.slot_position_value_as = ttk.Label(self.slot_position_frame_as, text="N/A")
+        self.slot_position_value_as.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.goto_slot_button_as = ttk.Button(
             self.manual_control_frame_as, text="Go to slot", command=self.goto_slot_as
@@ -655,13 +679,13 @@ class PicoController:
         # call update_Entry_callback during focus in and out to update the Entry field
         self.update_slot_slotname_as.bind(
             "<FocusIn>",
-            lambda event: self.update_Entry_callback(
+            lambda event: self.update_Entry_callback_as(
                 self.update_slot_slotname_as, event, "Enter slot name here..."
             ),
         )
         self.update_slot_slotname_as.bind(
             "<FocusOut>",
-            lambda event: self.update_Entry_callback(
+            lambda event: self.update_Entry_callback_as(
                 self.update_slot_slotname_as, event, "Enter slot name here..."
             ),
         )
@@ -679,13 +703,13 @@ class PicoController:
         # call update_Entry_callback during focus in and out to update the Entry field
         self.update_slot_position_as.bind(
             "<FocusIn>",
-            lambda event: self.update_Entry_callback(
+            lambda event: self.update_Entry_callback_as(
                 self.update_slot_position_as, event, "Enter position here..."
             ),
         )
         self.update_slot_position_as.bind(
             "<FocusOut>",
-            lambda event: self.update_Entry_callback(
+            lambda event: self.update_Entry_callback_as(
                 self.update_slot_position_as, event, "Enter position here..."
             ),
         )
@@ -1491,8 +1515,9 @@ class PicoController:
         config_str = response.replace("INFO: Slots configuration: ", "").strip()
         try:
             previous_value = self.slot_combobox_as.get()
-            autosampler_config = json.loads(config_str)
-            slots = list(autosampler_config.keys())
+            self.autosamplers_slots.clear()
+            self.autosamplers_slots.update(json.loads(config_str))
+            slots = list(self.autosamplers_slots.keys())
             slots.sort(
                 key=lambda x: (
                     not x.isdigit(),
@@ -1506,6 +1531,7 @@ class PicoController:
             else:
                 if len(slots) > 0:
                     self.slot_combobox_as.current(0)
+            self.slot_combobox_as.event_generate("<<ComboboxSelected>>")
             logging.info(f"Slots populated: {slots}")
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding autosampler configuration: {e}")
@@ -2235,20 +2261,31 @@ class PicoController:
                     message=f"An error occurred in function update_slot_as: {e}",
                 )
 
-    def update_Entry_callback(
-        self, entry_obj: tk.Entry, event=None, default_value="placeholder"
+    def update_Entry_callback_as(
+        self, entry_obj: tk.Entry, event: tk.Event, default_value="placeholder"
     ):  # use this to put a default grey text in the text entry
         # if it's a focus out even,we check if the value is empty and set it to the default value
         # if it's a focus in event, we check if the value is the default value and clear it
-        if event:
-            if event.type == tk.EventType.FocusIn and entry_obj.get() == default_value:
-                entry_obj.delete(0, tk.END)
-                entry_obj.insert(0, "")
-                entry_obj["foreground"] = "black"
-            if event.type == tk.EventType.FocusOut and entry_obj.get() == "":
-                entry_obj.delete(0, tk.END)
-                entry_obj.insert(0, default_value)
-                entry_obj["foreground"] = "grey"
+        if event.type == tk.EventType.FocusIn and entry_obj.get() == default_value:
+            entry_obj.delete(0, tk.END)
+            entry_obj.insert(0, "")
+            entry_obj["foreground"] = "black"
+        if event.type == tk.EventType.FocusOut and entry_obj.get() == "":
+            entry_obj.delete(0, tk.END)
+            entry_obj.insert(0, default_value)
+            entry_obj["foreground"] = "grey"
+
+    def on_slot_combobox_selected(
+        self,
+        event: tk.Event,
+    ):
+        selected_slot = self.slot_combobox_as.get()
+        if selected_slot in self.autosamplers_slots:
+            self.slot_position_value_as.config(
+                text=f"{self.autosamplers_slots[selected_slot]}"
+            )
+        else:
+            self.slot_position_value_as.config(text="N/A")
 
     def add_pump_widgets(self, controller_id, response):
         try:
