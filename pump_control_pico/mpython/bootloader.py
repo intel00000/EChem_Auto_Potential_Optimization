@@ -187,6 +187,10 @@ def bootloader():
             autosampler_control_pico.main()
         elif mode == "update_firmware":
             update_firmware()
+        elif mode == "potentiostat":
+            import potentiostat_control_pico
+
+            potentiostat_control_pico.main()
         else:
             import pump_control_pico
 
