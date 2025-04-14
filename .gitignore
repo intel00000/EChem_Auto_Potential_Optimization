@@ -15,7 +15,6 @@ Scripts/
 
 # ignore MicroPico extension idenity file
 temp/
-.micropico
 
 # exclude by extension
 *.chk
@@ -27,7 +26,6 @@ temp/
 *.log
 *.mae
 *.maegz
-*.micropico
 *.pkl
 *.pyo
 *.pyc

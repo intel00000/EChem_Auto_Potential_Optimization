@@ -429,17 +429,15 @@ def main():
                                 "Error: Invalid input, expected format '0:stime:year:month:day:day_of_week:hour:minute:second'"
                             )
                     elif command == "set_mode":
-                        if len(parts) == 3:
+                        if len(parts) >= 3:
                             mode = str(parts[2])
-                            try:
-                                set_bootloader_mode(mode)
-                                write_message(f"Success: bootloader set to {mode} mode")
-                            except Exception as e:
-                                write_message(f"Error: {e}")
                         else:
-                            write_message(
-                                "Error: Invalid input, expected format '0:set_mode:mode', mode can be either 'pump' or 'autosampler' or 'update_firmware'"
-                            )
+                            mode = "None"
+                        try:
+                            set_bootloader_mode(mode)
+                            write_message(f"Success: bootloader set to {mode} mode")
+                        except Exception as e:
+                            write_message(f"Error: {e}")
                     elif pump_num == 0:
                         if command == "st":
                             send_status(0)

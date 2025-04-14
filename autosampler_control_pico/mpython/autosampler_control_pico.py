@@ -181,47 +181,39 @@ class Autosampler:
             self.is_power_on = False
 
     def move_to_position(self, position) -> None:
-        position = int(position)
-        # position cannot be negative or exceed MAX_POSITION
-        if position < 0 or position > MAX_POSITION:
-            self.write_message(
-                f"Error: Position cannot be negative or exceed {MAX_POSITION}."
-            )
-            return
+        if position:
+            position = int(position)
+            # clamp position to valid range
+            position = max(0, min(position, MAX_POSITION))
 
-        initial_position = self.current_position
-        start_time = time.ticks_us()
-        self.move_auto_sampler(position - self.current_position)
-        end_time = time.ticks_us()
-        self.write_message(
-            f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
-        )
+            initial_position = self.current_position
+            start_time = time.ticks_us()
+            self.move_auto_sampler(position - self.current_position)
+            end_time = time.ticks_us()
+            self.write_message(
+                f"Info: moved to position {position} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
+            )
+        else:
+            self.write_message("Error: Invalid position input.")
 
     def move_to_slot(self, slot) -> None:
-        if slot not in self.autosampler_config:
-            self.write_message(f"Error: Slot {slot} not found in the configuration")
-            return
-        position = int(self.autosampler_config[slot])
+        if slot:
+            if slot not in self.autosampler_config:
+                self.write_message(f"Error: Slot {slot} not found in the configuration")
+                return
+            position = int(self.autosampler_config[slot])
 
-        initial_position = self.current_position
-        start_time = time.ticks_us()
-        self.move_to_position(position)
-        end_time = time.ticks_us()
-        self.write_message(
-            f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
-        )
-
-    def move_to_fail_safe(self) -> None:
-        self.write_message("Moving to fail-safe position.")
-        position = int(self.fail_safe_position)
-        self.move_to_position(position)
-
-    def toggle_direction(self) -> None:
-        self.current_direction = 1 - self.current_direction
-        self.save_status()
-        self.write_message(
-            f"Success: Direction toggled to {self.direction_map[self.current_direction]}"
-        )
+            initial_position = self.current_position
+            start_time = time.ticks_us()
+            self.move_to_position(position)
+            end_time = time.ticks_us()
+            self.write_message(
+                f"Info: moved to slot {slot} in {time.ticks_diff(end_time, start_time) / 1000000} seconds. relative position: {position - initial_position}"
+            )
+        else:
+            self.write_message(
+                f"Error: Invalid slot input, available slots: {list(self.autosampler_config.keys())}"
+            )
 
     def shutdown(self) -> None:
         self.move_auto_sampler(-self.current_position)
@@ -229,16 +221,110 @@ class Autosampler:
         self.write_message("Success: Autosampler position reset to initial position.")
 
     def setCurrentPosition(self, position) -> None:
-        new_position = max(0, min(position, MAX_POSITION))
-        self.current_position = new_position
-        self.save_config()
+        if position:
+            new_position = max(0, min(int(position), MAX_POSITION))
+            self.current_position = new_position
+            self.save_config()
+            self.write_message(f"SUCCESS: Position set to: {self.current_position}")
+        else:
+            self.write_message("Error: Invalid position input.")
 
     def getCurrentPosition(self) -> None:
         self.write_message(f"INFO: Current position: {self.current_position}")
-        
+
     def setCurrentDirection(self, direction: str) -> None:
-        if direction.upper()
-        
+        if direction:
+            if direction.upper() == "LEFT":
+                self.current_direction = 1
+            elif direction.upper() == "RIGHT":
+                self.current_direction = 0
+            self.write_message(
+                f"INFO: Direction set to: {self.direction_map[self.current_direction]}"
+            )
+        else:
+            self.write_message("Error: Invalid direction input, must be LEFT or RIGHT.")
+
+    def getCurrentDirection(self) -> None:
+        self.write_message(
+            f"INFO: Current direction: {self.direction_map[self.current_direction]}"
+        )
+
+    def getFailSafePosition(self) -> None:
+        self.write_message(f"INFO: Fail safe position: {self.fail_safe_position}")
+
+    def setFailSafePosition(self, position) -> None:
+        if position:
+            new_position = max(0, min(int(position), MAX_POSITION))
+            self.fail_safe_position = new_position
+            self.autosampler_config["fail_safe"] = self.fail_safe_position
+            self.save_config()
+            self.write_message(
+                f"INFO: Fail safe position set to: {self.fail_safe_position}"
+            )
+
+    def moveToLeftMost(self) -> None:
+        self.move_to_position(MAX_POSITION)
+
+    def moveToRightMost(self) -> None:
+        self.move_to_position(0)
+
+    def dumpSlotsConfig(self) -> None:
+        self.write_message(
+            f"INFO: Slots configuration: {json.dumps(self.autosampler_config)}"
+        )
+
+    def setSlotPosition(self, slot, position) -> None:
+        if slot and position:
+            # clamp position to valid range
+            position = max(0, min(int(position), MAX_POSITION))
+            self.autosampler_config[slot] = int(position)
+            if slot in self.autosampler_config:
+                self.save_config()
+                self.write_message(f"SUCCESS: Slot {slot} position set to {position}")
+            else:
+                self.save_config()
+                self.write_message(
+                    f"SUCCESS: Slot {slot} position updated to {position}"
+                )
+
+    def deleteSlot(self, slot) -> None:
+        if slot in self.autosampler_config:
+            self.autosampler_config.pop(slot)
+            self.save_config()
+            self.write_message(f"SUCCESS: Slot {slot} deleted.")
+        else:
+            self.write_message(f"Error: Slot {slot} not found.")
+
+
+def print_help_message():
+    print(
+        "Available commands:\n"
+        "help - Show this help message\n"
+        "ping - Ping the controller\n"
+        "setPosition:position - Set the current position of the autosampler\n"
+        "getPosition - Get the current position of the autosampler\n"
+        "setDirection:LEFT/RIGHT - Set the current direction of the autosampler\n"
+        "getDirection - Get the current direction of the autosampler\n"
+        "getFailSafePosition - Get the fail-safe position of the autosampler\n"
+        "setFailSafePosition:position - Set the fail-safe position of the autosampler\n"
+        "moveTo:position - Move to a specific position\n"
+        "moveToLeftMost - Move to the leftmost position\n"
+        "moveToRightMost - Move to the rightmost position\n"
+        "dumpSlotsConfig - Dump the current slots configuration\n"
+        "moveToSlot:slot - Move to a predefined slot in the configuration\n"
+        "setSlotPosition:slot:position - Set the position of a predefined slot\n"
+        "deleteSlot:slot - Delete a predefined slot from the configuration\n"
+        "gtime - Get the current RTC time\n"
+        "stime:year:month:day:dayoftheweek:hour:minute:second - Set the RTC time\n"
+        "reset - Perform a hard reset of the controller\n"
+        "set_mode:mode - Set bootloader mode (pump, autosampler, update_firmware)\n"
+        "below are old commands for compatibility\n"
+        "status - Send current status of the autosampler\n"
+        "config - Send current configuration of the autosampler\n"
+        "save_config - Save current configuration to file\n"
+        "save_status - Save current status to file\n"
+        "shutdown - Shutdown and reset autosampler position\n"
+    )
 
 
 def main():
@@ -285,23 +371,30 @@ def main():
     poll_obj.register(sys.stdin, select.POLLIN)
 
     commands = {
+        "ping": "ping",
         "setPosition": "setCurrentPosition",
         "getPosition": "getCurrentPosition",
-        "setDirection":
-        "getDirection": 
-        "position": "move_to_position",
-        "slot": "move_to_slot",
-        "direction": "toggle_direction",
+        "setDirection": "setCurrentDirection",
+        "getDirection": "getCurrentDirection",
+        "getFailSafePosition": "getFailSafePosition",
+        "setFailSafePosition": "setFailSafePosition",
+        "moveTo": "move_to_position",
+        "moveToLeftMost": "moveToLeftMost",
+        "moveToRightMost": "moveToRightMost",
+        "dumpSlotsConfig": "dumpSlotsConfig",
+        "moveToSlot": "move_to_slot",
+        "setSlotPosition": "setSlotPosition",
+        "deleteSlot": "deleteSlot",
+        "gtime": "get_time",
+        "stime": "set_time",
+        "reset": "hard_reset",
+        "set_mode": "set_bootloader_mode",
+        # old commands
         "status": "send_status",
         "config": "send_config",
         "save_config": "save_config",
         "save_status": "save_status",
         "shutdown": "shutdown",
-        "reset": "hard_reset",
-        "ping": "ping",
-        "gtime": "get_time",
-        "stime": "set_time",
-        "set_mode": "set_bootloader_mode",
     }
     commands_mapping_string = ", ".join(
         [f"{key} - {value}" for key, value in commands.items()]
@@ -335,35 +428,35 @@ def main():
                 # if the first item is a digit, then it's in format digit:command..., we don't care about the digit
                 if parts[0].isdigit() and len(parts) > 1:
                     parts = parts[1:]
-                command = parts[0].strip().lower()
+                command = parts[0].strip()
 
                 if command == "stime":
-                    if len(parts) == 7:  # Adjusted length
+                    if len(parts) == 8:  # Adjusted length
                         year = int(parts[1])
                         month = int(parts[2])
                         day = int(parts[3])
-                        hour = int(parts[4])
-                        minute = int(parts[5])
-                        second = int(parts[6])
+                        hour = int(parts[5])
+                        minute = int(parts[6])
+                        second = int(parts[7])
                         autosampler.set_time(year, month, day, hour, minute, second)
                     else:
                         autosampler.write_message(
-                            "Error: Invalid input, expected format 'stime:year:month:day:hour:minute:second'"
+                            "Error: Invalid input, expected format 'stime:year:month:day:dayoftheweek:hour:minute:second'"
                         )
                 elif command == "set_mode":
-                    if len(parts) == 2:
+                    if len(parts) >= 2:
                         mode = str(parts[1])
-                        try:
-                            set_bootloader_mode(mode)
-                            autosampler.write_message(
-                                f"Success: controller set to {mode} mode"
-                            )
-                        except Exception as e:
-                            autosampler.write_message(f"Error: {e}")
                     else:
+                        mode = "None"
+                    try:
+                        set_bootloader_mode(mode)
                         autosampler.write_message(
-                            "Error: Invalid input, expected format '0:set_mode:mode', mode can be either 'pump' or 'autosampler' or 'update_firmware'"
+                            f"Success: controller set to {mode} mode"
                         )
+                    except Exception as e:
+                        autosampler.write_message(f"Error: {e}")
+                elif command == "help":
+                    print_help_message()
                 elif command in commands:
                     method = getattr(autosampler, commands[command], None)
                     if method:
@@ -376,9 +469,7 @@ def main():
                             f"Warning: Command '{command}' not found."
                         )
                 else:
-                    autosampler.write_message(
-                        f"Warning: Invalid command, available commands: {commands_mapping_string}"
-                    )
+                    autosampler.write_message(f"Warning: Invalid command {command}")
         except Exception as e:
             autosampler.write_message(f"Error: An exception occurred - {str(e)}")
 
