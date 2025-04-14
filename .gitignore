@@ -31,7 +31,6 @@ temp/
 *.pkl
 *.pyo
 *.pyc
-*.png
 *.sdf
 *.xlsx
 *.zip
