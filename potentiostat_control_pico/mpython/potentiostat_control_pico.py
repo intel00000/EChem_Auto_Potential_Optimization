@@ -42,6 +42,17 @@ class Potentiostat:
         else:
             self.trigger_status = "LOW"
 
+    def set_trigger(self, status: str) -> bool:
+        if status.upper() == "HIGH":
+            self.trigger_pin.value(1)
+            self.trigger_status = "HIGH"
+        elif status.upper() == "LOW":
+            self.trigger_pin.value(0)
+            self.trigger_status = "LOW"
+        else:
+            return False
+        return True
+
     def get_status(self):
         return f"Trigger: {self.trigger_status}"
 
@@ -272,6 +283,7 @@ commands = {
     "time": "get_time",
     "stime": "set_time",
     "set_mode": "set_bootloader_mode",
+    "set_trigger": "set_trigger",
 }
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
@@ -416,6 +428,23 @@ def main():
                             shutdown()
                         elif command == "save":
                             save_potentiostats()
+                        elif command == "set_trigger":
+                            if len(parts) == 3:
+                                status = parts[2].strip()
+                                for id, potentiostat in potentiostats.items():
+                                    result = potentiostat.set_trigger(status)
+                                    if result:
+                                        write_message(
+                                            f"Info: Trigger status set to {status} for potentiostat {id}"
+                                        )
+                                    else:
+                                        write_message(
+                                            f"Error: Failed to set trigger status for potentiostat {id}"
+                                        )
+                            else:
+                                write_message(
+                                    "Error: Invalid input, expected format '0:set_trigger:trigger_status'"
+                                )
                         elif command in commands:
                             if command == "ping":
                                 ping()
@@ -448,6 +477,16 @@ def main():
                                 clear_potentiostats(potentiostat_num)
                             elif command == "save":
                                 save_potentiostats(potentiostat_num)
+                            elif command == "set_trigger":
+                                result = potentiostat.set_trigger(parts[2].strip())
+                                if result:
+                                    write_message(
+                                        f"Info: Trigger status set to {parts[2].strip()} for potentiostat {potentiostat_num}"
+                                    )
+                                else:
+                                    write_message(
+                                        f"Error: Failed to set trigger status for potentiostat {potentiostat_num}"
+                                    )
                             else:
                                 method = getattr(potentiostat, commands[command], None)
                                 if method:

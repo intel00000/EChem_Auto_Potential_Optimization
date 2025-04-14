@@ -75,7 +75,9 @@ class PicoController:
 
         # instance fields for the serial port and queue
         # we have multiple controller, the key is the id, the value is the serial port object
-        self.num_controllers = 5
+        self.num_pump_controllers = self.config.get("num_pump_controllers", 3)
+        self.config["num_pump_controllers"] = self.num_pump_controllers
+        save_config(self.config)
         self.pump_controllers = {}
         self.pump_controllers_connected = {}  # format is "controller_id: bool"
         self.pump_controllers_id_to_widget_map = {}
@@ -440,13 +442,10 @@ class PicoController:
         )
         # first in the port_select_frame
         # Create a row for each potential pump controller
-        for controller_id in range(1, self.num_controllers + 1):
+        for controller_id in range(1, self.num_pump_controllers + 1):
             self.add_pump_controller_widgets(
                 port_label="Pump Controller", controller_id=controller_id
             )
-        self.add_pump_controller_widgets(
-            port_label="Potentiostat Controller", controller_id=self.num_controllers
-        )
         current_row = self.port_select_frame.grid_size()[1]
         # second in the port_select_frame
         self.port_label_as = ttk.Label(self.port_select_frame, text="Autosampler:")
