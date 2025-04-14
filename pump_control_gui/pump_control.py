@@ -600,6 +600,55 @@ class PicoController:
         )
         # update the current row
         current_row += self.manual_control_frame.grid_size()[1]
+        # Potentiostat Manual Control frame
+        self.manual_control_frame_po = ttk.Labelframe(
+            root_frame,
+            text="Potentiostat Manual Control",
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+        )
+        self.manual_control_frame_po.grid(
+            row=current_row,
+            column=0,
+            columnspan=local_columnspan,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
+        self.current_triggle_state_label_po = ttk.Label(
+            self.manual_control_frame_po, text="Current Trigger State: "
+        )
+        self.current_triggle_state_label_po.grid(
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.current_triggle_state_value_po = ttk.Label(
+            self.manual_control_frame_po, text="N/A"
+        )
+        self.current_triggle_state_value_po.grid(
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.toggle_triggle_po_button = ttk.Button(
+            self.manual_control_frame_po,
+            text="Toggle Trigger",
+            command=self.toggle_trigger_po,
+        )
+        self.set_triggle_high = ttk.Button(
+            self.manual_control_frame_po,
+            text="Set Trigger High",
+            command=self.set_trigger_high_po,
+        )
+        self.set_triggle_high.grid(
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.set_triggle_low = ttk.Button(
+            self.manual_control_frame_po,
+            text="Set Trigger Low",
+            command=self.set_trigger_low_po,
+        )
+        self.set_triggle_low.grid(
+            row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        # update the current row
+        current_row += self.manual_control_frame.grid_size()[1]
 
         # Autosampler Manual Control frame
         self.manual_control_frame_as = ttk.Labelframe(
@@ -1865,6 +1914,15 @@ class PicoController:
                     title="Error",
                     message=f"An error occurred in function reset_po: {e}",
                 )
+
+    def toggle_trigger_po(self):
+        self.potentiostat_send_queue.put("0:tr")
+
+    def set_trigger_high_po(self):
+        self.potentiostat_send_queue.put("0:set_trigger:HIGH")
+
+    def set_trigger_low_po(self):
+        self.potentiostat_send_queue.put("0:set_trigger:LOW")
 
     def query_pump_info(self, controller_id):
         serial_obj = self.pump_controllers.get(controller_id, None)
