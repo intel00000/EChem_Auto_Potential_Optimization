@@ -1,7 +1,7 @@
 {
     "python.linting.enabled": true,
     "python.languageServer": "Pylance",
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "standard",
     "python.analysis.diagnosticSeverityOverrides": {
         "reportMissingModuleSource": "none"
     },
@@ -28,9 +28,11 @@
         "editor.defaultFormatter": "esbenp.prettier-vscode"
     },
     "github.copilot.enable": {
+        "*": true,
         "plaintext": true,
         "markdown": true,
-        "scminput": true
+        "scminput": true,
+        "python": true
     },
     "[html]": {
         "editor.defaultFormatter": "esbenp.prettier-vscode"

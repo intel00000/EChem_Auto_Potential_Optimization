@@ -89,8 +89,13 @@ class PicoController:
         # instance field for the autosampler serial port
         self.autosamplers = None
         self.autosamplers_send_queue = Queue()
-        self.autosamplers_rtc_time = "Autosampler Time: --:--:--"
+        self.autosamplers_rtc_time = "Autosampler: --:--:--"
         self.autosamplers_slots = {}
+        # instance field for the potentiostat serial port
+        self.potentiostat = None
+        self.potentiostat_send_queue = Queue()
+        self.potentiostat_rtc_time = "Potentiostat: --:--:--"
+        self.potentiostat_config = {}
 
         # Dataframe to store the recipe
         self.recipe_df = None
@@ -146,13 +151,17 @@ class PicoController:
         )
         # first row in the rtc_time_frame, containing the current rtc time from the Pico
         self.current_time_label = ttk.Label(
-            self.rtc_time_frame, text="Pump Controllers Time: "
+            self.rtc_time_frame, text="Pump Controllers: "
         )
         self.current_time_label.grid(row=0, column=0, padx=0, pady=0, sticky="NSEW")
         self.current_time_label_as = ttk.Label(
             self.rtc_time_frame, text=self.autosamplers_rtc_time
         )
         self.current_time_label_as.grid(row=0, column=1, padx=0, pady=0, sticky="NSEW")
+        self.current_time_label_po = ttk.Label(
+            self.rtc_time_frame, text=self.autosamplers_rtc_time
+        )
+        self.current_time_label_po.grid(row=0, column=2, padx=0, pady=0, sticky="NSEW")
 
         # a notebook widget to hold the tabs
         self.notebook = ttk.Notebook(
@@ -474,6 +483,49 @@ class PicoController:
             self.port_select_frame, text="Status: Not connected"
         )
         self.status_label_as.grid(
+            row=current_row,
+            column=5,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        # update the current row
+        current_row += self.port_select_frame.grid_size()[1]
+        # third in the port_select_frame
+        self.port_label_po = ttk.Label(self.port_select_frame, text="Potentiostat:")
+        self.port_label_po.grid(
+            row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.port_combobox_po = ttk.Combobox(
+            self.port_select_frame, state="readonly", width=26
+        )
+        self.port_combobox_po.grid(
+            row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
+        )
+        self.connect_button_po = ttk.Button(
+            self.port_select_frame, text="Connect", command=self.connect_po
+        )
+        self.connect_button_po.grid(
+            row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
+        )
+        self.disconnect_button_po = ttk.Button(
+            self.port_select_frame, text="Disconnect", command=self.disconnect_po
+        )
+        self.disconnect_button_po.grid(
+            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
+        )
+        self.disconnect_button_po.config(state=tk.DISABLED)
+        self.reset_button_po = ttk.Button(
+            self.port_select_frame, text="Reset", command=self.reset_po
+        )
+        self.reset_button_po.grid(
+            row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+        )
+        self.reset_button_po.config(state=tk.DISABLED)
+        self.status_label_po = ttk.Label(
+            self.port_select_frame, text="Status: Not connected"
+        )
+        self.status_label_po.grid(
             row=current_row,
             column=5,
             padx=global_pad_x,
@@ -1073,8 +1125,10 @@ class PicoController:
             self.refresh_ports()
             self.read_serial()
             self.read_serial_as()
+            self.read_serial_po()
             self.send_command()
             self.send_command_as()
+            self.send_command_po()
             self.update_progress()
             self.query_rtc_time()
             self.update_rtc_time_display()
@@ -1163,6 +1217,13 @@ class PicoController:
                             self.port_combobox_as.current(0)
                         else:
                             self.port_combobox_as.set("")
+                if not self.potentiostat:
+                    self.port_combobox_po["values"] = ports
+                    if self.port_combobox_po.get() not in ports:
+                        if len(ports) > 0:
+                            self.port_combobox_po.current(0)
+                        else:
+                            self.port_combobox_po.set("")
             elif current_tab == self.flash_firmware_tab:
                 if not self.create_flash_serial_obj.is_open:
                     self.port_combobox_ff["values"] = ports
@@ -1482,6 +1543,60 @@ class PicoController:
         self.update_slot_position_as.config(state=state)
         self.update_slot_button_as.config(state=state)
 
+    def connect_po(self):
+        selected_port = self.port_combobox_po.get()
+        parsed_port = re.match(r"^(COM\d+)", selected_port)
+        if parsed_port:
+            parsed_port = parsed_port.group(1)
+            if self.potentiostat:
+                if (
+                    messagebox.askyesno(
+                        "Disconnect",
+                        f"Disconnect from current port {self.potentiostat.port}?",
+                    )
+                    == tk.YES
+                ):
+                    self.disconnect_po(show_message=False)
+                else:
+                    return
+            try:
+                self.potentiostat = serial.Serial(parsed_port, timeout=self.timeout)
+                self.potentiostat.reset_input_buffer()
+                self.potentiostat.reset_output_buffer()
+                self.potentiostat.write("0:ping\n".encode())  # identify Pico type
+                response = self.potentiostat.readline().decode("utf-8").strip()
+                if "Potentiostats Control Version" not in response:
+                    self.disconnect_po(show_message=False)
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Error",
+                        message="Connected to the wrong device for potentiostat.",
+                    )
+                    return
+                now = datetime.now()  # synchronize the RTC with the PC time
+                sync_command = f"0:stime:{now.year}:{now.month}:{now.day}:{now.hour}:{now.minute}:{now.second}"
+                self.potentiostat.write(f"{sync_command}\n".encode())
+                response = self.potentiostat.readline().decode("utf-8").strip()
+
+                self.status_label_po.config(text=f"Status: Connected to {parsed_port}")
+                logging.info(f"Connected to Potentiostat at {selected_port}")
+                self.refresh_ports(instant=True)
+                self.set_potentiostat_buttons_state(tk.NORMAL)
+                self.potentiostat_send_queue.put("0:info")
+                self.on_tab_change(event=None, notebook=self.notebook)
+            except Exception as e:
+                self.status_label_po.config(text="Status: Not connected")
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function connect_po: {e}",
+                )
+
+    def set_potentiostat_buttons_state(self, state) -> None:
+        self.disconnect_button_po.config(state=state)
+        self.reset_button_po.config(state=state)
+
     def query_rtc_time(self) -> None:
         """Send a request to the Pico to get the current RTC time every second."""
         current_time = time.monotonic_ns()
@@ -1493,9 +1608,13 @@ class PicoController:
             if self.autosamplers:
                 self.autosamplers_send_queue.put("gtime")
                 self.autosamplers_send_queue.put("getPosition")
+            if self.potentiostat:
+                self.potentiostat_send_queue.put("0:time")
             self.last_time_query = current_time
 
-    def parse_rtc_time(self, controller_id, response, is_Autosampler=False) -> None:
+    def parse_rtc_time(
+        self, controller_id, response, is_Autosampler=False, is_Potentiostat=False
+    ) -> None:
         try:
             match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
             if match and not is_Autosampler:
@@ -1506,7 +1625,10 @@ class PicoController:
                 )
             if match and is_Autosampler:
                 rtc_time = match.group(1)
-                self.autosamplers_rtc_time = f"Autosampler Time: {rtc_time}"
+                self.autosamplers_rtc_time = f"Autosampler: {rtc_time}"
+            if match and is_Potentiostat:
+                rtc_time = match.group(1)
+                self.potentiostat_rtc_time = f"Potentiostat: {rtc_time}"
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
@@ -1541,6 +1663,25 @@ class PicoController:
                 message="Failed to parse autosampler configuration with error: {e}",
             )
 
+    def parse_potentiostat_config(self, response) -> None:
+        config_pattern = re.compile(
+            r"Potentiostat(\d+) Info: Trigger Pin: (0|1), Initial Trigger Pin Value: (0|1), Current Trigger Status: (LOW|HIGH)"
+        )
+        matches = config_pattern.findall(response)
+
+        for match in matches:
+            potentiostat_id, trigger_pin, initial_trigger_pin_value, trigger_status = (
+                match
+            )
+            potentiostat_id = int(potentiostat_id)
+            if potentiostat_id not in self.potentiostat_config:
+                self.potentiostat_config[potentiostat_id] = {}
+            potentiostat_config = self.potentiostat_config[potentiostat_id]
+            potentiostat_config["trigger_pin"] = trigger_pin
+            potentiostat_config["initial_trigger_pin_value"] = initial_trigger_pin_value
+            potentiostat_config["trigger_status"] = trigger_status
+            logging.debug(f"potentiostat_config {self.potentiostat_config}")
+
     def parse_autosampler_position(self, response) -> None:
         # format INFO: Current position: <position>
         match = re.search(r"position: (\d+)", response)
@@ -1554,18 +1695,18 @@ class PicoController:
 
     def update_rtc_time_display(self) -> None:
         try:
-            # assemble the time string
-            rtc_time_str = "Pump Controllers Time: "
+            rtc_time_str = "Pump Controllers: "
             # sort the keys of the dictionary by the pump id, join the values and update the label
             rtc_time_str += " | ".join(
                 [
                     self.pump_controllers_rtc_time[key]
                     for key in sorted(self.pump_controllers_rtc_time.keys())
-                    if self.pump_controllers_connected[key]
+                    if key and self.pump_controllers_connected[key]
                 ]
             )
             self.current_time_label.config(text=rtc_time_str)
             self.current_time_label_as.config(text=self.autosamplers_rtc_time)
+            self.current_time_label_po.config(text=self.potentiostat_rtc_time)
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
@@ -1629,7 +1770,7 @@ class PicoController:
                 self.autosamplers = None
                 self.status_label_as.config(text="Status: Not connected")
                 self.current_position_value_as.config(text="N/A")
-                self.autosamplers_rtc_time = "Autosampler Time: --:--:--"
+                self.autosamplers_rtc_time = "Autosampler: --:--:--"
                 self.slot_combobox_as.set("")
                 self.set_autosampler_buttons_state(tk.DISABLED)
                 while not self.autosamplers_send_queue.empty():  # empty the queue
@@ -1639,12 +1780,39 @@ class PicoController:
                 if show_message:
                     non_blocking_messagebox(
                         parent=self.root,
-                        title="Error",
+                        title="Connection Status",
                         message="Disconnected from Autosampler",
                     )
             except Exception as e:
                 logging.error(f"Error: {e}")
                 self.autosamplers = None
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred: {e}",
+                )
+
+    def disconnect_po(self, show_message=True):
+        if self.potentiostat:
+            try:
+                self.potentiostat.close()
+                self.potentiostat = None
+                self.status_label_po.config(text="Status: Not connected")
+                self.potentiostat_rtc_time = "Potentiostat: --:--:--"
+                self.set_potentiostat_buttons_state(tk.DISABLED)
+                while not self.potentiostat_send_queue.empty():  # empty the queue
+                    self.potentiostat_send_queue.get()
+                self.on_tab_change(event=None, notebook=self.notebook)
+                logging.info("Disconnected from Potentiostat")
+                if show_message:
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Connection Status",
+                        message="Disconnected from Potentiostat",
+                    )
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                self.potentiostat = None
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Error",
@@ -1681,6 +1849,22 @@ class PicoController:
                     parent=self.root,
                     title="Error",
                     message=f"An error occurred in function reset_as: {e}",
+                )
+
+    def reset_po(self):
+        if self.potentiostat:
+            try:
+                if messagebox.askyesno(
+                    "Reset", "Are you sure you want to reset the Autosampler?"
+                ):
+                    self.potentiostat_send_queue.put("0:reset")
+                    logging.info("Signal sent for Autosampler reset.")
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function reset_po: {e}",
                 )
 
     def query_pump_info(self, controller_id):
@@ -2001,6 +2185,29 @@ class PicoController:
                 message=f"An error occurred in function send_command_as: {e}",
             )
 
+    def send_command_po(self):
+        try:
+            if self.potentiostat and not self.potentiostat_send_queue.empty():
+                command = self.potentiostat_send_queue.get(block=False)
+                self.potentiostat.write(f"{command}\n".encode())
+                if "time" not in command:
+                    logging.debug(f"PC -> Potentiostat: {command}")
+        except serial.SerialException as e:
+            self.disconnect_po(False)
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"Failed to send command to Potentiostat with error: {e}",
+            )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred in function send_command_po: {e}",
+            )
+
     def read_serial(self):
         try:
             for controller_id, serial_port_obj in self.pump_controllers.items():
@@ -2017,9 +2224,7 @@ class PicoController:
                     elif "Status" in response:
                         self.update_pump_status(controller_id, response)
                     elif "RTC Time" in response:
-                        self.parse_rtc_time(
-                            controller_id, response, is_Autosampler=False
-                        )
+                        self.parse_rtc_time(controller_id, response)
                     elif "Success" in response:
                         non_blocking_messagebox(
                             parent=self.root,
@@ -2132,6 +2337,50 @@ class PicoController:
                 parent=self.root,
                 title="Error",
                 message=f"An error occurred in function read_serial_as: {e}",
+            )
+
+    def read_serial_po(self):
+        try:
+            if self.potentiostat and self.potentiostat.in_waiting:
+                response = self.potentiostat.readline().decode("utf-8").strip()
+                if "RTC Time" not in response:
+                    logging.debug(f"Potentiostat -> PC: {response}")
+
+                if "Info" in response:
+                    self.parse_potentiostat_config(response)
+                elif "RTC Time" in response:
+                    self.parse_rtc_time(
+                        controller_id=None,
+                        response=response,
+                        is_Potentiostat=True,
+                    )
+                elif "ERROR" in response:
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Error",
+                        message=f"Potentiostat: {response}",
+                    )
+                elif "SUCCESS" in response:
+                    non_blocking_messagebox(
+                        parent=self.root,
+                        title="Success",
+                        message=f"Potentiostat: {response}",
+                    )
+        except serial.SerialException as e:
+            self.disconnect_po(False)
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"Failed to read from Potentiostat with error: {e}",
+            )
+        except Exception as e:
+            self.disconnect_po(False)
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred in function read_serial_po: {e}",
             )
 
     def goto_position_as(self, position=None):

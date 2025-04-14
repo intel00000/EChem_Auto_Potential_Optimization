@@ -72,7 +72,7 @@ class Autosampler:
         )
 
     def ping(self) -> None:
-        self.write_message(f"Ping: Pico Autosampler Control Version {self.version}")
+        self.write_message(f"PING: Pico Autosampler Control Version {self.version}")
 
     def hard_reset(self) -> None:
         self.write_message("Success: Performing hard reset.")
@@ -228,6 +228,18 @@ class Autosampler:
         self.current_position = 0
         self.write_message("Success: Autosampler position reset to initial position.")
 
+    def setCurrentPosition(self, position) -> None:
+        new_position = max(0, min(position, MAX_POSITION))
+        self.current_position = new_position
+        self.save_config()
+
+    def getCurrentPosition(self) -> None:
+        self.write_message(f"INFO: Current position: {self.current_position}")
+        
+    def setCurrentDirection(self, direction: str) -> None:
+        if direction.upper()
+        
+
 
 def main():
     autosampler = Autosampler(
@@ -273,6 +285,10 @@ def main():
     poll_obj.register(sys.stdin, select.POLLIN)
 
     commands = {
+        "setPosition": "setCurrentPosition",
+        "getPosition": "getCurrentPosition",
+        "setDirection":
+        "getDirection": 
         "position": "move_to_position",
         "slot": "move_to_slot",
         "direction": "toggle_direction",
@@ -283,7 +299,7 @@ def main():
         "shutdown": "shutdown",
         "reset": "hard_reset",
         "ping": "ping",
-        "time": "get_time",
+        "gtime": "get_time",
         "stime": "set_time",
         "set_mode": "set_bootloader_mode",
     }
