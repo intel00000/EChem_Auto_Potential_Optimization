@@ -264,7 +264,7 @@ class PicoController:
         self.connect_button_ff = ttk.Button(
             self.flash_firmware_frame,
             text="Connect",
-            command=lambda: self.connect(
+            command=lambda: self.connect_ff(
                 self.create_flash_serial_obj, self.port_combobox_ff.get()
             ),
             state=tk.NORMAL,
@@ -280,7 +280,7 @@ class PicoController:
         self.disconnect_button_ff = ttk.Button(
             self.flash_firmware_frame,
             text="Disconnect",
-            command=lambda: self.disconnect(self.create_flash_serial_obj),
+            command=lambda: self.disconnect_ff(self.create_flash_serial_obj),
             state=tk.DISABLED,
         )
         self.disconnect_button_ff.grid(
@@ -294,7 +294,7 @@ class PicoController:
         self.reset_button_ff = ttk.Button(
             self.flash_firmware_frame,
             text="Reset",
-            command=lambda: self.reset_board(self.create_flash_serial_obj),
+            command=lambda: self.reset_board_ff(self.create_flash_serial_obj),
             state=tk.DISABLED,
         )
         self.reset_button_ff.grid(
@@ -333,8 +333,8 @@ class PicoController:
         local_column += 2
         self.enter_bootloader_button_ff = ttk.Button(
             self.flash_firmware_frame,
-            text="Bootloader Mode",
-            command=lambda: self.switch_mode(mode="bootloader"),
+            text="Bootloader",
+            command=lambda: self.switch_mode_ff(mode="bootloader"),
             state=tk.DISABLED,
         )
         self.enter_bootloader_button_ff.grid(
@@ -348,8 +348,8 @@ class PicoController:
         local_column += 1
         self.enter_controller_button_ff = ttk.Button(
             self.flash_firmware_frame,
-            text="Controller Mode",
-            command=lambda: self.switch_mode(mode="controller"),
+            text="Controller",
+            command=lambda: self.switch_mode_ff(mode="controller"),
             state=tk.DISABLED,
         )
         self.enter_controller_button_ff.grid(
@@ -374,8 +374,37 @@ class PicoController:
             pady=global_pad_y,
             sticky="W",
         )
-        local_row += 1
+        local_column += 2
+        self.send_file_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Upload File",
+            command=self.upload_file_ff,
+            state=tk.DISABLED,
+        )
+        self.send_file_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.remove_file_button_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Remove File",
+            command=self.remove_file_ff,
+            state=tk.DISABLED,
+        )
+        self.remove_file_button_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
 
+        local_row += 1
+        local_column = 0
         # next will be a table to show all the files on the disk
         self.file_table_frame_ff = ttk.Frame(self.flash_firmware_frame)
         self.file_table_frame_ff.grid(
@@ -1282,9 +1311,8 @@ class PicoController:
                             self.port_combobox_ff.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
 
-    # simply establish a connection to the selected port, all this does is to open the port
-    # that all
-    def connect(self, serial_port_obj, COM_port):
+    # connection to the selected port for firmware update
+    def connect_ff(self, serial_port_obj, COM_port):
         # parse the COM port using regex expression "^(COM\d+)"
         parsed_port = re.match(r"^(COM\d+)", COM_port)
         if parsed_port:
@@ -1297,18 +1325,20 @@ class PicoController:
                     )
                     == tk.YES
                 ):
-                    self.disconnect(serial_port_obj)
+                    self.disconnect_ff(serial_port_obj)
                 else:
                     return
             try:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
+                time.sleep(0.1)
                 serial_port_obj.reset_input_buffer()
                 serial_port_obj.reset_output_buffer()
                 # we have to distinguish between the firmware update mode and the controller mode
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
+                logging.debug(f"Response from {parsed_port}: {response}")
                 # if we have a response, we are in the controller mode
                 if "Control Version" in response:
                     self.mode_label_ff.config(text="Current Mode: Controller")
@@ -1318,6 +1348,8 @@ class PicoController:
                     self.mode_label_ff.config(text="Current Mode: Firmware Update")
                     self.enter_bootloader_button_ff.config(state=tk.DISABLED)
                     self.enter_controller_button_ff.config(state=tk.NORMAL)
+                    self.send_file_button_ff.config(state=tk.NORMAL)
+                    self.remove_file_button_ff.config(state=tk.NORMAL)
                     available_space, total_space = (
                         bootloader_helpers.request_disc_available_space(serial_port_obj)
                     )
@@ -1327,38 +1359,9 @@ class PicoController:
                         text=f"Available Space: {available_space_mb:.3f} / {total_space_mb:.3f} MB"
                     )
 
-                    files_stats = bootloader_helpers.request_dir_list(serial_port_obj)
-                    for child in self.file_table_frame_ff.winfo_children():
-                        child.destroy()
-                    headings = ["filename", "size"]
-                    self.file_table_ff = ttk.Treeview(
-                        self.file_table_frame_ff,
-                        columns=headings,
-                        show="headings",
+                    self.update_ff_file_stats(
+                        bootloader_helpers.request_dir_list(serial_port_obj)
                     )
-                    for heading in headings:
-                        self.file_table_ff.heading(heading, text=heading)
-                        self.file_table_ff.column(heading, anchor="center")
-                    self.scrollbar_ff = ttk.Scrollbar(
-                        self.file_table_frame_ff,
-                        orient="vertical",
-                        command=self.file_table_ff.yview,
-                    )
-                    self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
-                    self.file_table_ff.pack(side="left", fill="both", expand=True)
-                    self.scrollbar_ff.pack(side="right", fill="y")
-                    for filename, stats in files_stats.items():
-                        size = stats[-4]
-                        if size == 0:
-                            size = "DIR"
-                        else:
-                            if size < 1024:
-                                size = f"{size} Bytes"
-                            elif size < 1024 * 1024:
-                                size = f"{size / 1024:.3f} KB"
-                            else:
-                                size = f"{size / (1024 * 1024):.3f} MB"
-                        self.file_table_ff.insert("", "end", values=(filename, size))
 
                 # enable the buttons
                 self.disconnect_button_ff.config(state=tk.NORMAL)
@@ -1375,7 +1378,40 @@ class PicoController:
                     message=f"An error occurred in function connect: {e}",
                 )
 
-    def disconnect(self, serial_port_obj):
+    def update_ff_file_stats(self, files_stats):
+        for child in self.file_table_frame_ff.winfo_children():
+            child.destroy()
+        headings = ["filename", "size"]
+        self.file_table_ff = ttk.Treeview(
+            self.file_table_frame_ff,
+            columns=headings,
+            show="headings",
+        )
+        for heading in headings:
+            self.file_table_ff.heading(heading, text=heading)
+            self.file_table_ff.column(heading, anchor="center")
+        self.scrollbar_ff = ttk.Scrollbar(
+            self.file_table_frame_ff,
+            orient="vertical",
+            command=self.file_table_ff.yview,
+        )
+        self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
+        self.file_table_ff.pack(side="left", fill="both", expand=True)
+        self.scrollbar_ff.pack(side="right", fill="y")
+        for filename, stats in files_stats.items():
+            size = stats[-4]
+            if size == 0:
+                size = "DIR"
+            else:
+                if size < 1024:
+                    size = f"{size} Bytes"
+                elif size < 1024 * 1024:
+                    size = f"{size / 1024:.3f} KB"
+                else:
+                    size = f"{size / (1024 * 1024):.3f} MB"
+            self.file_table_ff.insert("", "end", values=(filename, size))
+
+    def disconnect_ff(self, serial_port_obj):
         if serial_port_obj.is_open:
             logging.info(f"Disconnected from {serial_port_obj.port}")
             serial_port_obj.close()
@@ -1384,6 +1420,8 @@ class PicoController:
                 self.reset_button_ff.config(state=tk.DISABLED)
                 self.status_label_ff.config(text="Status: Not connected")
                 self.mode_label_ff.config(text="Current Mode: N/A")
+                self.send_file_button_ff.config(state=tk.DISABLED)
+                self.remove_file_button_ff.config(state=tk.DISABLED)
                 self.space_label_ff.config(text="Available Space: N/A")
                 self.enter_bootloader_button_ff.config(state=tk.DISABLED)
                 self.enter_controller_button_ff.config(state=tk.DISABLED)
@@ -1404,7 +1442,7 @@ class PicoController:
                 self.scrollbar_ff.pack(side="right", fill="y")
             self.refresh_ports(instant=True)
 
-    def switch_mode(self, mode: str):
+    def switch_mode_ff(self, mode: str):
         # set a "0:set_mode:update_firmware" command to the serial port
         if self.create_flash_serial_obj and not self.create_flash_serial_obj.is_open:
             return
@@ -1418,13 +1456,13 @@ class PicoController:
             self.space_label_ff.config(text="Available Space: N/A")
             self.flash_firmware_frame.update()
             # update the frame
-            self.disconnect(self.create_flash_serial_obj)
+            self.disconnect_ff(self.create_flash_serial_obj)
             for _ in range(10):
                 self.refresh_ports(instant=True)
                 for value in self.port_combobox_ff["values"]:
                     if self.create_flash_serial_obj.port in value:
                         time.sleep(1)
-                        self.connect(
+                        self.connect_ff(
                             self.create_flash_serial_obj,
                             self.create_flash_serial_obj.port,
                         )
@@ -1433,7 +1471,70 @@ class PicoController:
         except Exception as e:
             logging.error(f"Error: {e}")
 
-    def reset_board(self, serial_port_obj: serial.Serial):
+    def upload_file_ff(self):
+        try:
+            # open a file dialog to select files to upload, allow multiple files being selected
+            filenames = filedialog.askopenfilenames(
+                parent=self.root,
+                title="Select File to Upload",
+                filetypes=[("All Files", "*.*")],
+            )
+            if not filenames or filenames == "" or len(filenames) == 0:
+                return
+            if not self.create_flash_serial_obj.is_open:
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message="Please connect to a port first.",
+                )
+                return
+            for filename in filenames:
+                result = bootloader_helpers.upload_file(
+                    serial_port=self.create_flash_serial_obj,
+                    file_path=filename,
+                    message_parent=self.root,
+                )
+                if result:
+                    self.update_ff_file_stats(
+                        bootloader_helpers.request_dir_list(
+                            self.create_flash_serial_obj
+                        )
+                    )
+        except Exception as e:
+            logging.error(f"Error uploading file: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred while uploading the file: {e}",
+            )
+
+    def remove_file_ff(self):
+        try:
+            # get the current selection in self.file_table_ff
+            selected_items = self.file_table_ff.focus()
+            value = self.file_table_ff.item(selected_items, "values")
+            filename = value[0] if value else None
+            if filename:
+                result = bootloader_helpers.remove_file(
+                    serial_port=self.create_flash_serial_obj,
+                    filename=filename,
+                    messagebox_parent=self.root,
+                )
+                if result:
+                    self.update_ff_file_stats(
+                        bootloader_helpers.request_dir_list(
+                            self.create_flash_serial_obj
+                        )
+                    )
+        except Exception as e:
+            logging.error(f"Error uploading file: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred while uploading the file: {e}",
+            )
+
+    def reset_board_ff(self, serial_port_obj: serial.Serial):
         if not serial_port_obj.is_open:
             return
         """Reset the board by sending a soft reset command over serial. ONLY WORKS with MicroPython."""
@@ -1448,7 +1549,7 @@ class PicoController:
         for code in pythonInject:
             serial_port_obj.write(bytes(code + "\n", "utf-8"))
         serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
-        self.disconnect(serial_port_obj)
+        self.disconnect_ff(serial_port_obj)
         self.refresh_ports(instant=True)
 
     def connect_pc(self, controller_id):
@@ -1472,9 +1573,9 @@ class PicoController:
                     return
             try:  # Attempt to connect to the selected port
                 serial_port_obj = self.pump_controllers[controller_id]
-                serial_port_widget = self.pump_controllers_id_to_widget_map[
-                    controller_id
-                ]
+                serial_port_widget = self.pump_controllers_id_to_widget_map.get(
+                    controller_id, {}
+                )
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
@@ -1509,6 +1610,9 @@ class PicoController:
                 self.set_manual_control_buttons_state(tk.NORMAL)
                 self.on_tab_change(event=None, notebook=self.notebook)
             except Exception as e:
+                serial_port_widget = self.pump_controllers_id_to_widget_map.get(
+                    controller_id, {}
+                )
                 serial_port_widget["status_label"].config(text="Status: Not connected")
                 self.pump_controllers_connected[controller_id] = False
                 logging.error(f"Error: {e}")
@@ -1759,7 +1863,7 @@ class PicoController:
             logging.error(f"Error updating RTC time display: {e}")
 
     def disconnect_pc(self, controller_id, show_message=True):
-        if self.pump_controllers[controller_id]:
+        if self.pump_controllers.get(controller_id, None):
             serial_port_obj = self.pump_controllers[controller_id]
             serial_port_widget = self.pump_controllers_id_to_widget_map[controller_id]
             if serial_port_obj.is_open:
@@ -2187,6 +2291,7 @@ class PicoController:
     # send_command will remove the first item from the queue and send it
     def send_command(self):
         if not self.pump_controllers_send_queue.empty():
+            controller_id = -1
             try:
                 command = self.pump_controllers_send_queue.get(block=False)
                 controller_id = int(command.split(":")[0])
@@ -2295,16 +2400,16 @@ class PicoController:
                             message=f"Pump Controller {controller_id}: {response}",
                         )
         except serial.SerialException as e:
-            self.disconnect_pc(controller_id, False)
-            logging.error(f"Error: controller {controller_id} {e}")
+            self.disconnect_pc(controller_id, False)  # type: ignore
+            logging.error(f"Error: controller {controller_id} {e}")  # type: ignore
             non_blocking_messagebox(
                 parent=self.root,
                 title="Error",
-                message=f"Failed to read from pump controller {controller_id} with error: {e}",
+                message=f"Failed to read from pump controller {controller_id} with error: {e}",  # type: ignore
             )
         except Exception as e:
-            self.disconnect_pc(controller_id, False)
-            logging.error(f"Error: controller {controller_id} {e}")
+            self.disconnect_pc(controller_id, False)  # type: ignore
+            logging.error(f"Error: controller {controller_id} {e}")  # type: ignore
             non_blocking_messagebox(
                 parent=self.root,
                 title="Error",
