@@ -1891,16 +1891,19 @@ class PicoController:
         self, controller_id, response, is_Autosampler=False, is_Potentiostat=False
     ) -> None:
         try:
-            match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
+            match = re.search(
+                r"RTC Time: (\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)", response
+            )
             if match:
-                rtc_time = match.group(1)
+                _, _, _, hour, minute, second = match.groups()
+                time_str = f"{int(hour):02}:{int(minute):02}:{int(second):02}"
                 if is_Autosampler:
-                    self.autosamplers_rtc_time = f"Autosampler: {rtc_time}"
+                    self.autosamplers_rtc_time = f"Autosampler: {time_str}"
                 elif is_Potentiostat:
-                    self.potentiostat_rtc_time = f"Potentiostat: {rtc_time}"
+                    self.potentiostat_rtc_time = f"Potentiostat: {time_str}"
                 else:
                     self.pump_controllers_rtc_time[controller_id] = (
-                        f"{controller_id}:{rtc_time}"
+                        f"{controller_id}:{time_str}"
                     )
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
