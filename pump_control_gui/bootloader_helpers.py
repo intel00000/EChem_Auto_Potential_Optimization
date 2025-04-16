@@ -275,12 +275,34 @@ def upload_file(serial_port: serial.Serial, file_path, message_parent) -> bool:
                 response = serial_port.readline().decode().strip()
                 logging.debug(f"Device -> PC: {response}")
                 if "Success: finished receiving" in response:
+                    message = (
+                        f"File {os.path.basename(file_path)} uploaded successfully."
+                    )
+                    non_blocking_messagebox(
+                        parent=message_parent,
+                        title="Success",
+                        message=message,
+                    )
+                    logging.debug(message)
                     return True
                 if "Success: Received chunk" in response:
                     break
                 if "Error: " in response:
+                    message = f"Error: {response}"
+                    non_blocking_messagebox(
+                        parent=message_parent,
+                        title="Error",
+                        message=message,
+                    )
+                    logging.error(message)
                     return False
             except Exception as e:
-                logging.error(f"Error: {e}")
+                message = f"Error: {e}"
+                non_blocking_messagebox(
+                    parent=message_parent,
+                    title="Error",
+                    message=message,
+                )
+                logging.error(message)
                 break
     return False

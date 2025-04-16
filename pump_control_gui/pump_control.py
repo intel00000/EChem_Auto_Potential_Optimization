@@ -363,6 +363,69 @@ class PicoController:
 
         local_row += 1
         local_column = 0
+        self.switch_controller_mode_label_ff = ttk.Label(
+            self.flash_firmware_frame,
+            text="Switch to Controller Mode:",
+        )
+        self.switch_controller_mode_label_ff.grid(
+            row=local_row,
+            column=local_column,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 2
+        self.switch_controller_mode_button_as_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Autosampler",
+            command=lambda: self.switch_controller_mode_ff(
+                serial_port_obj=self.create_flash_serial_obj, mode="Autosampler"
+            ),
+            state=tk.DISABLED,
+        )
+        self.switch_controller_mode_button_as_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.switch_controller_mode_button_po_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Potentiostat",
+            command=lambda: self.switch_controller_mode_ff(
+                serial_port_obj=self.create_flash_serial_obj, mode="Potentiostat"
+            ),
+            state=tk.DISABLED,
+        )
+        self.switch_controller_mode_button_po_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+        local_column += 1
+        self.switch_controller_mode_button_pc_ff = ttk.Button(
+            self.flash_firmware_frame,
+            text="Pump",
+            command=lambda: self.switch_controller_mode_ff(
+                serial_port_obj=self.create_flash_serial_obj, mode="Pump"
+            ),
+            state=tk.DISABLED,
+        )
+        self.switch_controller_mode_button_pc_ff.grid(
+            row=local_row,
+            column=local_column,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
+        )
+
+        local_row += 1
+        local_column = 0
         self.space_label_ff = ttk.Label(
             self.flash_firmware_frame, text="Available Space: N/A"
         )
@@ -663,7 +726,7 @@ class PicoController:
         self.set_triggle_high = ttk.Button(
             self.manual_control_frame_po,
             text="Set Trigger High",
-            command=self.set_trigger_high_po,
+            command=lambda: self.set_trigger_po(state="high"),
         )
         self.set_triggle_high.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -671,7 +734,7 @@ class PicoController:
         self.set_triggle_low = ttk.Button(
             self.manual_control_frame_po,
             text="Set Trigger Low",
-            command=self.set_trigger_low_po,
+            command=lambda: self.set_trigger_po(state="low"),
         )
         self.set_triggle_low.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -1340,10 +1403,25 @@ class PicoController:
                 response = serial_port_obj.readline().decode("utf-8").strip()
                 logging.debug(f"Response from {parsed_port}: {response}")
                 # if we have a response, we are in the controller mode
-                if "Control Version" in response:
-                    self.mode_label_ff.config(text="Current Mode: Controller")
+                if "CONTROL VERSION" in response.upper():
+                    if "PICO" not in response.upper():
+                        # which mean the firmware won't work
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Error",
+                            message="The connected device is not running a Micropython firmware, easy firmware upload is not possible.",
+                        )
+                    pattern = r"Pico (\S+) Control Version"
+                    match = re.search(pattern, response, re.IGNORECASE)
+                    mode = "Unknown"
+                    if match:
+                        mode = match.group(1)
+                    self.mode_label_ff.config(text=f"Current Mode: {mode} Controller")
                     self.enter_bootloader_button_ff.config(state=tk.NORMAL)
                     self.enter_controller_button_ff.config(state=tk.DISABLED)
+                    self.switch_controller_mode_button_as_ff.config(state=tk.NORMAL)
+                    self.switch_controller_mode_button_po_ff.config(state=tk.NORMAL)
+                    self.switch_controller_mode_button_pc_ff.config(state=tk.NORMAL)
                 elif "Error: Invalid JSON payload" in response:
                     self.mode_label_ff.config(text="Current Mode: Firmware Update")
                     self.enter_bootloader_button_ff.config(state=tk.DISABLED)
@@ -1425,6 +1503,9 @@ class PicoController:
                 self.space_label_ff.config(text="Available Space: N/A")
                 self.enter_bootloader_button_ff.config(state=tk.DISABLED)
                 self.enter_controller_button_ff.config(state=tk.DISABLED)
+                self.switch_controller_mode_button_as_ff.config(state=tk.DISABLED)
+                self.switch_controller_mode_button_po_ff.config(state=tk.DISABLED)
+                self.switch_controller_mode_button_pc_ff.config(state=tk.DISABLED)
                 for child in self.file_table_frame_ff.winfo_children():
                     child.destroy()
                 self.file_table_ff = ttk.Treeview(
@@ -1488,18 +1569,17 @@ class PicoController:
                     message="Please connect to a port first.",
                 )
                 return
+            result = False
             for filename in filenames:
                 result = bootloader_helpers.upload_file(
                     serial_port=self.create_flash_serial_obj,
                     file_path=filename,
                     message_parent=self.root,
                 )
-                if result:
-                    self.update_ff_file_stats(
-                        bootloader_helpers.request_dir_list(
-                            self.create_flash_serial_obj
-                        )
-                    )
+            if result:
+                self.update_ff_file_stats(
+                    bootloader_helpers.request_dir_list(self.create_flash_serial_obj)
+                )
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
             non_blocking_messagebox(
@@ -1511,21 +1591,24 @@ class PicoController:
     def remove_file_ff(self):
         try:
             # get the current selection in self.file_table_ff
-            selected_items = self.file_table_ff.focus()
-            value = self.file_table_ff.item(selected_items, "values")
-            filename = value[0] if value else None
-            if filename:
-                result = bootloader_helpers.remove_file(
-                    serial_port=self.create_flash_serial_obj,
-                    filename=filename,
-                    messagebox_parent=self.root,
-                )
-                if result:
-                    self.update_ff_file_stats(
-                        bootloader_helpers.request_dir_list(
-                            self.create_flash_serial_obj
-                        )
+            selected_items = self.file_table_ff.selection()
+            logging.debug(f"Selected items: {selected_items}")
+            if not selected_items or selected_items == "" or len(selected_items) == 0:
+                return
+            result = False
+            for selected_item in selected_items:
+                value = self.file_table_ff.item(selected_item, "values")
+                filename = value[0] if value else None
+                if filename:
+                    result = bootloader_helpers.remove_file(
+                        serial_port=self.create_flash_serial_obj,
+                        filename=filename,
+                        messagebox_parent=self.root,
                     )
+            if result:
+                self.update_ff_file_stats(
+                    bootloader_helpers.request_dir_list(self.create_flash_serial_obj)
+                )
         except Exception as e:
             logging.error(f"Error uploading file: {e}")
             non_blocking_messagebox(
@@ -1551,6 +1634,32 @@ class PicoController:
         serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
         self.disconnect_ff(serial_port_obj)
         self.refresh_ports(instant=True)
+
+    def switch_controller_mode_ff(self, serial_port_obj: serial.Serial, mode: str):
+        # switch the controller mode by sending a command to the serial port
+        if not serial_port_obj.is_open:
+            return
+        if mode == "Pump":
+            command = "0:set_mode:pump\n"
+        elif mode == "Autosampler":
+            command = "0:set_mode:autosampler\n"
+        elif mode == "Potentiostat":
+            command = "0:set_mode:potentiostat\n"
+        else:
+            logging.error(f"Unknown controller type: {mode}")
+            return
+        try:
+            serial_port_obj.write(command.encode())
+            response = serial_port_obj.readline().decode("utf-8").strip()
+            logging.info(f"Device -> PC: {response}")
+
+        except Exception as e:
+            logging.error(f"Error switching controller mode: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred while switching controller mode: {e}",
+            )
 
     def connect_pc(self, controller_id):
         selected_port = self.pump_controllers_id_to_widget_map[controller_id][
@@ -1735,6 +1844,7 @@ class PicoController:
                 self.refresh_ports(instant=True)
                 self.set_potentiostat_buttons_state(tk.NORMAL)
                 self.potentiostat_send_queue.put("0:info")
+                self.potentiostat_send_queue.put("0:st")
                 self.on_tab_change(event=None, notebook=self.notebook)
             except Exception as e:
                 self.status_label_po.config(text="Status: Not connected")
@@ -1833,6 +1943,18 @@ class PicoController:
             potentiostat_config["initial_trigger_pin_value"] = initial_trigger_pin_value
             potentiostat_config["trigger_status"] = trigger_status
             logging.debug(f"potentiostat_config {self.potentiostat_config}")
+
+    def parse_potentiostat_status(self, response) -> None:
+        # format INFO: Potentiostat <id> Status: <status>
+        matches = re.findall(r"Potentiostat(\d+) Status: Trigger: (LOW|HIGH)", response)
+        # asseble a string and update to self.potentiostat_status_label
+        if matches:
+            status_str = ""
+            for match in matches:
+                potentiostat_id, trigger_status = match
+                status_str += f"{potentiostat_id}: {trigger_status}, "
+            status_str = status_str[:-2]
+            self.current_triggle_state_value_po.config(text=status_str)
 
     def parse_autosampler_position(self, response) -> None:
         # format INFO: Current position: <position>
@@ -2022,11 +2144,9 @@ class PicoController:
     def toggle_trigger_po(self):
         self.potentiostat_send_queue.put("0:tr")
 
-    def set_trigger_high_po(self):
-        self.potentiostat_send_queue.put("0:set_trigger:HIGH")
-
-    def set_trigger_low_po(self):
-        self.potentiostat_send_queue.put("0:set_trigger:LOW")
+    def set_trigger_po(self, state: str):
+        self.potentiostat_send_queue.put(f"0:set_trigger:{state.upper()}")
+        self.potentiostat_send_queue.put("0:st")
 
     def query_pump_info(self, controller_id):
         serial_obj = self.pump_controllers.get(controller_id, None)
@@ -2508,8 +2628,10 @@ class PicoController:
                 if "RTC Time" not in response:
                     logging.debug(f"Potentiostat -> PC: {response}")
 
-                if "Info" in response:
+                if "Info:" in response:
                     self.parse_potentiostat_config(response)
+                if "Status:" in response:
+                    self.parse_potentiostat_status(response)
                 elif "RTC Time" in response:
                     self.parse_rtc_time(
                         controller_id=None,
