@@ -723,20 +723,22 @@ class PicoController:
             text="Toggle Trigger",
             command=self.toggle_trigger_po,
         )
-        self.set_triggle_high = ttk.Button(
+        self.triggle_high_button_po = ttk.Button(
             self.manual_control_frame_po,
-            text="Set Trigger High",
+            text="Set High",
             command=lambda: self.set_trigger_po(state="high"),
+            state=tk.DISABLED,
         )
-        self.set_triggle_high.grid(
+        self.triggle_high_button_po.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.set_triggle_low = ttk.Button(
+        self.triggle_low_button_po = ttk.Button(
             self.manual_control_frame_po,
-            text="Set Trigger Low",
+            text="Set Low",
             command=lambda: self.set_trigger_po(state="low"),
+            state=tk.DISABLED,
         )
-        self.set_triggle_low.grid(
+        self.triggle_low_button_po.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         # update the current row
@@ -1207,6 +1209,7 @@ class PicoController:
         # update the pump_controllers dictionary
         self.pump_controllers[controller_id] = serial.Serial()
         self.pump_controllers_connected[controller_id] = False
+        self.pump_controllers_rtc_time[controller_id] = "N/A"
         """Adds the combobox and buttons for selecting and connecting a pump controller."""
         row = controller_id - 1  # Zero-indexed for row position
         port_label = ttk.Label(
@@ -1298,6 +1301,7 @@ class PicoController:
         if (
             not pump_ctls_all_connected
             or not self.autosamplers
+            or not self.potentiostat
             or not self.create_flash_serial_obj.is_open
         ):
             # if not all connected, refresh the ports
@@ -1315,6 +1319,8 @@ class PicoController:
             ]
             if self.autosamplers:
                 connected_ports.append(self.autosamplers.name)
+            if self.potentiostat:
+                connected_ports.append(self.potentiostat.name)
 
             ports = [
                 port.device + " (SN:" + str(port.serial_number) + ")"
@@ -1651,6 +1657,11 @@ class PicoController:
         try:
             serial_port_obj.write(command.encode())
             response = serial_port_obj.readline().decode("utf-8").strip()
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Controller Mode Switch",
+                message=response,
+            )
             logging.info(f"Device -> PC: {response}")
 
         except Exception as e:
@@ -1858,6 +1869,8 @@ class PicoController:
     def set_potentiostat_buttons_state(self, state) -> None:
         self.disconnect_button_po.config(state=state)
         self.reset_button_po.config(state=state)
+        self.triggle_high_button_po.config(state=state)
+        self.triggle_low_button_po.config(state=state)
 
     def query_rtc_time(self) -> None:
         """Send a request to the Pico to get the current RTC time every second."""
@@ -1879,18 +1892,16 @@ class PicoController:
     ) -> None:
         try:
             match = re.search(r"RTC Time: (\d+-\d+-\d+ \d+:\d+:\d+)", response)
-            if match and not is_Autosampler:
+            if match:
                 rtc_time = match.group(1)
-                # store the time in the dictionary
-                self.pump_controllers_rtc_time[controller_id] = (
-                    f"{controller_id}:{rtc_time}"
-                )
-            if match and is_Autosampler:
-                rtc_time = match.group(1)
-                self.autosamplers_rtc_time = f"Autosampler: {rtc_time}"
-            if match and is_Potentiostat:
-                rtc_time = match.group(1)
-                self.potentiostat_rtc_time = f"Potentiostat: {rtc_time}"
+                if is_Autosampler:
+                    self.autosamplers_rtc_time = f"Autosampler: {rtc_time}"
+                elif is_Potentiostat:
+                    self.potentiostat_rtc_time = f"Potentiostat: {rtc_time}"
+                else:
+                    self.pump_controllers_rtc_time[controller_id] = (
+                        f"{controller_id}:{rtc_time}"
+                    )
         except Exception as e:
             logging.error(f"Error updating RTC time display: {e}")
 
@@ -2144,9 +2155,10 @@ class PicoController:
     def toggle_trigger_po(self):
         self.potentiostat_send_queue.put("0:tr")
 
-    def set_trigger_po(self, state: str):
+    def set_trigger_po(self, state: str, update_status=True):
         self.potentiostat_send_queue.put(f"0:set_trigger:{state.upper()}")
-        self.potentiostat_send_queue.put("0:st")
+        if update_status:
+            self.potentiostat_send_queue.put("0:st")
 
     def query_pump_info(self, controller_id):
         serial_obj = self.pump_controllers.get(controller_id, None)
@@ -2354,6 +2366,8 @@ class PicoController:
                     ].config(state=tk.NORMAL)
             if self.autosamplers:
                 self.disconnect_button_as.config(state=tk.NORMAL)
+            if self.potentiostat:
+                self.disconnect_button_po.config(state=tk.NORMAL)
             # disable the buttons
             self.stop_button.config(state=tk.DISABLED)
             self.pause_button.config(state=tk.DISABLED)
@@ -3313,7 +3327,11 @@ class PicoController:
             logging.error("No recipe data to execute.")
             return
         # require at least one MCU connection
-        if not self.autosamplers and not any(self.pump_controllers_connected.values()):
+        if (
+            not self.autosamplers
+            and not self.potentiostat
+            and not any(self.pump_controllers_connected.values())
+        ):
             non_blocking_messagebox(
                 parent=self.root,
                 title="Error",
@@ -3321,7 +3339,11 @@ class PicoController:
             )
             return
         # display warning if only one MCU is connected
-        if not any(self.pump_controllers_connected.values()) or not self.autosamplers:
+        if (
+            not self.autosamplers
+            or not self.potentiostat
+            or not any(self.pump_controllers_connected.values())
+        ):
             message = "Only one type of controller connected. Continue?"
             if not messagebox.askyesno("Warning", message):
                 return
@@ -3341,6 +3363,8 @@ class PicoController:
                     ].config(state=tk.DISABLED)
             if self.autosamplers:
                 self.disconnect_button_as.config(state=tk.DISABLED)
+            if self.potentiostat:
+                self.disconnect_button_po.config(state=tk.DISABLED)
             self.pause_timepoint_ns = -1  # clear the stop time and pause time
             if self.scheduled_task:  # cancel the scheduled task if it exists
                 self.root.after_cancel(self.scheduled_task)
@@ -3412,21 +3436,31 @@ class PicoController:
                 return
 
             logging.info(f"executing step at index {index}")
+
             # Parse pump and valve actions dynamically
-            pump_actions = {
-                col: row[col] for col in row.index if col.startswith("Pump")
-            }
-            valve_actions = {
-                col: row[col] for col in row.index if col.startswith("Valve")
-            }
-            auto_sampler_actions_slots = {
-                col: row[col] for col in row.index if col.startswith("Autosampler")
-            }
-            auto_sampler_actions_positions = {
-                col: row[col]
-                for col in row.index
-                if col.startswith("Autosampler_position")
-            }
+            def extract_by_pattern(row, pattern):
+                return {
+                    col: row[col]
+                    for col in row.index
+                    if re.search(pattern, col, re.IGNORECASE)
+                }
+
+            pump_actions = extract_by_pattern(row, r"Pump")
+            valve_actions = extract_by_pattern(row, r"Valve")
+            potentiostat_actions = extract_by_pattern(row, r"Potentiostat")
+            auto_sampler_actions_slots = extract_by_pattern(
+                row, r"^(?!.*position).*Autosampler.*(slot)?$"
+            )
+            auto_sampler_actions_positions = extract_by_pattern(
+                row, r"^(?!.*slot).*Autosampler.*(position)$"
+            )
+            logging.debug(f"Pump actions: {pump_actions}")
+            logging.debug(f"Valve actions: {valve_actions}")
+            logging.debug(f"Autosampler actions (slots): {auto_sampler_actions_slots}")
+            logging.debug(
+                f"Autosampler actions (positions): {auto_sampler_actions_positions}"
+            )
+            logging.debug(f"Potentiostat actions: {potentiostat_actions}")
 
             # issue a one-time status update for all pumps and autosampler
             for id, connection_status in self.pump_controllers_connected.items():
@@ -3438,6 +3472,7 @@ class PicoController:
                 valve_actions,
                 auto_sampler_actions_slots,
                 auto_sampler_actions_positions,
+                potentiostat_actions,
             )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -3454,6 +3489,7 @@ class PicoController:
         valve_actions,
         auto_sampler_actions_slots,
         auto_sampler_actions_positions,
+        potentiostat_actions,
     ):
         # Process power toggling
         process_pump_actions(
@@ -3489,6 +3525,16 @@ class PicoController:
                 logging.error(
                     f"Warning: Invalid autosampler position: {position} at index {index}"
                 )
+
+        for _, action in potentiostat_actions.items():
+            if pd.isna(action) or action == "":
+                continue
+            # this is a bit counterintuitive
+            # but when on, we want to set the trigger pin to low to signal the potentiostat to start
+            if action.lower() == "on":
+                self.set_trigger_po(state="low")
+            elif action.lower() == "off":
+                self.set_trigger_po(state="high")
 
         # update status for all pumps and autosampler
         for id, connection_status in self.pump_controllers_connected.items():
