@@ -695,7 +695,7 @@ class PicoController:
         # Potentiostat Manual Control frame
         self.manual_control_frame_po = ttk.Labelframe(
             root_frame,
-            text="Potentiostat Manual Control",
+            text="Potentiostat Manual Control (Set this to LOW before starting a recipe!)",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
         )
         self.manual_control_frame_po.grid(
@@ -706,39 +706,39 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        self.current_triggle_state_label_po = ttk.Label(
+        self.current_trigger_state_label_po = ttk.Label(
             self.manual_control_frame_po, text="Current Trigger State: "
         )
-        self.current_triggle_state_label_po.grid(
+        self.current_trigger_state_label_po.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.current_triggle_state_value_po = ttk.Label(
+        self.current_trigger_state_value_po = ttk.Label(
             self.manual_control_frame_po, text="N/A"
         )
-        self.current_triggle_state_value_po.grid(
+        self.current_trigger_state_value_po.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.toggle_triggle_po_button = ttk.Button(
+        self.toggle_trigger_po_button = ttk.Button(
             self.manual_control_frame_po,
             text="Toggle Trigger",
             command=self.toggle_trigger_po,
         )
-        self.triggle_high_button_po = ttk.Button(
+        self.trigger_high_button_po = ttk.Button(
             self.manual_control_frame_po,
             text="Set High",
             command=lambda: self.set_trigger_po(state="high"),
             state=tk.DISABLED,
         )
-        self.triggle_high_button_po.grid(
+        self.trigger_high_button_po.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.triggle_low_button_po = ttk.Button(
+        self.trigger_low_button_po = ttk.Button(
             self.manual_control_frame_po,
             text="Set Low",
             command=lambda: self.set_trigger_po(state="low"),
             state=tk.DISABLED,
         )
-        self.triggle_low_button_po.grid(
+        self.trigger_low_button_po.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         # update the current row
@@ -1853,6 +1853,7 @@ class PicoController:
                 self.status_label_po.config(text=f"Status: Connected to {parsed_port}")
                 logging.info(f"Connected to Potentiostat at {selected_port}")
                 self.refresh_ports(instant=True)
+                self.set_trigger_po(state="low")
                 self.set_potentiostat_buttons_state(tk.NORMAL)
                 self.potentiostat_send_queue.put("0:info")
                 self.potentiostat_send_queue.put("0:st")
@@ -1869,8 +1870,8 @@ class PicoController:
     def set_potentiostat_buttons_state(self, state) -> None:
         self.disconnect_button_po.config(state=state)
         self.reset_button_po.config(state=state)
-        self.triggle_high_button_po.config(state=state)
-        self.triggle_low_button_po.config(state=state)
+        self.trigger_high_button_po.config(state=state)
+        self.trigger_low_button_po.config(state=state)
 
     def query_rtc_time(self) -> None:
         """Send a request to the Pico to get the current RTC time every second."""
@@ -1968,7 +1969,7 @@ class PicoController:
                 potentiostat_id, trigger_status = match
                 status_str += f"{potentiostat_id}: {trigger_status}, "
             status_str = status_str[:-2]
-            self.current_triggle_state_value_po.config(text=status_str)
+            self.current_trigger_state_value_po.config(text=status_str)
 
     def parse_autosampler_position(self, response) -> None:
         # format INFO: Current position: <position>
@@ -2087,6 +2088,7 @@ class PicoController:
                 self.potentiostat = None
                 self.status_label_po.config(text="Status: Not connected")
                 self.potentiostat_rtc_time = "Potentiostat: --:--:--"
+                self.current_trigger_state_value_po.config(text="N/A")
                 self.set_potentiostat_buttons_state(tk.DISABLED)
                 while not self.potentiostat_send_queue.empty():  # empty the queue
                     self.potentiostat_send_queue.get()
@@ -3535,9 +3537,9 @@ class PicoController:
             # this is a bit counterintuitive
             # but when on, we want to set the trigger pin to low to signal the potentiostat to start
             if action.lower() == "on":
-                self.set_trigger_po(state="low")
-            elif action.lower() == "off":
                 self.set_trigger_po(state="high")
+            elif action.lower() == "off":
+                self.set_trigger_po(state="low")
 
         # update status for all pumps and autosampler
         for id, connection_status in self.pump_controllers_connected.items():
