@@ -163,7 +163,6 @@ class PicoController:
         self.create_rtc_time_frame(self.rtc_time_frame)
 
         # TODO
-        # not sure we need these
         style = ttk.Style()
         style.configure(
             ".",
@@ -178,6 +177,13 @@ class PicoController:
             "Treeview.Heading",
             font=(None, LARGE_FONT_SIZE),
             rowheight=int(LARGE_FONT_SIZE * 3),
+        )
+        style.configure(
+            "TLabelframe",
+            background=self.Tabview.tab("Hardware Control").cget("fg_color"),
+        )
+        style.configure(
+            "Frame", bg_color=self.Tabview.tab("Hardware Control").cget("fg_color")
         )
 
         self.root.after(self.main_loop_interval_ms, self.main_loop)
@@ -253,45 +259,64 @@ class PicoController:
         current_row = 0
         local_columnspan = 8
 
+        # Port selection frame
+        self.port_select_frame = ttk.Labelframe(
+            root_frame,
+            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Select Port"),
+        )
+        self.port_select_frame.grid(
+            row=current_row,
+            column=0,
+            columnspan=local_columnspan,
+            rowspan=3,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
         # first in the port_select_frame
         # Create a row for each potential pump controller
         for controller_id in range(1, self.num_pump_controllers + 1):
             self.add_pump_controller_widgets(
-                root_frame=root_frame,
+                root_frame=self.port_select_frame,
                 port_label="Pump Controller",
                 controller_id=controller_id,
             )
-        current_row = root_frame.grid_size()[1]
+        current_row = self.port_select_frame.grid_size()[1]
         # second in the port_select_frame
-        self.port_label_as = ctk.CTkLabel(root_frame, text="Autosampler:")
+        self.port_label_as = ctk.CTkLabel(self.port_select_frame, text="Autosampler:")
         self.port_label_as.grid(
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.port_combobox_as = ctk.CTkComboBox(root_frame, state="readonly", width=200)
+        self.port_combobox_as = ctk.CTkComboBox(
+            self.port_select_frame, state="readonly", width=200, values=[]
+        )
         self.port_combobox_as.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_as = ctk.CTkButton(
-            root_frame, text="Connect", command=self.connect_as
+            self.port_select_frame, text="Connect", command=self.connect_as
         )
         self.connect_button_as.grid(
             row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as = ctk.CTkButton(
-            root_frame, text="Disconnect", command=self.disconnect_as
+            self.port_select_frame, text="Disconnect", command=self.disconnect_as
         )
         self.disconnect_button_as.grid(
             row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as.configure(state="disable", hover=True)
         self.reset_button_as = ctk.CTkButton(
-            root_frame, text="Reset", command=self.reset_as
+            self.port_select_frame, text="Reset", command=self.reset_as
         )
         self.reset_button_as.grid(
             row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.reset_button_as.configure(state="disable", hover=True)
-        self.status_label_as = ctk.CTkLabel(root_frame, text="Status: Not connected")
+        self.status_label_as = ctk.CTkLabel(
+            self.port_select_frame, text="Status: Not connected"
+        )
         self.status_label_as.grid(
             row=current_row,
             column=5,
@@ -300,37 +325,41 @@ class PicoController:
             sticky="W",
         )
         # update the current row
-        current_row += root_frame.grid_size()[1]
+        current_row += self.port_select_frame.grid_size()[1]
         # third in the port_select_frame
-        self.port_label_po = ctk.CTkLabel(root_frame, text="Potentiostat:")
+        self.port_label_po = ctk.CTkLabel(self.port_select_frame, text="Potentiostat:")
         self.port_label_po.grid(
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.port_combobox_po = ctk.CTkComboBox(root_frame, state="readonly", width=200)
+        self.port_combobox_po = ctk.CTkComboBox(
+            self.port_select_frame, state="readonly", width=200, values=[]
+        )
         self.port_combobox_po.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_po = ctk.CTkButton(
-            root_frame, text="Connect", command=self.connect_po
+            self.port_select_frame, text="Connect", command=self.connect_po
         )
         self.connect_button_po.grid(
             row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_po = ctk.CTkButton(
-            root_frame, text="Disconnect", command=self.disconnect_po
+            self.port_select_frame, text="Disconnect", command=self.disconnect_po
         )
         self.disconnect_button_po.grid(
             row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_po.configure(state="disable", hover=True)
         self.reset_button_po = ctk.CTkButton(
-            root_frame, text="Reset", command=self.reset_po
+            self.port_select_frame, text="Reset", command=self.reset_po
         )
         self.reset_button_po.grid(
             row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.reset_button_po.configure(state="disable", hover=True)
-        self.status_label_po = ctk.CTkLabel(root_frame, text="Status: Not connected")
+        self.status_label_po = ctk.CTkLabel(
+            self.port_select_frame, text="Status: Not connected"
+        )
         self.status_label_po.grid(
             row=current_row,
             column=5,
@@ -344,8 +373,8 @@ class PicoController:
         # Pump Manual Control frame
         self.manual_control_frame = ttk.LabelFrame(
             root_frame,
-            text="Pump Manual Control",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Pump Manual Control"),
         )
         self.manual_control_frame.grid(
             row=current_row,
@@ -410,8 +439,11 @@ class PicoController:
         # Potentiostat Manual Control frame
         self.manual_control_frame_po = ttk.LabelFrame(
             root_frame,
-            text="Potentiostat Manual Control (Set this to LOW before starting a recipe!)",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(
+                root_frame,
+                text="Potentiostat Manual Control (Set this to LOW before starting a recipe!)",
+            ),
         )
         self.manual_control_frame_po.grid(
             row=current_row,
@@ -462,8 +494,8 @@ class PicoController:
         # Autosampler Manual Control frame
         self.manual_control_frame_as = ttk.LabelFrame(
             root_frame,
-            text="Autosampler Manual Control",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Autosampler Manual Control"),
         )
         self.manual_control_frame_as.grid(
             row=current_row,
@@ -533,7 +565,7 @@ class PicoController:
             row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.slot_combobox_as = ctk.CTkComboBox(
-            self.manual_control_frame_as, state="readonly", width=200
+            self.manual_control_frame_as, state="readonly", width=200, values=[]
         )
         self.slot_combobox_as.grid(
             row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -650,7 +682,10 @@ class PicoController:
         port_label.grid(
             row=row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        port_combobox = ctk.CTkComboBox(root_frame, state="readonly", width=200)
+        port_combobox = ctk.CTkComboBox(
+            root_frame, state="readonly", width=200, values=[]
+        )
+        logging.info(f"port_combobox winfoclass: {port_combobox.winfo_class()}")
         port_combobox.grid(row=row, column=1, padx=global_pad_x, pady=global_pad_y)
         connect_button = ctk.CTkButton(
             root_frame,
@@ -704,8 +739,8 @@ class PicoController:
         # Recipe frame
         self.recipe_frame = ttk.LabelFrame(
             root_frame,
-            text="Recipe",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Recipe"),
         )
         self.recipe_frame.grid(
             row=current_row,
@@ -797,9 +832,7 @@ class PicoController:
             sticky="W",
         )
         self.gSquence_save_path_entry = ctk.CTkComboBox(
-            self.gSquence_save_frame,
-            state="readonly",
-            width=300,
+            self.gSquence_save_frame, state="readonly", width=300, values=[]
         )
         temp_col_counter += 1
         self.gSquence_save_path_entry.grid(
@@ -857,8 +890,8 @@ class PicoController:
         # second row in the recipe_frame, containing the recipe table
         self.recipe_table_frame = ttk.LabelFrame(
             self.recipe_frame,
-            text="Recipe Viewer",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Recipe Viewer"),
         )
         self.recipe_table_frame.grid(
             row=2,
@@ -885,8 +918,8 @@ class PicoController:
         # Progress frame
         self.progress_frame = ttk.LabelFrame(
             root_frame,
-            text="Progress",
             padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
+            labelwidget=ctk.CTkLabel(root_frame, text="Procedure Progress"),
         )
         self.progress_frame.grid(
             row=current_row,
@@ -938,8 +971,8 @@ class PicoController:
         # sequence table frame
         self.eChem_sequence_frame = ttk.LabelFrame(
             root_frame,
-            text="EChem Sequence Viewer",
             padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
+            labelwidget=ctk.CTkLabel(root_frame, text="EChem Sequence Viewer"),
         )
         self.eChem_sequence_frame.grid(
             row=current_row,
@@ -995,7 +1028,9 @@ class PicoController:
             sticky="W",
         )
         local_column += 1
-        self.port_combobox_ff = ctk.CTkComboBox(root_frame, state="readonly", width=200)
+        self.port_combobox_ff = ctk.CTkComboBox(
+            root_frame, state="readonly", width=200, values=[]
+        )
         self.port_combobox_ff.grid(
             row=local_row,
             column=local_column,
@@ -2846,8 +2881,11 @@ class PicoController:
                     self.controller_ids_to_pump_ids[controller_id].append(pump_id)
                     pump_frame = ttk.LabelFrame(
                         self.pumps_frame,
-                        text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}",
                         labelanchor="n",
+                        labelwidget=ctk.CTkLabel(
+                            self.pumps_frame,
+                            text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}",
+                        ),
                     )
                     pump_frame.grid(
                         row=(pump_id - 1) // self.pumps_per_row,
