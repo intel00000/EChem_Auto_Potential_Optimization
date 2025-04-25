@@ -1,1 +1,5 @@
-{"enter_bootloader_setting": false, "mode": "update_firmware"}
+{
+    "enter_bootloader_setting": false,
+    "mode": "update_firmware",
+    "mode_before": "pump"
+}

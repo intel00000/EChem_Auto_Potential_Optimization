@@ -1,13 +1,15 @@
 import os
+import customtkinter as ctk
 
 # Define the path dynamically
 icon_path = os.path.join("icons", "icons-red.ico")
+ctk_path = ctk.__path__[0]
 
 a = Analysis(
     ['pump_control.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons'), ('xmls/combined_sequencer_methods.xml', 'xmls')],
+    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons'), ('xmls/combined_sequencer_methods.xml', 'xmls'), (ctk_path, 'customtkinter')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

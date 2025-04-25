@@ -36,6 +36,26 @@ def set_bootloader_mode(mode: str):
         raise ValueError(
             "Invalid mode. Must be 'pump', 'autosampler', 'potentiostat', or 'update_firmware'."
         )
+    if mode == "update_firmware":
+        config["mode_before"] = config.get("mode", "pump")
     config["mode"] = mode
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f)
+
+
+def exit_bootloader_settings():
+    # Read current config (or use defaults)
+    try:
+        with open(CONFIG_FILE, "r") as f:
+            config = json.load(f)
+    except OSError:
+        config = {"enter_bootloader_setting": False, "mode": "pump"}
+
+    # Update the flag to exit bootloader settings mode
+    config["enter_bootloader_setting"] = False
+    config["mode"] = config.get("mode_before", "pump")
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
+
+    # Reset the board to start the main application
+    machine.reset()

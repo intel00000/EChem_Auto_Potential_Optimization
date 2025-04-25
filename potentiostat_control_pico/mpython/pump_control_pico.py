@@ -191,7 +191,7 @@ def emergency_shutdown():
     for _, pump in pumps.items():
         if pump.power_status != "OFF":
             pump.toggle_power()
-    write_message("Success: Emergency Shutdown, all pumps are off.")
+    write_message("Info: Shutdown complete, all pumps are off.")
 
 
 # function to return the version of the script
@@ -202,7 +202,7 @@ def ping():
 
 # a function to reset the device, equivalent to a hard reset
 def hard_reset():
-    write_message("Success: Performing hard reset.")
+    write_message("Info: Performing hard reset.")
     reset()
 
 
@@ -248,7 +248,6 @@ def load_pumps():
                 data = json.load(file)
                 for key, value in data.items():
                     pumps[int(key)] = Pump.from_dict(value)
-            write_message(f"Success: Loaded pump data from {SAVE_FILE}.")
         else:
             write_message(
                 f"No save file found ({SAVE_FILE}). Starting with default pumps."
@@ -271,7 +270,7 @@ def set_time(year, month, day, hour, minute, second):
     try:
         rtc.datetime((year, month, day, 0, hour, minute, second, 0))
         write_message(
-            f"Success: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
+            f"Info: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
         )
     except Exception as e:
         write_message(f"Error: Could not set RTC time, {e}")

@@ -54,6 +54,7 @@ NANOSECONDS_PER_SECOND = 1_000_000_000
 NANOSECONDS_PER_MILLISECOND = 1_000_000
 NORMAL_FONT_SIZE = 10
 LARGE_FONT_SIZE = 11
+FONT_FAMILY = "Arial"
 
 
 class PicoController:
@@ -64,8 +65,7 @@ class PicoController:
         self.config = get_config()
 
         # port refresh timer
-        self.port_refresh_interval_ns = 1.5 * NANOSECONDS_PER_SECOND
-        self.last_port_refresh_ns = -1
+        self.port_refresh_interval_ns = 2 * NANOSECONDS_PER_SECOND
         self.timeout = 1  # Serial port timeout in seconds
 
         # instance fields for the serial port and queue
@@ -84,12 +84,12 @@ class PicoController:
         self.controller_ids_to_pump_ids = {}
         self.pumps_per_row = 3  # define num of pumps per row in manual control frame
         # instance field for the autosampler serial port
-        self.autosamplers = None
+        self.autosamplers = serial.Serial(timeout=self.timeout)
         self.autosamplers_send_queue = Queue()
         self.autosamplers_rtc_time = "--:--:--"
         self.autosamplers_slots = {}
         # instance field for the potentiostat serial port
-        self.potentiostat = None
+        self.potentiostat = serial.Serial(timeout=self.timeout)
         self.potentiostat_send_queue = Queue()
         self.potentiostat_rtc_time = "--:--:--"
         self.potentiostat_config = {}
@@ -135,8 +135,15 @@ class PicoController:
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )
 
+        def main_tabview_changed():
+            current_tab = self.Tabview.get()
+            if current_tab == "Hardware Control":
+                self.refresh_ports()
+            elif current_tab == "Firmware Update":
+                self.refresh_ports()
+
         # a notebook widget to hold the tabs
-        self.Tabview = ctk.CTkTabview(self.root)
+        self.Tabview = ctk.CTkTabview(self.root, command=main_tabview_changed)
         self.Tabview.pack(
             anchor="center",
             padx=global_pad_x,
@@ -146,19 +153,15 @@ class PicoController:
         # frame for different tabs
         self.Tabview.add("Hardware Control")
         self.Tabview.add("Experiment Scheduler")
-        self.Tabview.add("EChem Automation Sequence")
         self.Tabview.add("Firmware Update")
         self.create_manual_control_page(self.Tabview.tab("Hardware Control"))
         self.create_experiment_scheduler_page(self.Tabview.tab("Experiment Scheduler"))
-        self.create_eChem_sequence_view_page(
-            self.Tabview.tab("EChem Automation Sequence")
-        )
         self.create_flash_firmware_page(self.Tabview.tab("Firmware Update"))
         for button in self.Tabview._segmented_button._buttons_dict.values():
             button.configure(
                 font=(
                     "Arial",
-                    int(button.cget("font").cget("size") * 1.5),
+                    int(button.cget("font").cget("size") * 1.75),
                 )
             )
 
@@ -173,26 +176,24 @@ class PicoController:
         style = ttk.Style()
         style.configure(
             ".",
-            font=(None, NORMAL_FONT_SIZE),
+            font=(FONT_FAMILY, NORMAL_FONT_SIZE),
         )
         style.configure(
             "Treeview",
-            font=(None, NORMAL_FONT_SIZE),
+            font=(FONT_FAMILY, NORMAL_FONT_SIZE),
             rowheight=int(NORMAL_FONT_SIZE * 3),
         )
         style.configure(
             "Treeview.Heading",
-            font=(None, LARGE_FONT_SIZE),
+            font=(FONT_FAMILY, LARGE_FONT_SIZE),
             rowheight=int(LARGE_FONT_SIZE * 3),
         )
         style.configure(
             "TLabelframe",
             background=self.Tabview.tab("Hardware Control").cget("fg_color"),
         )
-        style.configure(
-            "Frame", bg_color=self.Tabview.tab("Hardware Control").cget("fg_color")
-        )
 
+        self.refresh_ports()
         self.root.after(self.main_loop_interval_ms, self.main_loop)
 
     def create_rtc_time_frame(self, root_frame):
@@ -263,9 +264,18 @@ class PicoController:
         )
 
     def create_manual_control_page(self, root_frame):
-        current_row, local_columnspan = 0, 8
+        current_row = 0
 
-        self.mc_view = ctk.CTkTabview(root_frame, fg_color="darkgray")
+        def mc_tabview_changed():
+            """Callback for the manual control tabview change."""
+            selected_tab = self.mc_view.get()
+            if selected_tab == "Port Selection":
+                # call refresh_ports to update the port comboboxes
+                self.refresh_ports()
+
+        self.mc_view = ctk.CTkTabview(
+            root_frame, fg_color="darkgray", command=mc_tabview_changed
+        )
         self.mc_view.pack(
             anchor="center",
             padx=global_pad_x,
@@ -288,41 +298,42 @@ class PicoController:
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_as = ctk.CTkComboBox(
-            port_select_frame, state="readonly", width=200, values=[]
+            port_select_frame, state="readonly", width=240, values=[]
         )
         self.port_combobox_as.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
+        )
+        self.status_label_as = ctk.CTkLabel(
+            port_select_frame, text="Status: Not connected"
+        )
+        self.status_label_as.grid(
+            row=current_row,
+            column=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
         )
         self.connect_button_as = ctk.CTkButton(
             port_select_frame, text="Connect", command=self.connect_as
         )
         self.connect_button_as.grid(
-            row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as = ctk.CTkButton(
             port_select_frame, text="Disconnect", command=self.disconnect_as
         )
         self.disconnect_button_as.grid(
-            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=4, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as.configure(state="disabled", hover=True)
         self.reset_button_as = ctk.CTkButton(
             port_select_frame, text="Reset", command=self.reset_as
         )
         self.reset_button_as.grid(
-            row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=current_row, column=5, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.reset_button_as.configure(state="disabled", hover=True)
-        self.status_label_as = ctk.CTkLabel(
-            port_select_frame, text="Status: Not connected"
-        )
-        self.status_label_as.grid(
-            row=current_row,
-            column=5,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-        )
+
         # update the current row
         current_row = port_select_frame.grid_size()[1]
         # third in the port_select_frame
@@ -331,41 +342,41 @@ class PicoController:
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_po = ctk.CTkComboBox(
-            port_select_frame, state="readonly", width=200, values=[]
+            port_select_frame, state="readonly", width=240, values=[]
         )
         self.port_combobox_po.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
+        )
+        self.status_label_po = ctk.CTkLabel(
+            port_select_frame, text="Status: Not connected"
+        )
+        self.status_label_po.grid(
+            row=current_row,
+            column=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="W",
         )
         self.connect_button_po = ctk.CTkButton(
             port_select_frame, text="Connect", command=self.connect_po
         )
         self.connect_button_po.grid(
-            row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_po = ctk.CTkButton(
             port_select_frame, text="Disconnect", command=self.disconnect_po
         )
         self.disconnect_button_po.grid(
-            row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
+            row=current_row, column=4, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_po.configure(state="disabled", hover=True)
         self.reset_button_po = ctk.CTkButton(
             port_select_frame, text="Reset", command=self.reset_po
         )
         self.reset_button_po.grid(
-            row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=current_row, column=5, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.reset_button_po.configure(state="disabled", hover=True)
-        self.status_label_po = ctk.CTkLabel(
-            port_select_frame, text="Status: Not connected"
-        )
-        self.status_label_po.grid(
-            row=current_row,
-            column=5,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="W",
-        )
 
         pumps_mc_frame = self.mc_view.add("Pump Manual Control")
         # first row in the manual control frame, containing all the buttons
@@ -459,13 +470,13 @@ class PicoController:
         # Autosampler Manual Control frame
         as_mc_frame = self.mc_view.add("Autosampler Manual Control")
         # Text Entry for Position
-        self.position_entry_label_as = ctk.CTkLabel(
-            as_mc_frame, text="Target position:"
-        )
+        self.position_entry_label_as = ctk.CTkLabel(as_mc_frame, text="Position:")
         self.position_entry_label_as.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.position_entry_as = ctk.CTkEntry(as_mc_frame)
+        self.position_entry_as = ctk.CTkEntry(
+            as_mc_frame, placeholder_text="Target position"
+        )
         self.position_entry_as.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
@@ -518,15 +529,14 @@ class PicoController:
             row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.slot_combobox_as = ctk.CTkComboBox(
-            as_mc_frame, state="readonly", width=140, values=[]
+            as_mc_frame,
+            state="readonly",
+            width=140,
+            values=[],
+            command=self.on_slot_combobox_selected,  # type: ignore
         )
         self.slot_combobox_as.grid(
             row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
-        )
-        # on change of the slot_combobox_as, update the slot position label
-        self.slot_combobox_as.bind(
-            "<<ComboboxSelected>>",
-            self.on_slot_combobox_selected,
         )
         self.slot_position_frame_as = ctk.CTkFrame(
             as_mc_frame, bg_color="transparent", fg_color="transparent"
@@ -565,45 +575,21 @@ class PicoController:
         self.update_slot_label_as.grid(
             row=2, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.update_slot_slotname_as = ttk.Entry(as_mc_frame, foreground="gray")
-        self.update_slot_slotname_as.insert(0, "Enter slot name here...")
+        self.update_slot_slotname_as = ctk.CTkEntry(
+            as_mc_frame, placeholder_text="Slot name"
+        )
         self.update_slot_slotname_as.grid(
             row=2, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        # call update_Entry_callback during focus in and out to update the Entry field
-        self.update_slot_slotname_as.bind(
-            "<FocusIn>",
-            lambda event: self.update_Entry_callback_as(
-                self.update_slot_slotname_as, event, "Enter slot name here..."
-            ),
+        self.update_slot_position_as = ctk.CTkEntry(
+            as_mc_frame, placeholder_text="Position"
         )
-        self.update_slot_slotname_as.bind(
-            "<FocusOut>",
-            lambda event: self.update_Entry_callback_as(
-                self.update_slot_slotname_as, event, "Enter slot name here..."
-            ),
-        )
-        self.update_slot_position_as = ttk.Entry(as_mc_frame, foreground="gray")
         self.update_slot_position_as.grid(
             row=2,
             column=2,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="W",
-        )
-        self.update_slot_position_as.insert(0, "Enter position here...")
-        # call update_Entry_callback during focus in and out to update the Entry field
-        self.update_slot_position_as.bind(
-            "<FocusIn>",
-            lambda event: self.update_Entry_callback_as(
-                self.update_slot_position_as, event, "Enter position here..."
-            ),
-        )
-        self.update_slot_position_as.bind(
-            "<FocusOut>",
-            lambda event: self.update_Entry_callback_as(
-                self.update_slot_position_as, event, "Enter position here..."
-            ),
         )
         self.update_slot_button_as = ctk.CTkButton(
             as_mc_frame,
@@ -616,8 +602,8 @@ class PicoController:
         for button in self.mc_view._segmented_button._buttons_dict.values():
             button.configure(
                 font=(
-                    "Arial",
-                    int(button.cget("font").cget("size") * 1.25),
+                    FONT_FAMILY,
+                    int(button.cget("font").cget("size") * 1.5),
                 )
             )
         self.set_manual_control_buttons_state("disabled")
@@ -635,21 +621,33 @@ class PicoController:
             row=row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         port_combobox = ctk.CTkComboBox(
-            root_frame, state="readonly", width=200, values=[]
+            root_frame, state="readonly", width=240, values=[]
         )
         logging.info(f"port_combobox winfoclass: {port_combobox.winfo_class()}")
         port_combobox.grid(row=row, column=1, padx=global_pad_x, pady=global_pad_y)
+        status_label = ctk.CTkLabel(
+            root_frame,
+            text="Status: Not connected",
+        )
+        status_label.grid(
+            row=row,
+            column=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            columnspan=1,
+            sticky="W",
+        )
         connect_button = ctk.CTkButton(
             root_frame, text="Connect", command=lambda: self.connect_pc(controller_id)
         )
-        connect_button.grid(row=row, column=2, padx=global_pad_x, pady=global_pad_y)
+        connect_button.grid(row=row, column=3, padx=global_pad_x, pady=global_pad_y)
         connect_button.configure(state="normal", hover=True)
         disconnect_button = ctk.CTkButton(
             root_frame,
             text="Disconnect",
             command=lambda: self.disconnect_pc(controller_id),
         )
-        disconnect_button.grid(row=row, column=3, padx=global_pad_x, pady=global_pad_y)
+        disconnect_button.grid(row=row, column=4, padx=global_pad_x, pady=global_pad_y)
         disconnect_button.configure(state="disabled", hover=True)
         reset_button = ctk.CTkButton(
             root_frame,
@@ -657,21 +655,10 @@ class PicoController:
             command=lambda: self.reset_pc(controller_id),
         )
         reset_button.grid(
-            row=row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=row, column=5, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         reset_button.configure(state="disabled", hover=True)
-        status_label = ctk.CTkLabel(
-            root_frame,
-            text="Status: Not connected",
-        )
-        status_label.grid(
-            row=row,
-            column=5,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            columnspan=1,
-            sticky="W",
-        )
+
         # Save references to widgets
         self.pump_controllers_id_to_widget_map[controller_id] = {
             "combobox": port_combobox,
@@ -686,22 +673,31 @@ class PicoController:
         current_row = 0  # Row Counter
         local_columnspan = 7
 
-        # Recipe frame
-        self.recipe_frame = ttk.LabelFrame(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Recipe"),
+        self.experiment_scheduler_tabview = ctk.CTkTabview(
+            root_frame, fg_color="darkgray"
         )
-        self.recipe_frame.grid(
+        self.experiment_scheduler_tabview.grid(
             row=current_row,
             column=0,
-            columnspan=local_columnspan,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
         )
+        self.recipe_frame = self.experiment_scheduler_tabview.add("Load Recipe")
+        for (
+            button
+        ) in self.experiment_scheduler_tabview._segmented_button._buttons_dict.values():
+            button.configure(
+                font=(
+                    FONT_FAMILY,
+                    int(button.cget("font").cget("size") * 1.5),
+                )
+            )
+        current_row = self.recipe_frame.grid_size()[1]
         # first row in the recipe frame, containing the buttons
-        self.recipe_frame_buttons = ctk.CTkFrame(self.recipe_frame)
+        self.recipe_frame_buttons = ctk.CTkFrame(
+            self.recipe_frame, bg_color="transparent", fg_color="transparent"
+        )
         self.recipe_frame_buttons.grid(
             row=0,
             column=0,
@@ -761,11 +757,13 @@ class PicoController:
         self.continue_button.configure(state="disabled", hover=True)
 
         # second row in the recipe_frame_buttons, containing the gSequence and generate button
-        self.gSquence_save_frame = ctk.CTkFrame(self.recipe_frame_buttons)
+        self.gSquence_save_frame = ctk.CTkFrame(
+            self.recipe_frame_buttons, bg_color="transparent", fg_color="transparent"
+        )
         self.gSquence_save_frame.grid(
             row=1,
             column=0,
-            columnspan=4,
+            columnspan=3,
             padx=global_pad_x,
             pady=global_pad_y,
             sticky="NSEW",
@@ -782,7 +780,7 @@ class PicoController:
             sticky="W",
         )
         self.gSquence_save_path_entry = ctk.CTkComboBox(
-            self.gSquence_save_frame, state="readonly", width=300, values=[]
+            self.gSquence_save_frame, state="readonly", width=350, values=[]
         )
         temp_col_counter += 1
         self.gSquence_save_path_entry.grid(
@@ -797,12 +795,13 @@ class PicoController:
         self.gSquence_save_path_entry.configure(
             values=self.config.get("gSequence_save_dir_history", [])
         )
-        if len(self.gSquence_save_path_entry.cget("values")) > 0:
-            self.gSquence_save_path_entry.get()
+        save_paths = self.gSquence_save_path_entry.cget("values")
+        if len(save_paths) > 0:
+            self.gSquence_save_path_entry.set(save_paths[0])
         self.gSquence_save_path_entry.bind(
             "<<ComboboxSelected>>", self.update_directory_history
         )
-        temp_col_counter += 3
+        temp_col_counter += 2
         self.gSquence_save_path_set_button = ctk.CTkButton(
             self.recipe_frame_buttons,
             text="Set",
@@ -836,14 +835,13 @@ class PicoController:
             row=1, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
         self.generate_sequence_button.configure(state="disabled", hover=True)
+        current_row = self.recipe_frame.grid_size()[1]
 
-        # second row in the recipe_frame, containing the recipe table
-        self.recipe_table_frame = ttk.LabelFrame(
-            self.recipe_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Recipe Viewer"),
+        # second row in the recipe_frame, containing the recipe table and the EChem sequence table
+        self.table_tabview = ctk.CTkTabview(
+            self.recipe_frame, fg_color="transparent", bg_color="transparent"
         )
-        self.recipe_table_frame.grid(
+        self.table_tabview.grid(
             row=2,
             column=0,
             columnspan=local_columnspan - 1,
@@ -851,116 +849,102 @@ class PicoController:
             pady=global_pad_y,
             sticky="NSEW",
         )
-        self.recipe_table = ttk.Treeview(
-            self.recipe_table_frame, columns=["", "", "", "", ""], show="headings"
-        )
-        self.scrollbar = ttk.Scrollbar(
-            self.recipe_table_frame,
-            orient="vertical",
-            command=self.recipe_table.yview,
-        )
-        self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-        self.recipe_table.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
-        # update the current row
-        current_row += self.recipe_frame.grid_size()[1]
+        self.recipe_table_frame = self.table_tabview.add("Recipe Sequence")
+        self.create_recipe_sequence_table(self.recipe_table_frame)
 
-        # Progress frame
-        self.progress_frame = ttk.LabelFrame(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Procedure Progress"),
+        self.eChem_sequence_table_frame = self.table_tabview.add(
+            "Potentiostat Sequence"
         )
-        self.progress_frame.grid(
-            row=current_row,
+        self.create_eChem_sequence_table(self.eChem_sequence_table_frame)
+        for button in self.table_tabview._segmented_button._buttons_dict.values():
+            button.configure(
+                font=(
+                    FONT_FAMILY,
+                    int(button.cget("font").cget("size") * 1.25),
+                )
+            )
+
+        # first row in the progress frame, containing the progress bar
+        self.total_progress_frame = ctk.CTkFrame(
+            self.recipe_frame, bg_color="transparent", fg_color="transparent"
+        )
+        self.total_progress_frame.grid(
+            row=self.recipe_frame.grid_size()[1],
             column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
+            columnspan=local_columnspan - 1,
             sticky="NSEW",
         )
-        # first row in the progress frame, containing the progress bar
         self.total_progress_label = ctk.CTkLabel(
-            self.progress_frame, text="Total Progress:"
+            self.total_progress_frame, text="Total Progress:"
         )
         self.total_progress_label.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.total_progress_bar = ttk.Progressbar(
-            self.progress_frame, length=250, mode="determinate"
+        self.total_progress_bar = ctk.CTkProgressBar(
+            self.total_progress_frame,
+            height=15,
+            width=500,
+            mode="determinate",
+            bg_color="transparent",
         )
+        self.total_progress_bar.set(0)
         self.total_progress_bar.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         # second row in the progress frame, containing the remaining time and Procedure end time
+        self.remaining_time_frame = ctk.CTkFrame(
+            self.recipe_frame, bg_color="transparent", fg_color="transparent"
+        )
+        self.remaining_time_frame.grid(
+            row=self.recipe_frame.grid_size()[1],
+            column=0,
+            columnspan=local_columnspan - 1,
+            sticky="NSEW",
+        )
         self.remaining_time_label = ctk.CTkLabel(
-            self.progress_frame, text="Remaining Time:"
+            self.remaining_time_frame, text="Remaining Time:"
         )
         self.remaining_time_label.grid(
-            row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.remaining_time_value = ctk.CTkLabel(self.progress_frame, text="")
+        self.remaining_time_value = ctk.CTkLabel(
+            self.remaining_time_frame, text="", width=100
+        )
         self.remaining_time_value.grid(
-            row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.end_time_label = ctk.CTkLabel(self.progress_frame, text="End Time:")
+        self.end_time_label = ctk.CTkLabel(self.remaining_time_frame, text="End Time:")
         self.end_time_label.grid(
-            row=1, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.end_time_value = ctk.CTkLabel(self.progress_frame, text="")
+        self.end_time_value = ctk.CTkLabel(
+            self.remaining_time_frame, text="", width=100
+        )
         self.end_time_value.grid(
-            row=1, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
+            row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        # update the current row
-        current_row += self.progress_frame.grid_size()[1]
 
-    def create_eChem_sequence_view_page(self, root_frame):
-        current_row = 0  # Row Counter
-        local_columnspan = 8
-
-        # sequence table frame
-        self.eChem_sequence_frame = ttk.LabelFrame(
+    def create_recipe_sequence_table(self, root_frame, columns=["", "", "", "", ""]):
+        self.recipe_table = ttk.Treeview(root_frame, columns=columns, show="headings")
+        self.scrollbar = ctk.CTkScrollbar(
             root_frame,
-            padding=(global_pad_N, global_pad_E, global_pad_S, global_pad_W),
-            labelwidget=ctk.CTkLabel(root_frame, text="EChem Sequence Viewer"),
+            orientation="vertical",
+            command=self.recipe_table.yview,
         )
-        self.eChem_sequence_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
+        self.recipe_table.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+        self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
 
-        self.eChem_sequence_table_frame = ctk.CTkFrame(self.eChem_sequence_frame)
-        self.eChem_sequence_table_frame.grid(
-            row=0,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
+    def create_eChem_sequence_table(self, root_frame, columns=["", "", "", "", ""]):
         self.eChem_sequence_table = ttk.Treeview(
-            self.eChem_sequence_table_frame,
-            columns=["", "", "", "", ""],
-            show="headings",
+            root_frame, columns=columns, show="headings"
         )
-        self.eChem_sequence_table.pack(
-            side="left",
-            fill="both",
-            expand=True,
+        self.scrollbar_EC = ctk.CTkScrollbar(
+            root_frame, orientation="vertical", command=self.eChem_sequence_table.yview
         )
-        self.scrollbar_EC = ttk.Scrollbar(
-            self.eChem_sequence_table_frame,
-            orient="vertical",
-            command=self.eChem_sequence_table.yview,
-        )
+        self.eChem_sequence_table.pack(side="left", fill="both", expand=True)
         self.scrollbar_EC.pack(side="right", fill="y")
         self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
-        current_row += self.eChem_sequence_frame.grid_size()[1]
-        current_row += 1
 
     # the flash firmware page
     def create_flash_firmware_page(self, root_frame):
@@ -979,7 +963,7 @@ class PicoController:
         )
         local_column += 1
         self.port_combobox_ff = ctk.CTkComboBox(
-            root_frame, state="readonly", width=200, values=[]
+            root_frame, state="readonly", width=240, values=[]
         )
         self.port_combobox_ff.grid(
             row=local_row,
@@ -1205,9 +1189,9 @@ class PicoController:
             columns=["filename", "size"],
             show="headings",
         )
-        self.scrollbar_ff = ttk.Scrollbar(
+        self.scrollbar_ff = ctk.CTkScrollbar(
             self.file_table_frame_ff,
-            orient="vertical",
+            orientation="vertical",
             command=self.file_table_ff.yview,
         )
         self.file_table_ff.pack(side="left", fill="both", expand=True)
@@ -1215,7 +1199,6 @@ class PicoController:
         self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
 
     def main_loop(self):
-        self.refresh_ports()
         self.read_serial()
         self.read_serial_as()
         self.read_serial_po()
@@ -1227,7 +1210,7 @@ class PicoController:
         self.update_rtc_time_display()
         self.root.after(self.main_loop_interval_ms, self.main_loop)
 
-    def refresh_ports(self, instant=False):
+    def refresh_ports(self):
         current_tab = self.Tabview.get()
         if current_tab != "Hardware Control" and current_tab != "Firmware Update":
             return
@@ -1240,85 +1223,51 @@ class PicoController:
         )
         if (
             not pump_ctls_all_connected
-            or not self.autosamplers
-            or not self.potentiostat
+            or not self.autosamplers.is_open
+            or not self.potentiostat.is_open
             or not self.create_flash_serial_obj.is_open
         ):
-            # if not all connected, refresh the ports
-            if (
-                time.monotonic_ns() - self.last_port_refresh_ns
-                < self.port_refresh_interval_ns
-                and not instant
-            ):
-                return
             # get a list of connected ports name from the serial_port dictionary, filter by vendor id
             connected_ports = [
                 port.name
                 for port in self.pump_controllers.values()
                 if port and port.is_open
             ]
-            if self.autosamplers:
+            if self.autosamplers.is_open:
                 connected_ports.append(self.autosamplers.name)
-            if self.potentiostat:
+            if self.potentiostat.is_open:
                 connected_ports.append(self.potentiostat.name)
+            if self.create_flash_serial_obj.is_open:
+                connected_ports.append(self.create_flash_serial_obj.name)
 
             ports = [
                 port.device + " (SN:" + str(port.serial_number) + ")"
                 for port in serial.tools.list_ports.comports()
                 if port.vid == pico_vid and port.name.strip() not in connected_ports
             ]
-            ports_list = [
-                port
-                for port in serial.tools.list_ports.comports()
-                if port.vid == pico_vid and port.name.strip() not in connected_ports
-            ]
-            # print detail information of the ports to the console
-            for port in ports_list:
-                try:
-                    # put these into one line
-                    logging.debug(
-                        f"name: {port.name}, description: {port.description}, device: {port.device}, hwid: {port.hwid}, manufacturer: {port.manufacturer}, pid: {hex(port.pid)}, serial_number: {port.serial_number}, vid: {hex(port.vid)}"
-                    )
-                except Exception as e:
-                    logging.error(f"Error: {e}")
+            # create a dict of serial objects with serial object as key and the corresponding combo box as value
+            serial_ports = {}
+            for id, widgets in self.pump_controllers_id_to_widget_map.items():
+                serial_port_obj = self.pump_controllers[id]
+                if serial_port_obj and not serial_port_obj.is_open:
+                    serial_ports[serial_port_obj] = widgets["combobox"]
+            if not self.autosamplers.is_open:
+                serial_ports[self.autosamplers] = self.port_combobox_as
+            if not self.potentiostat.is_open:
+                serial_ports[self.potentiostat] = self.port_combobox_po
+            if not self.create_flash_serial_obj.is_open:
+                serial_ports[self.create_flash_serial_obj] = self.port_combobox_ff
 
-            # go through the pump controllers dictionary and update the comboboxes in the corresponding frame
-            if current_tab == "Hardware Control":
-                for id, widgets in self.pump_controllers_id_to_widget_map.items():
-                    serial_port_obj = self.pump_controllers[id]
-                    if (
-                        serial_port_obj and not serial_port_obj.is_open
-                    ):  # don't update the combobox if the port is already connected
-                        widgets["combobox"]["values"] = ports
-                        if widgets["combobox"].get() not in ports:
-                            if len(ports) > 0:
-                                widgets["combobox"].set(ports[0])
-                            else:
-                                widgets["combobox"].set("")
-                if not self.autosamplers:
-                    self.port_combobox_as["values"] = ports
-                    # if current value is in the list, don't change it
-                    if self.port_combobox_as.get() not in ports:
-                        if len(ports) > 0:
-                            self.port_combobox_as.set(ports[0])
-                        else:
-                            self.port_combobox_as.set("")
-                if not self.potentiostat:
-                    self.port_combobox_po["values"] = ports
-                    if self.port_combobox_po.get() not in ports:
-                        if len(ports) > 0:
-                            self.port_combobox_po.set(ports[0])
-                        else:
-                            self.port_combobox_po.set("")
-            elif current_tab == "Firmware Update":
-                if not self.create_flash_serial_obj.is_open:
-                    self.port_combobox_ff["values"] = ports
-                    if self.port_combobox_ff.get() not in ports:
-                        if len(ports) > 0:
-                            self.port_combobox_ff.set(ports[0])
-                        else:
-                            self.port_combobox_ff.set("")
-            self.last_port_refresh_ns = time.monotonic_ns()
+            for serial_port_obj, combobox in serial_ports.items():
+                # update the combobox with the list of ports
+                combobox.configure(values=ports)
+                if serial_port_obj.name not in ports:
+                    if len(ports) > 0:
+                        combobox.set(ports[0])
+                    else:
+                        combobox.set("")
+                else:
+                    combobox.set(serial_port_obj.name)
 
     # connection to the selected port for firmware update
     def connect_ff(self, serial_port_obj, COM_port):
@@ -1407,10 +1356,8 @@ class PicoController:
                 self.disconnect_button_ff.configure(state="normal", hover=True)
                 self.reset_button_ff.configure(state="normal", hover=True)
                 logging.info(f"Connected to {parsed_port} for firmware update")
-                self.status_label_ff.configure(
-                    text=f"Status: Connected to {parsed_port}"
-                )
-                self.refresh_ports(instant=True)  # refresh the ports immediately
+                self.status_label_ff.configure(text="Status: Connected")
+                self.refresh_ports()  # refresh the ports immediately
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -1431,9 +1378,9 @@ class PicoController:
         for heading in headings:
             self.file_table_ff.heading(heading, text=heading)
             self.file_table_ff.column(heading, anchor="center")
-        self.scrollbar_ff = ttk.Scrollbar(
+        self.scrollbar_ff = ctk.CTkScrollbar(
             self.file_table_frame_ff,
-            orient="vertical",
+            orientation="vertical",
             command=self.file_table_ff.yview,
         )
         self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
@@ -1482,15 +1429,15 @@ class PicoController:
                     columns=["filename", "size"],
                     show="headings",
                 )
-                self.scrollbar_ff = ttk.Scrollbar(
+                self.scrollbar_ff = ctk.CTkScrollbar(
                     self.file_table_frame_ff,
-                    orient="vertical",
+                    orientation="vertical",
                     command=self.file_table_ff.yview,
                 )
                 self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
                 self.file_table_ff.pack(side="left", fill="both", expand=True)
                 self.scrollbar_ff.pack(side="right", fill="y")
-            self.refresh_ports(instant=True)
+            self.refresh_ports()
 
     def switch_mode_ff(self, mode: str):
         # set a "0:set_mode:update_firmware" command to the serial port
@@ -1508,8 +1455,8 @@ class PicoController:
             # update the frame
             self.disconnect_ff(self.create_flash_serial_obj)
             for _ in range(10):
-                self.refresh_ports(instant=True)
-                for value in self.port_combobox_ff["values"]:
+                self.refresh_ports()
+                for value in self.port_combobox_ff.cget("values"):
                     if self.create_flash_serial_obj.port in value:
                         time.sleep(1)
                         self.connect_ff(
@@ -1602,7 +1549,7 @@ class PicoController:
             serial_port_obj.write(bytes(code + "\n", "utf-8"))
         serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
         self.disconnect_ff(serial_port_obj)
-        self.refresh_ports(instant=True)
+        self.root.after(3 * 1000, self.refresh_ports)
 
     def switch_controller_mode_ff(self, serial_port_obj: serial.Serial, mode: str):
         # switch the controller mode by sending a command to the serial port
@@ -1680,10 +1627,8 @@ class PicoController:
                 response = serial_port_obj.readline().decode("utf-8").strip()
 
                 logging.info(f"Connected to {selected_port}")
-                self.refresh_ports(instant=True)  # refresh the ports immediately
-                serial_port_widget["status_label"].configure(
-                    text=f"Status: Connected to {parsed_port}"
-                )
+                self.refresh_ports()  # refresh the ports immediately
+                serial_port_widget["status_label"].configure(text="Status: Connected")
                 self.pump_controllers_connected[controller_id] = True
 
                 self.query_pump_info(controller_id=controller_id)  # query the pump info
@@ -1719,7 +1664,7 @@ class PicoController:
         parsed_port = re.match(r"^(COM\d+)", selected_port)
         if parsed_port:
             parsed_port = parsed_port.group(1)
-            if self.autosamplers:
+            if self.autosamplers.is_open:
                 if (
                     messagebox.askyesno(
                         "Disconnect",
@@ -1731,7 +1676,8 @@ class PicoController:
                 else:
                     return
             try:
-                self.autosamplers = serial.Serial(parsed_port, timeout=self.timeout)
+                self.autosamplers.port = parsed_port
+                self.autosamplers.open()
                 self.autosamplers.reset_input_buffer()
                 self.autosamplers.reset_output_buffer()
                 self.autosamplers.write("ping\n".encode())  # identify Pico type
@@ -1749,11 +1695,9 @@ class PicoController:
                 self.autosamplers.write(f"{sync_command}\n".encode())
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
-                self.status_label_as.configure(
-                    text=f"Status: Connected to {parsed_port}"
-                )
+                self.status_label_as.configure(text="Status: Connected")
                 logging.info(f"Connected to Autosampler at {selected_port}")
-                self.refresh_ports(instant=True)
+                self.refresh_ports()
                 self.set_autosampler_buttons_state("normal")
                 self.autosamplers_send_queue.put("dumpSlotsConfig")
             except Exception as e:
@@ -1787,7 +1731,7 @@ class PicoController:
         parsed_port = re.match(r"^(COM\d+)", selected_port)
         if parsed_port:
             parsed_port = parsed_port.group(1)
-            if self.potentiostat:
+            if self.potentiostat.is_open:
                 if (
                     messagebox.askyesno(
                         "Disconnect",
@@ -1799,7 +1743,8 @@ class PicoController:
                 else:
                     return
             try:
-                self.potentiostat = serial.Serial(parsed_port, timeout=self.timeout)
+                self.potentiostat.port = parsed_port
+                self.potentiostat.open()
                 self.potentiostat.reset_input_buffer()
                 self.potentiostat.reset_output_buffer()
                 self.potentiostat.write("0:ping\n".encode())  # identify Pico type
@@ -1817,11 +1762,9 @@ class PicoController:
                 self.potentiostat.write(f"{sync_command}\n".encode())
                 response = self.potentiostat.readline().decode("utf-8").strip()
 
-                self.status_label_po.configure(
-                    text=f"Status: Connected to {parsed_port}"
-                )
+                self.status_label_po.configure(text="Status: Connected")
                 logging.info(f"Connected to Potentiostat at {selected_port}")
-                self.refresh_ports(instant=True)
+                self.refresh_ports()
                 self.set_trigger_po(state="low")
                 self.set_potentiostat_buttons_state("normal")
                 self.potentiostat_send_queue.put("0:info")
@@ -1849,10 +1792,10 @@ class PicoController:
             for id, connection_status in self.pump_controllers_connected.items():
                 if connection_status:
                     self.pump_controllers_send_queue.put(f"{id}:0:time")
-            if self.autosamplers:
+            if self.autosamplers.is_open:
                 self.autosamplers_send_queue.put("gtime")
                 self.autosamplers_send_queue.put("getPosition")
-            if self.potentiostat:
+            if self.potentiostat.is_open:
                 self.potentiostat_send_queue.put("0:time")
             self.last_time_query = current_time
 
@@ -1891,14 +1834,14 @@ class PicoController:
                     int(x) if x.isdigit() else x,
                 )
             )
-            self.slot_combobox_as["values"] = slots
+            self.slot_combobox_as.configure(values=slots)
 
             if previous_value in slots:
                 self.slot_combobox_as.set(previous_value)
             else:
                 if len(slots) > 0:
-                    self.slot_combobox_as.get()
-            self.slot_combobox_as.event_generate("<<ComboboxSelected>>")
+                    self.slot_combobox_as.set(slots[0])
+            self.on_slot_combobox_selected()  # update the slot details
             logging.info(f"Slots populated: {slots}")
         except json.JSONDecodeError as e:
             logging.error(f"Error decoding autosampler configuration: {e}")
@@ -2005,7 +1948,7 @@ class PicoController:
                     while not temp_queue.empty():
                         self.pump_controllers_send_queue.put(temp_queue.get())
 
-                    self.refresh_ports(instant=True)  # refresh the ports immediately
+                    self.refresh_ports()
                     logging.info(f"Disconnected from Pico {controller_id}")
                     if show_message:
                         non_blocking_messagebox(
@@ -2023,10 +1966,9 @@ class PicoController:
                     )
 
     def disconnect_as(self, show_message=True):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 self.autosamplers.close()
-                self.autosamplers = None
                 self.status_label_as.configure(text="Status: Not connected")
                 self.current_position_value_as.configure(text="N/A")
                 self.autosamplers_rtc_time = "--:--:--"
@@ -2043,7 +1985,6 @@ class PicoController:
                     )
             except Exception as e:
                 logging.error(f"Error: {e}")
-                self.autosamplers = None
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Error",
@@ -2051,10 +1992,9 @@ class PicoController:
                 )
 
     def disconnect_po(self, show_message=True):
-        if self.potentiostat:
+        if self.potentiostat.is_open:
             try:
                 self.potentiostat.close()
-                self.potentiostat = None
                 self.status_label_po.configure(text="Status: Not connected")
                 self.potentiostat_rtc_time = "--:--:--"
                 self.current_trigger_state_value_po.configure(text="N/A")
@@ -2070,7 +2010,6 @@ class PicoController:
                     )
             except Exception as e:
                 logging.error(f"Error: {e}")
-                self.potentiostat = None
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Error",
@@ -2085,6 +2024,7 @@ class PicoController:
                 ):
                     self.pump_controllers_send_queue.put(f"{controller_id}:0:reset")
                     logging.info(f"Signal sent for controller {controller_id} reset.")
+                    self.root.after(3 * 1000, self.refresh_ports)
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -2094,13 +2034,14 @@ class PicoController:
             )
 
     def reset_as(self):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 if messagebox.askyesno(
                     "Reset", "Are you sure you want to reset the Autosampler?"
                 ):
                     self.autosamplers_send_queue.put("reset")
                     logging.info("Signal sent for Autosampler reset.")
+                    self.root.after(3 * 1000, self.refresh_ports)
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -2110,13 +2051,14 @@ class PicoController:
                 )
 
     def reset_po(self):
-        if self.potentiostat:
+        if self.potentiostat.is_open:
             try:
                 if messagebox.askyesno(
                     "Reset", "Are you sure you want to reset the Autosampler?"
                 ):
                     self.potentiostat_send_queue.put("0:reset")
                     logging.info("Signal sent for Autosampler reset.")
+                    self.root.after(3 * 1000, self.refresh_ports)
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -2337,9 +2279,9 @@ class PicoController:
                     self.pump_controllers_id_to_widget_map[id][
                         "disconnect_button"
                     ].configure(state="normal", hover=True)
-            if self.autosamplers:
+            if self.autosamplers.is_open:
                 self.disconnect_button_as.configure(state="normal", hover=True)
-            if self.potentiostat:
+            if self.potentiostat.is_open:
                 self.disconnect_button_po.configure(state="normal", hover=True)
             # disable the buttons
             self.stop_button.configure(state="disabled", hover=True)
@@ -2433,7 +2375,7 @@ class PicoController:
 
     def send_command_as(self):
         try:
-            if self.autosamplers and not self.autosamplers_send_queue.empty():
+            if self.potentiostat.is_open and not self.autosamplers_send_queue.empty():
                 command = self.autosamplers_send_queue.get(block=False)
                 self.autosamplers.write(f"{command}\n".encode())
                 if "gtime" not in command and "getPosition" not in command:
@@ -2456,7 +2398,7 @@ class PicoController:
 
     def send_command_po(self):
         try:
-            if self.potentiostat and not self.potentiostat_send_queue.empty():
+            if self.potentiostat.is_open and not self.potentiostat_send_queue.empty():
                 command = self.potentiostat_send_queue.get(block=False)
                 self.potentiostat.write(f"{command}\n".encode())
                 if "time" not in command:
@@ -2564,98 +2506,103 @@ class PicoController:
                 )
 
     def read_serial_as(self):
-        try:
-            if self.autosamplers and self.autosamplers.in_waiting:
-                response = self.autosamplers.readline().decode("utf-8").strip()
+        if self.autosamplers.is_open:
+            try:
+                if self.autosamplers.in_waiting:
+                    response = self.autosamplers.readline().decode("utf-8").strip()
 
-                if "RTC Time" not in response and "Current position" not in response:
-                    logging.debug(f"Autosampler -> PC: {response}")
+                    if (
+                        "RTC Time" not in response
+                        and "Current position" not in response
+                    ):
+                        logging.debug(f"Autosampler -> PC: {response}")
 
-                if "INFO: Slots configuration: " in response:
-                    self.parse_autosampler_config(response)
-                elif "INFO: Current position: " in response:
-                    self.parse_autosampler_position(response)
-                elif "RTC Time" in response:
-                    self.parse_rtc_time(
-                        controller_id=None, response=response, is_Autosampler=True
-                    )
-                elif "ERROR" in response:
-                    non_blocking_messagebox(
-                        parent=self.root,
-                        title="Error",
-                        message=f"Autosampler: {response}",
-                    )
-                elif "SUCCESS" in response:
-                    non_blocking_messagebox(
-                        parent=self.root,
-                        title="Success",
-                        message=f"Autosampler: {response}",
-                    )
-        except serial.SerialException as e:
-            self.disconnect_as(False)
-            logging.error(f"Error: {e}")
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message=f"Failed to read from Autosampler with error: {e}",
-            )
-        except Exception as e:
-            self.disconnect_as(False)
-            logging.error(f"Error: {e}")
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message=f"An error occurred in function read_serial_as: {e}",
-            )
+                    if "INFO: Slots configuration: " in response:
+                        self.parse_autosampler_config(response)
+                    elif "INFO: Current position: " in response:
+                        self.parse_autosampler_position(response)
+                    elif "RTC Time" in response:
+                        self.parse_rtc_time(
+                            controller_id=None, response=response, is_Autosampler=True
+                        )
+                    elif "ERROR" in response:
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Error",
+                            message=f"Autosampler: {response}",
+                        )
+                    elif "SUCCESS" in response:
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Success",
+                            message=f"Autosampler: {response}",
+                        )
+            except serial.SerialException as e:
+                self.disconnect_as(False)
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"Failed to read from Autosampler with error: {e}",
+                )
+            except Exception as e:
+                self.disconnect_as(False)
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function read_serial_as: {e}",
+                )
 
     def read_serial_po(self):
-        try:
-            if self.potentiostat and self.potentiostat.in_waiting:
-                response = self.potentiostat.readline().decode("utf-8").strip()
-                if "RTC Time" not in response:
-                    logging.debug(f"Potentiostat -> PC: {response}")
+        if self.potentiostat.is_open:
+            try:
+                if self.potentiostat.in_waiting:
+                    response = self.potentiostat.readline().decode("utf-8").strip()
+                    if "RTC Time" not in response:
+                        logging.debug(f"Potentiostat -> PC: {response}")
 
-                if "Info:" in response:
-                    self.parse_potentiostat_config(response)
-                if "Status:" in response:
-                    self.parse_potentiostat_status(response)
-                elif "RTC Time" in response:
-                    self.parse_rtc_time(
-                        controller_id=None,
-                        response=response,
-                        is_Potentiostat=True,
-                    )
-                elif "ERROR" in response:
-                    non_blocking_messagebox(
-                        parent=self.root,
-                        title="Error",
-                        message=f"Potentiostat: {response}",
-                    )
-                elif "SUCCESS" in response:
-                    non_blocking_messagebox(
-                        parent=self.root,
-                        title="Success",
-                        message=f"Potentiostat: {response}",
-                    )
-        except serial.SerialException as e:
-            self.disconnect_po(False)
-            logging.error(f"Error: {e}")
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message=f"Failed to read from Potentiostat with error: {e}",
-            )
-        except Exception as e:
-            self.disconnect_po(False)
-            logging.error(f"Error: {e}")
-            non_blocking_messagebox(
-                parent=self.root,
-                title="Error",
-                message=f"An error occurred in function read_serial_po: {e}",
-            )
+                    if "Info:" in response:
+                        self.parse_potentiostat_config(response)
+                    if "Status:" in response:
+                        self.parse_potentiostat_status(response)
+                    elif "RTC Time" in response:
+                        self.parse_rtc_time(
+                            controller_id=None,
+                            response=response,
+                            is_Potentiostat=True,
+                        )
+                    elif "ERROR" in response:
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Error",
+                            message=f"Potentiostat: {response}",
+                        )
+                    elif "SUCCESS" in response:
+                        non_blocking_messagebox(
+                            parent=self.root,
+                            title="Success",
+                            message=f"Potentiostat: {response}",
+                        )
+            except serial.SerialException as e:
+                self.disconnect_po(False)
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"Failed to read from Potentiostat with error: {e}",
+                )
+            except Exception as e:
+                self.disconnect_po(False)
+                logging.error(f"Error: {e}")
+                non_blocking_messagebox(
+                    parent=self.root,
+                    title="Error",
+                    message=f"An error occurred in function read_serial_po: {e}",
+                )
 
     def goto_position_as(self, position=None):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 if position is None:
                     position = self.position_entry_as.get().strip()
@@ -2678,7 +2625,7 @@ class PicoController:
                 )
 
     def goto_slot_as(self, slot=None):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 if slot is None:
                     slot = self.slot_combobox_as.get().strip()
@@ -2694,7 +2641,7 @@ class PicoController:
                 )
 
     def stop_movement_as(self):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 self.autosamplers_send_queue.put("stop")
                 logging.info("Stopping Autosampler movement")
@@ -2707,7 +2654,7 @@ class PicoController:
                 )
 
     def set_position_as(self, position=None):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 if position is None:
                     position = self.position_entry_as.get().strip()
@@ -2748,7 +2695,7 @@ class PicoController:
                 )
 
     def update_slot_as(self, slot=None, position=None):
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             try:
                 # either provide both slot and position or use the current values from the UI
                 if slot is None:
@@ -2781,24 +2728,7 @@ class PicoController:
                     message=f"An error occurred in function update_slot_as: {e}",
                 )
 
-    def update_Entry_callback_as(
-        self, entry_obj: tk.Entry, event: tk.Event, default_value="placeholder"
-    ):  # use this to put a default grey text in the text entry
-        # if it's a focus out even,we check if the value is empty and set it to the default value
-        # if it's a focus in event, we check if the value is the default value and clear it
-        if event.type == tk.EventType.FocusIn and entry_obj.get() == default_value:
-            entry_obj.delete(0, tk.END)
-            entry_obj.insert(0, "")
-            entry_obj["foreground"] = "black"
-        if event.type == tk.EventType.FocusOut and entry_obj.get() == "":
-            entry_obj.delete(0, tk.END)
-            entry_obj.insert(0, default_value)
-            entry_obj["foreground"] = "grey"
-
-    def on_slot_combobox_selected(
-        self,
-        event: tk.Event,
-    ):
+    def on_slot_combobox_selected(self, event=None):
         selected_slot = self.slot_combobox_as.get()
         if selected_slot in self.autosamplers_slots:
             self.slot_position_value_as.configure(
@@ -2991,18 +2921,6 @@ class PicoController:
         if remove_all:
             for widget in self.pumps_frame.winfo_children():
                 widget.destroy()
-            # destroy the pumps frame
-            self.pumps_frame.destroy()
-            # recreate pumps frame inside the manual control frame
-            self.pumps_frame = ctk.CTkFrame(self.manual_control_frame)
-            self.pumps_frame.grid(
-                row=1,
-                column=0,
-                columnspan=8,
-                padx=global_pad_x,
-                pady=global_pad_y,
-                sticky="NSEW",
-            )
             self.pumps.clear()
             self.pump_ids_to_controller_ids.clear()
             self.controller_ids_to_pump_ids.clear()
@@ -3123,18 +3041,7 @@ class PicoController:
                 # delete the original recipe table
                 for child in self.recipe_table_frame.winfo_children():
                     child.destroy()
-                self.recipe_table = ttk.Treeview(
-                    self.recipe_table_frame, columns=columns, show="headings"
-                )
-                # Create a scrollbar
-                self.scrollbar = ttk.Scrollbar(
-                    self.recipe_table_frame,
-                    orient="vertical",
-                    command=self.recipe_table.yview,
-                )
-                self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-                self.scrollbar.pack(side="right", fill="y")
-                self.recipe_table.pack(side="left", fill="both", expand=True)
+                self.create_recipe_sequence_table(self.recipe_table_frame, columns)
 
                 for col in columns:
                     self.recipe_table.heading(col, text=col)
@@ -3166,24 +3073,8 @@ class PicoController:
                 for child in self.eChem_sequence_table_frame.winfo_children():
                     child.destroy()
                 columns = list(self.eChem_sequence_df.columns)
-                self.eChem_sequence_table = ttk.Treeview(
-                    self.eChem_sequence_table_frame,
-                    columns=columns,
-                    show="headings",
-                )
-                self.scrollbar_EC = ttk.Scrollbar(
-                    self.eChem_sequence_table_frame,
-                    orient="vertical",
-                    command=self.eChem_sequence_table.yview,
-                )
-                self.eChem_sequence_table.pack(
-                    side="left",
-                    fill="both",
-                    expand=True,
-                )
-                self.scrollbar_EC.pack(side="right", fill="y")
-                self.eChem_sequence_table.configure(
-                    yscrollcommand=self.scrollbar_EC.set
+                self.create_eChem_sequence_table(
+                    self.eChem_sequence_table_frame, columns
                 )
 
                 for col in columns:
@@ -3238,19 +3129,9 @@ class PicoController:
             for child in self.recipe_table_frame.winfo_children():
                 child.destroy()
             # recreate the recipe table
-            self.recipe_table = ttk.Treeview(
-                self.recipe_table_frame, columns=["", "", "", "", ""], show="headings"
-            )
-            self.scrollbar = ttk.Scrollbar(
-                self.recipe_table_frame,
-                orient="vertical",
-                command=self.recipe_table.yview,
-            )
-            self.recipe_table.configure(yscrollcommand=self.scrollbar.set)
-            self.scrollbar.pack(side="right", fill="y")
-            self.recipe_table.pack(side="left", fill="both", expand=True)
+            self.create_recipe_sequence_table(self.recipe_table_frame)
             # clear the progress bar
-            self.total_progress_bar["value"] = 0
+            self.total_progress_bar.set(0)
             self.remaining_time_value.configure(text="")
             self.end_time_value.configure(text="")
 
@@ -3261,23 +3142,7 @@ class PicoController:
             for child in self.eChem_sequence_table_frame.winfo_children():
                 child.destroy()
             # recreate the eChem table
-            self.eChem_sequence_table = ttk.Treeview(
-                self.eChem_sequence_table_frame,
-                columns=["", "", "", "", ""],
-                show="headings",
-            )
-            self.scrollbar_EC = ttk.Scrollbar(
-                self.eChem_sequence_table_frame,
-                orient="vertical",
-                command=self.eChem_sequence_table.yview,
-            )
-            self.eChem_sequence_table.pack(
-                side="left",
-                fill="both",
-                expand=True,
-            )
-            self.scrollbar_EC.pack(side="right", fill="y")
-            self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
+            self.create_eChem_sequence_table(self.eChem_sequence_table_frame)
 
             # disable all procedure buttons
             self.clear_recipe_button.configure(state="disabled", hover=True)
@@ -3300,8 +3165,8 @@ class PicoController:
             return
         # require at least one MCU connection
         if (
-            not self.autosamplers
-            and not self.potentiostat
+            not self.autosamplers.is_open
+            and not self.potentiostat.is_open
             and not any(self.pump_controllers_connected.values())
         ):
             non_blocking_messagebox(
@@ -3312,8 +3177,8 @@ class PicoController:
             return
         # display warning if only one MCU is connected
         if (
-            not self.autosamplers
-            or not self.potentiostat
+            not self.autosamplers.is_open
+            or not self.potentiostat.is_open
             or not any(self.pump_controllers_connected.values())
         ):
             message = "Only one type of controller connected. Continue?"
@@ -3333,9 +3198,9 @@ class PicoController:
                     self.pump_controllers_id_to_widget_map[controller_id][
                         "disconnect_button"
                     ].configure(state="disabled", hover=True)
-            if self.autosamplers:
+            if self.autosamplers.is_open:
                 self.disconnect_button_as.configure(state="disabled", hover=True)
-            if self.potentiostat:
+            if self.potentiostat.is_open:
                 self.disconnect_button_po.configure(state="disabled", hover=True)
             self.pause_timepoint_ns = -1  # clear the stop time and pause time
             if self.scheduled_task:  # cancel the scheduled task if it exists
@@ -3528,18 +3393,16 @@ class PicoController:
         )
         # Handle total_procedure_time_ns being zero
         if self.total_procedure_time_ns <= 0:
-            total_progress = 100
+            total_progress = 0
             remaining_time_ns = 0
         else:
-            total_progress = min(
-                100, (elapsed_time_ns / self.total_procedure_time_ns) * 100
-            )
+            total_progress = min(0, (elapsed_time_ns / self.total_procedure_time_ns))
             remaining_time_ns = max(
                 0,
                 self.total_procedure_time_ns - elapsed_time_ns,
             )
 
-        self.total_progress_bar["value"] = int(total_progress)
+        self.total_progress_bar.set(int(total_progress))
         self.remaining_time_value.configure(
             text=f"{convert_ns_to_timestr(int(remaining_time_ns))}"
         )
@@ -3760,7 +3623,7 @@ class PicoController:
         for id, connection_status in self.pump_controllers_connected.items():
             if connection_status:
                 self.disconnect_pc(id, show_message=False)
-        if self.autosamplers:
+        if self.autosamplers.is_open:
             self.disconnect_as(show_message=False)
         root.quit()
 

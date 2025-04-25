@@ -5,14 +5,21 @@ import json
 import hashlib
 import machine
 import binascii
-from bootloader_util import set_bootloader_mode
+from bootloader_util import exit_bootloader_settings
 
 CONFIG_FILE = "bootloader_config.json"
+
+
+def blink_led():
+    led = machine.Pin("LED", machine.Pin.OUT)
+    led.toggle()
 
 
 def update_firmware():
     # update firmware
     sys.stdout.write("Info: Awaiting firmware update JSON payload...\n")
+    timer = machine.Timer()
+    timer.init(period=200, mode=machine.Timer.PERIODIC, callback=lambda t: blink_led())
 
     filename = None
     file_handler = None
@@ -89,8 +96,7 @@ def update_firmware():
         if payload.get("reset", False):
             sys.stdout.write("Info: Firmware update complete. Rebooting...\n")
             reset_fields()
-            set_bootloader_mode("pump")
-            machine.reset()
+            exit_bootloader_settings()
 
         # If a new file update is starting, update the filename, reset the buffer.
         if "filename" in payload and payload["filename"] != filename:
@@ -153,7 +159,11 @@ def update_firmware():
 
 
 def create_default_config() -> dict:
-    default_config = {"enter_bootloader_setting": False, "mode": "pump"}
+    default_config = {
+        "enter_bootloader_setting": False,
+        "mode": "pump",
+        "mode_before": "pump",
+    }
     with open(CONFIG_FILE, "w") as f:
         f.write(json.dumps(default_config))
     return default_config
