@@ -60,7 +60,7 @@ class PicoController:
     def __init__(self, root) -> None:
         self.root = root
         self.root.title("Pump Control & Automation")
-        self.main_loop_interval_ms = 20  # Main loop interval in milliseconds
+        self.main_loop_interval_ms = 5  # Main loop interval in milliseconds
         self.config = get_config()
 
         # port refresh timer
@@ -154,6 +154,13 @@ class PicoController:
             self.Tabview.tab("EChem Automation Sequence")
         )
         self.create_flash_firmware_page(self.Tabview.tab("Firmware Update"))
+        for button in self.Tabview._segmented_button._buttons_dict.values():
+            button.configure(
+                font=(
+                    "Arial",
+                    int(button.cget("font").cget("size") * 1.5),
+                )
+            )
 
         # RTC time frame
         self.rtc_time_frame = ctk.CTkFrame(
@@ -256,66 +263,58 @@ class PicoController:
         )
 
     def create_manual_control_page(self, root_frame):
-        current_row = 0
-        local_columnspan = 8
+        current_row, local_columnspan = 0, 8
 
-        # Port selection frame
-        self.port_select_frame = ttk.Labelframe(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Select Port"),
-        )
-        self.port_select_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            rowspan=3,
+        self.mc_view = ctk.CTkTabview(root_frame, fg_color="darkgray")
+        self.mc_view.pack(
+            anchor="center",
             padx=global_pad_x,
             pady=global_pad_y,
-            sticky="NSEW",
         )
+        port_select_frame = self.mc_view.add("Port Selection")
+
         # first in the port_select_frame
         # Create a row for each potential pump controller
         for controller_id in range(1, self.num_pump_controllers + 1):
             self.add_pump_controller_widgets(
-                root_frame=self.port_select_frame,
+                root_frame=port_select_frame,
                 port_label="Pump Controller",
                 controller_id=controller_id,
             )
-        current_row = self.port_select_frame.grid_size()[1]
+        current_row = port_select_frame.grid_size()[1]
         # second in the port_select_frame
-        self.port_label_as = ctk.CTkLabel(self.port_select_frame, text="Autosampler:")
+        self.port_label_as = ctk.CTkLabel(port_select_frame, text="Autosampler:")
         self.port_label_as.grid(
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_as = ctk.CTkComboBox(
-            self.port_select_frame, state="readonly", width=200, values=[]
+            port_select_frame, state="readonly", width=200, values=[]
         )
         self.port_combobox_as.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_as = ctk.CTkButton(
-            self.port_select_frame, text="Connect", command=self.connect_as
+            port_select_frame, text="Connect", command=self.connect_as
         )
         self.connect_button_as.grid(
             row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_as = ctk.CTkButton(
-            self.port_select_frame, text="Disconnect", command=self.disconnect_as
+            port_select_frame, text="Disconnect", command=self.disconnect_as
         )
         self.disconnect_button_as.grid(
             row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
-        self.disconnect_button_as.configure(state="disable", hover=True)
+        self.disconnect_button_as.configure(state="disabled", hover=True)
         self.reset_button_as = ctk.CTkButton(
-            self.port_select_frame, text="Reset", command=self.reset_as
+            port_select_frame, text="Reset", command=self.reset_as
         )
         self.reset_button_as.grid(
             row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.reset_button_as.configure(state="disable", hover=True)
+        self.reset_button_as.configure(state="disabled", hover=True)
         self.status_label_as = ctk.CTkLabel(
-            self.port_select_frame, text="Status: Not connected"
+            port_select_frame, text="Status: Not connected"
         )
         self.status_label_as.grid(
             row=current_row,
@@ -325,40 +324,40 @@ class PicoController:
             sticky="W",
         )
         # update the current row
-        current_row += self.port_select_frame.grid_size()[1]
+        current_row = port_select_frame.grid_size()[1]
         # third in the port_select_frame
-        self.port_label_po = ctk.CTkLabel(self.port_select_frame, text="Potentiostat:")
+        self.port_label_po = ctk.CTkLabel(port_select_frame, text="Potentiostat:")
         self.port_label_po.grid(
             row=current_row, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.port_combobox_po = ctk.CTkComboBox(
-            self.port_select_frame, state="readonly", width=200, values=[]
+            port_select_frame, state="readonly", width=200, values=[]
         )
         self.port_combobox_po.grid(
             row=current_row, column=1, padx=global_pad_x, pady=global_pad_y
         )
         self.connect_button_po = ctk.CTkButton(
-            self.port_select_frame, text="Connect", command=self.connect_po
+            port_select_frame, text="Connect", command=self.connect_po
         )
         self.connect_button_po.grid(
             row=current_row, column=2, padx=global_pad_x, pady=global_pad_y
         )
         self.disconnect_button_po = ctk.CTkButton(
-            self.port_select_frame, text="Disconnect", command=self.disconnect_po
+            port_select_frame, text="Disconnect", command=self.disconnect_po
         )
         self.disconnect_button_po.grid(
             row=current_row, column=3, padx=global_pad_x, pady=global_pad_y
         )
-        self.disconnect_button_po.configure(state="disable", hover=True)
+        self.disconnect_button_po.configure(state="disabled", hover=True)
         self.reset_button_po = ctk.CTkButton(
-            self.port_select_frame, text="Reset", command=self.reset_po
+            port_select_frame, text="Reset", command=self.reset_po
         )
         self.reset_button_po.grid(
             row=current_row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.reset_button_po.configure(state="disable", hover=True)
+        self.reset_button_po.configure(state="disabled", hover=True)
         self.status_label_po = ctk.CTkLabel(
-            self.port_select_frame, text="Status: Not connected"
+            port_select_frame, text="Status: Not connected"
         )
         self.status_label_po.grid(
             row=current_row,
@@ -367,32 +366,14 @@ class PicoController:
             pady=global_pad_y,
             sticky="W",
         )
-        # update the current row
-        current_row += root_frame.grid_size()[1]
 
-        # Pump Manual Control frame
-        self.manual_control_frame = ttk.LabelFrame(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Pump Manual Control"),
-        )
-        self.manual_control_frame.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
+        pumps_mc_frame = self.mc_view.add("Pump Manual Control")
         # first row in the manual control frame, containing all the buttons
-        self.manual_control_frame_buttons = ctk.CTkFrame(self.manual_control_frame)
-        self.manual_control_frame_buttons.grid(
-            row=0,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
+        self.manual_control_frame_buttons = ctk.CTkFrame(
+            pumps_mc_frame, bg_color="transparent", fg_color="transparent"
+        )
+        self.manual_control_frame_buttons.pack(
+            padx=global_pad_x, pady=global_pad_y, side="top"
         )
         self.add_pump_button = ctk.CTkButton(
             self.manual_control_frame_buttons, text="Add Pump", command=self.add_pump
@@ -425,53 +406,39 @@ class PicoController:
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         # second row in the manual control frame, containing the pumps widgets
-        self.pumps_frame = ctk.CTkFrame(self.manual_control_frame)
-        self.pumps_frame.grid(
-            row=1,
-            column=0,
-            columnspan=local_columnspan,
+        self.pumps_frame = ctk.CTkFrame(pumps_mc_frame)
+        self.pumps_frame.pack(
+            anchor="center",
             padx=global_pad_x,
             pady=global_pad_y,
-            sticky="NSEW",
+            fill="both",
+            expand=True,
         )
-        # update the current row
-        current_row += self.manual_control_frame.grid_size()[1]
+
         # Potentiostat Manual Control frame
-        self.manual_control_frame_po = ttk.LabelFrame(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(
-                root_frame,
-                text="Potentiostat Manual Control (Set this to LOW before starting a recipe!)",
-            ),
+        po_mc_frame = ctk.CTkFrame(
+            self.mc_view.add("Potentiostat Manual Control"),
+            bg_color="transparent",
+            fg_color="transparent",
         )
-        self.manual_control_frame_po.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
+        po_mc_frame.pack(anchor="center", padx=global_pad_x, pady=global_pad_y)
         self.current_trigger_state_label_po = ctk.CTkLabel(
-            self.manual_control_frame_po, text="Current Trigger State: "
+            po_mc_frame, text="Current Trigger State: "
         )
         self.current_trigger_state_label_po.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.current_trigger_state_value_po = ctk.CTkLabel(
-            self.manual_control_frame_po, text="N/A"
-        )
+        self.current_trigger_state_value_po = ctk.CTkLabel(po_mc_frame, text="N/A")
         self.current_trigger_state_value_po.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.toggle_trigger_po_button = ctk.CTkButton(
-            self.manual_control_frame_po,
+            po_mc_frame,
             text="Toggle Trigger",
             command=self.toggle_trigger_po,
         )
         self.trigger_high_button_po = ctk.CTkButton(
-            self.manual_control_frame_po,
+            po_mc_frame,
             text="Set High",
             command=lambda: self.set_trigger_po(state="high"),
             state="disabled",
@@ -480,7 +447,7 @@ class PicoController:
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.trigger_low_button_po = ctk.CTkButton(
-            self.manual_control_frame_po,
+            po_mc_frame,
             text="Set Low",
             command=lambda: self.set_trigger_po(state="low"),
             state="disabled",
@@ -488,40 +455,28 @@ class PicoController:
         self.trigger_low_button_po.grid(
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        # update the current row
-        current_row += self.manual_control_frame.grid_size()[1]
 
         # Autosampler Manual Control frame
-        self.manual_control_frame_as = ttk.LabelFrame(
-            root_frame,
-            padding=(global_pad_N, global_pad_S, global_pad_W, global_pad_E),
-            labelwidget=ctk.CTkLabel(root_frame, text="Autosampler Manual Control"),
-        )
-        self.manual_control_frame_as.grid(
-            row=current_row,
-            column=0,
-            columnspan=local_columnspan,
-            padx=global_pad_x,
-            pady=global_pad_y,
-            sticky="NSEW",
-        )
+        as_mc_frame = self.mc_view.add("Autosampler Manual Control")
         # Text Entry for Position
         self.position_entry_label_as = ctk.CTkLabel(
-            self.manual_control_frame_as, text="Target position:"
+            as_mc_frame, text="Target position:"
         )
         self.position_entry_label_as.grid(
             row=0, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.position_entry_as = ttk.Entry(self.manual_control_frame_as)
+        self.position_entry_as = ctk.CTkEntry(as_mc_frame)
         self.position_entry_as.grid(
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.goto_position_button_as = ctk.CTkButton(
-            self.manual_control_frame_as,
+            as_mc_frame,
             text="Go to",
             command=self.goto_position_as,
         )
-        self.current_position_frame_as = ctk.CTkFrame(self.manual_control_frame_as)
+        self.current_position_frame_as = ctk.CTkFrame(
+            as_mc_frame, bg_color="transparent", fg_color="transparent"
+        )
         self.current_position_frame_as.grid(
             row=0, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
@@ -541,7 +496,7 @@ class PicoController:
             row=0, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.stop_movement_button_as = ctk.CTkButton(
-            self.manual_control_frame_as,
+            as_mc_frame,
             text="Stop",
             command=self.stop_movement_as,
         )
@@ -549,7 +504,7 @@ class PicoController:
             row=0, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.set_position_button_as = ctk.CTkButton(
-            self.manual_control_frame_as,
+            as_mc_frame,
             text="Set",
             command=self.set_position_as,
         )
@@ -558,14 +513,12 @@ class PicoController:
         )
 
         # Slots selection
-        self.slot_label_as = ctk.CTkLabel(
-            self.manual_control_frame_as, text="Available slots:"
-        )
+        self.slot_label_as = ctk.CTkLabel(as_mc_frame, text="Available slots:")
         self.slot_label_as.grid(
             row=1, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.slot_combobox_as = ctk.CTkComboBox(
-            self.manual_control_frame_as, state="readonly", width=200, values=[]
+            as_mc_frame, state="readonly", width=140, values=[]
         )
         self.slot_combobox_as.grid(
             row=1, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -575,7 +528,9 @@ class PicoController:
             "<<ComboboxSelected>>",
             self.on_slot_combobox_selected,
         )
-        self.slot_position_frame_as = ctk.CTkFrame(self.manual_control_frame_as)
+        self.slot_position_frame_as = ctk.CTkFrame(
+            as_mc_frame, bg_color="transparent", fg_color="transparent"
+        )
         self.slot_position_frame_as.grid(
             row=1, column=2, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
@@ -592,13 +547,13 @@ class PicoController:
             row=0, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.goto_slot_button_as = ctk.CTkButton(
-            self.manual_control_frame_as, text="Go to slot", command=self.goto_slot_as
+            as_mc_frame, text="Go to slot", command=self.goto_slot_as
         )
         self.goto_slot_button_as.grid(
             row=1, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
         self.delete_slot_button_as = ctk.CTkButton(
-            self.manual_control_frame_as,
+            as_mc_frame,
             text="Delete slot",
             command=self.delete_slot_as,
         )
@@ -606,15 +561,11 @@ class PicoController:
             row=1, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
 
-        self.update_slot_label_as = ctk.CTkLabel(
-            self.manual_control_frame_as, text="Update slot:"
-        )
+        self.update_slot_label_as = ctk.CTkLabel(as_mc_frame, text="Update slot:")
         self.update_slot_label_as.grid(
             row=2, column=0, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        self.update_slot_slotname_as = ttk.Entry(
-            self.manual_control_frame_as, foreground="gray"
-        )
+        self.update_slot_slotname_as = ttk.Entry(as_mc_frame, foreground="gray")
         self.update_slot_slotname_as.insert(0, "Enter slot name here...")
         self.update_slot_slotname_as.grid(
             row=2, column=1, padx=global_pad_x, pady=global_pad_y, sticky="W"
@@ -632,9 +583,7 @@ class PicoController:
                 self.update_slot_slotname_as, event, "Enter slot name here..."
             ),
         )
-        self.update_slot_position_as = ttk.Entry(
-            self.manual_control_frame_as, foreground="gray"
-        )
+        self.update_slot_position_as = ttk.Entry(as_mc_frame, foreground="gray")
         self.update_slot_position_as.grid(
             row=2,
             column=2,
@@ -657,17 +606,20 @@ class PicoController:
             ),
         )
         self.update_slot_button_as = ctk.CTkButton(
-            self.manual_control_frame_as,
+            as_mc_frame,
             text="Update slot",
             command=self.update_slot_as,
         )
         self.update_slot_button_as.grid(
             row=2, column=3, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-
-        # update the current row
-        current_row += self.manual_control_frame_as.grid_size()[1]
-
+        for button in self.mc_view._segmented_button._buttons_dict.values():
+            button.configure(
+                font=(
+                    "Arial",
+                    int(button.cget("font").cget("size") * 1.25),
+                )
+            )
         self.set_manual_control_buttons_state("disabled")
         self.set_autosampler_buttons_state("disabled")
 
@@ -688,9 +640,7 @@ class PicoController:
         logging.info(f"port_combobox winfoclass: {port_combobox.winfo_class()}")
         port_combobox.grid(row=row, column=1, padx=global_pad_x, pady=global_pad_y)
         connect_button = ctk.CTkButton(
-            root_frame,
-            text="Connect",
-            command=lambda: self.connect_pc(controller_id),
+            root_frame, text="Connect", command=lambda: self.connect_pc(controller_id)
         )
         connect_button.grid(row=row, column=2, padx=global_pad_x, pady=global_pad_y)
         connect_button.configure(state="normal", hover=True)
@@ -700,7 +650,7 @@ class PicoController:
             command=lambda: self.disconnect_pc(controller_id),
         )
         disconnect_button.grid(row=row, column=3, padx=global_pad_x, pady=global_pad_y)
-        disconnect_button.configure(state="disable", hover=True)
+        disconnect_button.configure(state="disabled", hover=True)
         reset_button = ctk.CTkButton(
             root_frame,
             text="Reset",
@@ -709,7 +659,7 @@ class PicoController:
         reset_button.grid(
             row=row, column=4, padx=global_pad_x, pady=global_pad_y, sticky="W"
         )
-        reset_button.configure(state="disable", hover=True)
+        reset_button.configure(state="disabled", hover=True)
         status_label = ctk.CTkLabel(
             root_frame,
             text="Status: Not connected",
@@ -774,7 +724,7 @@ class PicoController:
         self.clear_recipe_button.grid(
             row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.clear_recipe_button.configure(state="disable", hover=True)
+        self.clear_recipe_button.configure(state="disabled", hover=True)
         temp_col_counter += 1
         self.start_button = ctk.CTkButton(
             self.recipe_frame_buttons, text="Start", command=self.start_procedure
@@ -782,7 +732,7 @@ class PicoController:
         self.start_button.grid(
             row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.start_button.configure(state="disable", hover=True)
+        self.start_button.configure(state="disabled", hover=True)
         temp_col_counter += 1
         self.stop_button = ctk.CTkButton(
             self.recipe_frame_buttons,
@@ -792,7 +742,7 @@ class PicoController:
         self.stop_button.grid(
             row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.stop_button.configure(state="disable", hover=True)
+        self.stop_button.configure(state="disabled", hover=True)
         temp_col_counter += 1
         self.pause_button = ctk.CTkButton(
             self.recipe_frame_buttons, text="Pause", command=self.pause_procedure
@@ -800,7 +750,7 @@ class PicoController:
         self.pause_button.grid(
             row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.pause_button.configure(state="disable", hover=True)
+        self.pause_button.configure(state="disabled", hover=True)
         temp_col_counter += 1
         self.continue_button = ctk.CTkButton(
             self.recipe_frame_buttons, text="Continue", command=self.continue_procedure
@@ -808,7 +758,7 @@ class PicoController:
         self.continue_button.grid(
             row=0, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.continue_button.configure(state="disable", hover=True)
+        self.continue_button.configure(state="disabled", hover=True)
 
         # second row in the recipe_frame_buttons, containing the gSequence and generate button
         self.gSquence_save_frame = ctk.CTkFrame(self.recipe_frame_buttons)
@@ -885,7 +835,7 @@ class PicoController:
         self.generate_sequence_button.grid(
             row=1, column=temp_col_counter, padx=global_pad_x, pady=global_pad_y
         )
-        self.generate_sequence_button.configure(state="disable", hover=True)
+        self.generate_sequence_button.configure(state="disabled", hover=True)
 
         # second row in the recipe_frame, containing the recipe table
         self.recipe_table_frame = ttk.LabelFrame(
@@ -1342,7 +1292,7 @@ class PicoController:
                         widgets["combobox"]["values"] = ports
                         if widgets["combobox"].get() not in ports:
                             if len(ports) > 0:
-                                widgets["combobox"].current(0)
+                                widgets["combobox"].set(ports[0])
                             else:
                                 widgets["combobox"].set("")
                 if not self.autosamplers:
@@ -1350,14 +1300,14 @@ class PicoController:
                     # if current value is in the list, don't change it
                     if self.port_combobox_as.get() not in ports:
                         if len(ports) > 0:
-                            self.port_combobox_as.get()
+                            self.port_combobox_as.set(ports[0])
                         else:
                             self.port_combobox_as.set("")
                 if not self.potentiostat:
                     self.port_combobox_po["values"] = ports
                     if self.port_combobox_po.get() not in ports:
                         if len(ports) > 0:
-                            self.port_combobox_po.get()
+                            self.port_combobox_po.set(ports[0])
                         else:
                             self.port_combobox_po.set("")
             elif current_tab == "Firmware Update":
@@ -1365,7 +1315,7 @@ class PicoController:
                     self.port_combobox_ff["values"] = ports
                     if self.port_combobox_ff.get() not in ports:
                         if len(ports) > 0:
-                            self.port_combobox_ff.current(0)
+                            self.port_combobox_ff.set(ports[0])
                         else:
                             self.port_combobox_ff.set("")
             self.last_port_refresh_ns = time.monotonic_ns()
@@ -1412,12 +1362,14 @@ class PicoController:
                     mode = "Unknown"
                     if match:
                         mode = match.group(1)
-                    self.mode_label_ff.config(text=f"Current Mode: {mode} Controller")
+                    self.mode_label_ff.configure(
+                        text=f"Current Mode: {mode} Controller"
+                    )
                     self.enter_bootloader_button_ff.configure(
                         state="normal", hover=True
                     )
                     self.enter_controller_button_ff.configure(
-                        state="disable", hover=True
+                        state="disabled", hover=True
                     )
                     self.switch_controller_mode_button_as_ff.configure(
                         state="normal", hover=True
@@ -1429,9 +1381,9 @@ class PicoController:
                         state="normal", hover=True
                     )
                 elif "Error: Invalid JSON payload" in response:
-                    self.mode_label_ff.config(text="Current Mode: Firmware Update")
+                    self.mode_label_ff.configure(text="Current Mode: Firmware Update")
                     self.enter_bootloader_button_ff.configure(
-                        state="disable", hover=True
+                        state="disabled", hover=True
                     )
                     self.enter_controller_button_ff.configure(
                         state="normal", hover=True
@@ -1443,7 +1395,7 @@ class PicoController:
                     )
                     available_space_mb = available_space / (1024 * 1024)
                     total_space_mb = total_space / (1024 * 1024)
-                    self.space_label_ff.config(
+                    self.space_label_ff.configure(
                         text=f"Available Space: {available_space_mb:.3f} / {total_space_mb:.3f} MB"
                     )
 
@@ -1455,9 +1407,10 @@ class PicoController:
                 self.disconnect_button_ff.configure(state="normal", hover=True)
                 self.reset_button_ff.configure(state="normal", hover=True)
                 logging.info(f"Connected to {parsed_port} for firmware update")
-                self.status_label_ff.config(text=f"Status: Connected to {parsed_port}")
+                self.status_label_ff.configure(
+                    text=f"Status: Connected to {parsed_port}"
+                )
                 self.refresh_ports(instant=True)  # refresh the ports immediately
-                self.on_tab_change(event=None, notebook=self.Tabview)
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -1504,23 +1457,23 @@ class PicoController:
             logging.info(f"Disconnected from {serial_port_obj.port}")
             serial_port_obj.close()
             if serial_port_obj == self.create_flash_serial_obj:
-                self.disconnect_button_ff.configure(state="disable", hover=True)
-                self.reset_button_ff.configure(state="disable", hover=True)
-                self.status_label_ff.config(text="Status: Not connected")
-                self.mode_label_ff.config(text="Current Mode: N/A")
-                self.send_file_button_ff.configure(state="disable", hover=True)
-                self.remove_file_button_ff.configure(state="disable", hover=True)
-                self.space_label_ff.config(text="Available Space: N/A")
-                self.enter_bootloader_button_ff.configure(state="disable", hover=True)
-                self.enter_controller_button_ff.configure(state="disable", hover=True)
+                self.disconnect_button_ff.configure(state="disabled", hover=True)
+                self.reset_button_ff.configure(state="disabled", hover=True)
+                self.status_label_ff.configure(text="Status: Not connected")
+                self.mode_label_ff.configure(text="Current Mode: N/A")
+                self.send_file_button_ff.configure(state="disabled", hover=True)
+                self.remove_file_button_ff.configure(state="disabled", hover=True)
+                self.space_label_ff.configure(text="Available Space: N/A")
+                self.enter_bootloader_button_ff.configure(state="disabled", hover=True)
+                self.enter_controller_button_ff.configure(state="disabled", hover=True)
                 self.switch_controller_mode_button_as_ff.configure(
-                    state="disable", hover=True
+                    state="disabled", hover=True
                 )
                 self.switch_controller_mode_button_po_ff.configure(
-                    state="disable", hover=True
+                    state="disabled", hover=True
                 )
                 self.switch_controller_mode_button_pc_ff.configure(
-                    state="disable", hover=True
+                    state="disabled", hover=True
                 )
                 for child in self.file_table_frame_ff.winfo_children():
                     child.destroy()
@@ -1548,9 +1501,9 @@ class PicoController:
                 bootloader_helpers.enter_bootloader(self.create_flash_serial_obj)
             elif mode == "controller":
                 bootloader_helpers.enter_controller(self.create_flash_serial_obj)
-            self.status_label_ff.config(text="Status: Reconnecting...")
-            self.mode_label_ff.config(text="Current Mode: N/A")
-            self.space_label_ff.config(text="Available Space: N/A")
+            self.status_label_ff.configure(text="Status: Reconnecting...")
+            self.mode_label_ff.configure(text="Current Mode: N/A")
+            self.space_label_ff.configure(text="Available Space: N/A")
 
             # update the frame
             self.disconnect_ff(self.create_flash_serial_obj)
@@ -1728,7 +1681,7 @@ class PicoController:
 
                 logging.info(f"Connected to {selected_port}")
                 self.refresh_ports(instant=True)  # refresh the ports immediately
-                serial_port_widget["status_label"].config(
+                serial_port_widget["status_label"].configure(
                     text=f"Status: Connected to {parsed_port}"
                 )
                 self.pump_controllers_connected[controller_id] = True
@@ -1744,7 +1697,9 @@ class PicoController:
                 serial_port_widget = self.pump_controllers_id_to_widget_map.get(
                     controller_id, {}
                 )
-                serial_port_widget["status_label"].config(text="Status: Not connected")
+                serial_port_widget["status_label"].configure(
+                    text="Status: Not connected"
+                )
                 self.pump_controllers_connected[controller_id] = False
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -1794,14 +1749,15 @@ class PicoController:
                 self.autosamplers.write(f"{sync_command}\n".encode())
                 response = self.autosamplers.readline().decode("utf-8").strip()
 
-                self.status_label_as.config(text=f"Status: Connected to {parsed_port}")
+                self.status_label_as.configure(
+                    text=f"Status: Connected to {parsed_port}"
+                )
                 logging.info(f"Connected to Autosampler at {selected_port}")
                 self.refresh_ports(instant=True)
                 self.set_autosampler_buttons_state("normal")
                 self.autosamplers_send_queue.put("dumpSlotsConfig")
-                self.on_tab_change(event=None, notebook=self.Tabview)
             except Exception as e:
-                self.status_label_as.config(text="Status: Not connected")
+                self.status_label_as.configure(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
                     parent=self.root,
@@ -1861,16 +1817,17 @@ class PicoController:
                 self.potentiostat.write(f"{sync_command}\n".encode())
                 response = self.potentiostat.readline().decode("utf-8").strip()
 
-                self.status_label_po.config(text=f"Status: Connected to {parsed_port}")
+                self.status_label_po.configure(
+                    text=f"Status: Connected to {parsed_port}"
+                )
                 logging.info(f"Connected to Potentiostat at {selected_port}")
                 self.refresh_ports(instant=True)
                 self.set_trigger_po(state="low")
                 self.set_potentiostat_buttons_state("normal")
                 self.potentiostat_send_queue.put("0:info")
                 self.potentiostat_send_queue.put("0:st")
-                self.on_tab_change(event=None, notebook=self.Tabview)
             except Exception as e:
-                self.status_label_po.config(text="Status: Not connected")
+                self.status_label_po.configure(text="Status: Not connected")
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
                     parent=self.root,
@@ -1980,14 +1937,14 @@ class PicoController:
                 potentiostat_id, trigger_status = match
                 status_str += f"{potentiostat_id}: {trigger_status}, "
             status_str = status_str[:-2]
-            self.current_trigger_state_value_po.config(text=status_str)
+            self.current_trigger_state_value_po.configure(text=status_str)
 
     def parse_autosampler_position(self, response) -> None:
         # format INFO: Current position: <position>
         match = re.search(r"position: (\d+)", response)
         if match:
             current_position = match.group(1)
-            self.current_position_value_as.config(text=f"{current_position}")
+            self.current_position_value_as.configure(text=f"{current_position}")
         else:
             logging.error(
                 f"Failed to parse autosampler position from response: {response}"
@@ -2019,14 +1976,14 @@ class PicoController:
                     self.pump_controllers_connected[controller_id] = False
 
                     # update UI
-                    serial_port_widget["status_label"].config(
+                    serial_port_widget["status_label"].configure(
                         text="Status: Not connected"
                     )  # update the status label
                     serial_port_widget["disconnect_button"].configure(
-                        state="disable", hover=True
+                        state="disabled", hover=True
                     )
                     serial_port_widget["reset_button"].configure(
-                        state="disable", hover=True
+                        state="disabled", hover=True
                     )
                     self.remove_pumps_widgets(
                         remove_all=False, controller_id=controller_id
@@ -2070,8 +2027,8 @@ class PicoController:
             try:
                 self.autosamplers.close()
                 self.autosamplers = None
-                self.status_label_as.config(text="Status: Not connected")
-                self.current_position_value_as.config(text="N/A")
+                self.status_label_as.configure(text="Status: Not connected")
+                self.current_position_value_as.configure(text="N/A")
                 self.autosamplers_rtc_time = "--:--:--"
                 self.slot_combobox_as.set("")
                 self.set_autosampler_buttons_state("disabled")
@@ -2098,13 +2055,12 @@ class PicoController:
             try:
                 self.potentiostat.close()
                 self.potentiostat = None
-                self.status_label_po.config(text="Status: Not connected")
+                self.status_label_po.configure(text="Status: Not connected")
                 self.potentiostat_rtc_time = "--:--:--"
-                self.current_trigger_state_value_po.config(text="N/A")
+                self.current_trigger_state_value_po.configure(text="N/A")
                 self.set_potentiostat_buttons_state("disabled")
                 while not self.potentiostat_send_queue.empty():  # empty the queue
                     self.potentiostat_send_queue.get()
-                self.on_tab_change(event=None, notebook=self.Tabview)
                 logging.info("Disconnected from Potentiostat")
                 if show_message:
                     non_blocking_messagebox(
@@ -2386,9 +2342,9 @@ class PicoController:
             if self.potentiostat:
                 self.disconnect_button_po.configure(state="normal", hover=True)
             # disable the buttons
-            self.stop_button.configure(state="disable", hover=True)
-            self.pause_button.configure(state="disable", hover=True)
-            self.continue_button.configure(state="disable", hover=True)
+            self.stop_button.configure(state="disabled", hover=True)
+            self.pause_button.configure(state="disabled", hover=True)
+            self.continue_button.configure(state="disabled", hover=True)
             logging.info("Procedure stopped.")
             if message:
                 non_blocking_messagebox(
@@ -2410,9 +2366,9 @@ class PicoController:
                 self.root.after_cancel(self.scheduled_task)
                 self.scheduled_task = None
             self.pause_timepoint_ns = time.monotonic_ns()
-            self.pause_button.configure(state="disable", hover=True)
+            self.pause_button.configure(state="disabled", hover=True)
             self.continue_button.configure(state="normal", hover=True)
-            self.end_time_value.config(text="paused")
+            self.end_time_value.configure(text="paused")
             logging.info("Procedure paused.")
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -2428,7 +2384,7 @@ class PicoController:
                 self.pause_duration_ns += time.monotonic_ns() - self.pause_timepoint_ns
                 self.pause_timepoint_ns = -1
             self.pause_button.configure(state="normal", hover=True)
-            self.continue_button.configure(state="disable", hover=True)
+            self.continue_button.configure(state="disabled", hover=True)
             self.execute_procedure(self.current_index)
             logging.info("Procedure continued.")
         except Exception as e:
@@ -2581,10 +2537,10 @@ class PicoController:
                 if self.pump_ids_to_controller_ids[pump_id] == controller_id:
                     self.pumps[pump_id]["power_status"] = power_status
                     self.pumps[pump_id]["direction_status"] = direction_status
-                    self.pumps[pump_id]["power_label"].config(
+                    self.pumps[pump_id]["power_label"].configure(
                         text=f"Power Status: {power_status}"
                     )
-                    self.pumps[pump_id]["direction_label"].config(
+                    self.pumps[pump_id]["direction_label"].configure(
                         text=f"Direction Status: {direction_status}"
                     )
                 else:
@@ -2845,11 +2801,11 @@ class PicoController:
     ):
         selected_slot = self.slot_combobox_as.get()
         if selected_slot in self.autosamplers_slots:
-            self.slot_position_value_as.config(
+            self.slot_position_value_as.configure(
                 text=f"{self.autosamplers_slots[selected_slot]}"
             )
         else:
-            self.slot_position_value_as.config(text="N/A")
+            self.slot_position_value_as.configure(text="N/A")
 
     def add_pump_widgets(self, controller_id, response):
         try:
@@ -3001,19 +2957,19 @@ class PicoController:
                         pady=global_pad_y,
                         sticky="NSWE",
                     )
-                    self.pumps[pump_id]["power_label"].config(
+                    self.pumps[pump_id]["power_label"].configure(
                         text=f"Power Status: {power_status}"
                     )
-                    self.pumps[pump_id]["direction_label"].config(
+                    self.pumps[pump_id]["direction_label"].configure(
                         text=f"Direction Status: {direction_status}"
                     )
-                    self.pumps[pump_id]["power_button"].config(
+                    self.pumps[pump_id]["power_button"].configure(
                         state="normal" if power_pin != "-1" else "disabled"
                     )
-                    self.pumps[pump_id]["direction_button"].config(
+                    self.pumps[pump_id]["direction_button"].configure(
                         state="normal" if direction_pin != "-1" else "disabled"
                     )
-                    self.pumps[pump_id]["frame"].config(
+                    self.pumps[pump_id]["frame"].configure(
                         text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}"
                     )
                 else:  # we have a pump with the same id but different controller
@@ -3295,12 +3251,12 @@ class PicoController:
             self.recipe_table.pack(side="left", fill="both", expand=True)
             # clear the progress bar
             self.total_progress_bar["value"] = 0
-            self.remaining_time_value.config(text="")
-            self.end_time_value.config(text="")
+            self.remaining_time_value.configure(text="")
+            self.end_time_value.configure(text="")
 
             # clear the eChem table
             self.eChem_sequence_df = None
-            self.generate_sequence_button.configure(state="disable", hover=True)
+            self.generate_sequence_button.configure(state="disabled", hover=True)
             self.eChem_sequence_df_time_header_index = -1
             for child in self.eChem_sequence_table_frame.winfo_children():
                 child.destroy()
@@ -3324,12 +3280,11 @@ class PicoController:
             self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
 
             # disable all procedure buttons
-            self.clear_recipe_button.configure(state="disable", hover=True)
-            self.start_button.configure(state="disable", hover=True)
-            self.stop_button.configure(state="disable", hover=True)
-            self.pause_button.configure(state="disable", hover=True)
-            self.continue_button.configure(state="disable", hover=True)
-            self.on_tab_change(event=None, notebook=self.Tabview)
+            self.clear_recipe_button.configure(state="disabled", hover=True)
+            self.start_button.configure(state="disabled", hover=True)
+            self.stop_button.configure(state="disabled", hover=True)
+            self.pause_button.configure(state="disabled", hover=True)
+            self.continue_button.configure(state="disabled", hover=True)
             logging.info("Recipe cleared successfully.")
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -3368,7 +3323,7 @@ class PicoController:
         try:
             self.stop_button.configure(state="normal", hover=True)
             self.pause_button.configure(state="normal", hover=True)
-            self.continue_button.configure(state="disable", hover=True)
+            self.continue_button.configure(state="disabled", hover=True)
             # disable the disconnect button for connected controllers
             for (
                 controller_id,
@@ -3377,11 +3332,11 @@ class PicoController:
                 if connection_status:
                     self.pump_controllers_id_to_widget_map[controller_id][
                         "disconnect_button"
-                    ].configure(state="disable", hover=True)
+                    ].configure(state="disabled", hover=True)
             if self.autosamplers:
-                self.disconnect_button_as.configure(state="disable", hover=True)
+                self.disconnect_button_as.configure(state="disabled", hover=True)
             if self.potentiostat:
-                self.disconnect_button_po.configure(state="disable", hover=True)
+                self.disconnect_button_po.configure(state="disabled", hover=True)
             self.pause_timepoint_ns = -1  # clear the stop time and pause time
             if self.scheduled_task:  # cancel the scheduled task if it exists
                 self.root.after_cancel(self.scheduled_task)
@@ -3585,14 +3540,14 @@ class PicoController:
             )
 
         self.total_progress_bar["value"] = int(total_progress)
-        self.remaining_time_value.config(
+        self.remaining_time_value.configure(
             text=f"{convert_ns_to_timestr(int(remaining_time_ns))}"
         )
         end_time = datetime.now() + timedelta(
             seconds=remaining_time_ns / NANOSECONDS_PER_SECOND
         )
         formatted_end_time = end_time.strftime("%Y-%m-%d %a %H:%M:%S")
-        self.end_time_value.config(text=f"{formatted_end_time}")
+        self.end_time_value.configure(text=f"{formatted_end_time}")
 
         # Update the recipe table with individual progress and remaining time
         for i, child in self.recipe_rows:
@@ -3879,7 +3834,7 @@ class PicoController:
                         temp_dir_list.insert(0, save_dir)
                     self.config["gSequence_save_dir_history"] = temp_dir_list
                     self.gSquence_save_path_entry["values"] = temp_dir_list
-                    self.gSquence_save_path_entry.current(0)
+                    self.gSquence_save_path_entry.set(temp_dir_list[0])
                     save_config(self.config)
                     non_blocking_messagebox(
                         parent=self.root,
@@ -3909,7 +3864,7 @@ class PicoController:
                     temp_dir_list.insert(0, selected_directory)
                 self.config["gSequence_save_dir_history"] = temp_dir_list
                 self.gSquence_save_path_entry["values"] = temp_dir_list
-                self.gSquence_save_path_entry.current(0)
+                self.gSquence_save_path_entry.set(temp_dir_list[0])
                 save_config(self.config)
                 non_blocking_messagebox(
                     parent=self.root,
