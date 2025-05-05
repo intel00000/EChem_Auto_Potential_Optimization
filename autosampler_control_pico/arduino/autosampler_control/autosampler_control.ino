@@ -10,44 +10,45 @@
 #define LED_PIN LED_BUILTIN
 #define RAMP_SIZE 200
 
-const bool DEBUG = false; // Set to true to enable debug messages
-
+// const are default values
+const float version = 1.1; // Version of the autosampler control software
+bool DEBUG = true;         // Set to true to enable debug messages
+const char STANDARD_DELIMITER = ':';
+const int MAX_BUFFER_SIZE = 300;      // Maximum buffer size for input string
+const int BAUD_RATE = 115200;         // Baud rate for serial communication
 String inputString = "";              // a string to hold incoming data
 volatile bool stringComplete = false; // whether the string is complete
-
-const float version = 1.1;      // Version of the autosampler control software
-const int MIN_POSITION = 0;     // Minimum position of the stepper motor
-const int MAX_POSITION = 16000; // Maximum position of the stepper motor
-
+// Pin definitions
 const int PULSE_PIN = 22;
 const int DIRECTION_PIN = 7;
 const int ENABLE_PIN = 2;
-
-const char STANDARD_DELIMITER = ':';
-const int MAX_BUFFER_SIZE = 300; // Maximum buffer size for input string
-const int BAUD_RATE = 115200;    // Baud rate for serial communication
+bool HOLDING = false; // Flag to indicate if the motor is holding
+// Position limit
+const int MIN_POSITION = 0;
+const int MAX_POSITION = 16000;
 
 // Ramp profile
 int rampProfile[RAMP_SIZE] = {};
 int ramp_max_interval = 3000;
 int ramp_min_interval = 1000;
 float ramp_curve_scale = 3.0f; // Controls steepness of the transition
-float ratio = 1;
-
-const float dutyCycle = 0.5; // Duty cycle for the PWM signal
+float ratio = 1.0;             // A global scale factor applied to the ramp profile intervals
+float dutyCycle = 0.5;         // Duty cycle for the PWM signal
 
 class Autosampler
 {
 private:
-    uint8_t pulsePin;
-    uint8_t directionPin;
-    uint8_t enablePin;
+    int pulsePin = PULSE_PIN;
+    int directionPin = DIRECTION_PIN;
+    int enablePin = ENABLE_PIN;
 
-    bool isPoweredOn;
-    int currentPosition;
-    int failSafePosition;
-    bool currentDirection; // true: left, false: right
+    bool isPoweredOn = false;
+    int currentPosition = -1;
+    int failSafePosition = 0;
+    bool currentDirection = true; // true: left, false: right
 
+    int minPosition = MIN_POSITION;
+    int maxPosition = MAX_POSITION;
     volatile bool moveInProgress = false;
     volatile bool stopRequested = false;
     volatile int stepsTaken = 0;
@@ -55,7 +56,8 @@ private:
     unsigned long moveStartTime = 0;
     unsigned long lastUpdateTime = 0;
 
-    JsonDocument slotsConfig; // JSON object to store slot positions
+    JsonDocument slotsConfig;  // JSON object to store slot positions
+    JsonDocument globalConfig; // JSON object to store global configuration
     void stopMovementWrapUp()
     {
         if (moveInProgress)
@@ -67,7 +69,7 @@ private:
             lastUpdateTime = 0;
 
             saveConfiguration();
-            enableStepper(true);
+            enableStepper(HOLDING);
             double timeTaken = (micros() - moveStartTime) / 1e6;
             Serial.printf("INFO: Movement completed, total time taken: %fs, currentPosition=%d\n", timeTaken, currentPosition);
         }
@@ -102,48 +104,93 @@ private:
     void saveConfiguration(bool initialValues = false)
     {
         // Save the current position and direction to the configuration file
-        File configFile = LittleFS.open("/autosampler_config.txt", "w");
-        if (configFile)
+        File configFile = LittleFS.open("/config.json", "w");
+        if (!configFile)
         {
-            if (initialValues)
-            {
-                currentPosition = 0;
-                currentDirection = true;
-            }
-            configFile.printf("%d,%d,%s\n", currentPosition, currentDirection, currentDirection ? "Left" : "Right");
-            configFile.close();
-            if (DEBUG)
-            {
-                Serial.printf("DEBUG: Configuration saved, currentPosition=%d, currentDirection=%d\n", currentPosition, (int)currentDirection);
-            }
+            Serial.println("ERROR: Unable to open configuration file.");
+            return;
+        }
+        if (initialValues)
+        {
+            Serial.println("INFO: initializing global configuration.");
+            // save a default configuration
+            globalConfig.clear();
+            globalConfig["currentPosition"] = 0;
+            globalConfig["currentDirection"] = true;
+            globalConfig["pulsePin"] = PULSE_PIN;
+            globalConfig["directionPin"] = DIRECTION_PIN;
+            globalConfig["enablePin"] = ENABLE_PIN;
+            globalConfig["minPosition"] = MIN_POSITION;
+            globalConfig["maxPosition"] = MAX_POSITION;
+            globalConfig["Year"] = (int16_t)2025;
+            globalConfig["Month"] = (int8_t)1;
+            globalConfig["Day"] = (int8_t)1;
+            globalConfig["Hour"] = (int8_t)0;
+            globalConfig["Minute"] = (int8_t)0;
+            globalConfig["Second"] = (int8_t)0;
+            globalConfig["Dotw"] = (int8_t)3;
+            globalConfig["debug"] = DEBUG;
+            globalConfig["holding"] = HOLDING;
         }
         else
         {
-            Serial.println("ERROR: Unable to save configuration file.");
+            globalConfig["currentPosition"] = currentPosition;
+            globalConfig["currentDirection"] = currentDirection;
+            globalConfig["pulsePin"] = pulsePin;
+            globalConfig["directionPin"] = directionPin;
+            globalConfig["enablePin"] = enablePin;
+            globalConfig["minPosition"] = minPosition;
+            globalConfig["maxPosition"] = maxPosition;
+            datetime_t datetime;
+            rtc_get_datetime(&datetime);
+            globalConfig["Year"] = datetime.year;
+            globalConfig["Month"] = datetime.month;
+            globalConfig["Day"] = datetime.day;
+            globalConfig["Hour"] = datetime.hour;
+            globalConfig["Minute"] = datetime.min;
+            globalConfig["Second"] = datetime.sec;
+            globalConfig["Dotw"] = datetime.dotw;
+            globalConfig["debug"] = DEBUG;
+            globalConfig["holding"] = HOLDING;
+        }
+        serializeJsonPretty(globalConfig, configFile);
+        configFile.close();
+        if (DEBUG)
+        {
+            Serial.printf("DEBUG: Configuration json saved: ");
+            serializeJson(globalConfig, Serial);
+            Serial.println();
         }
     }
     void loadConfiguration()
     {
-        // attempt to read the configuration from LittleFS
-        // the format is "currentPosition, currentDirection(either 1/0), currentDirection(either Left/Right)"
-        File configFile = LittleFS.open("/autosampler_config.txt", "r");
-        if (configFile)
+        File file = LittleFS.open("/config.json", "r");
+        if (file)
         {
-            String content = configFile.readStringUntil('\n');
-            configFile.close();
-
-            char direction[10];
-            int currentDirectionTemp;
-            if (sscanf(content.c_str(), "%d,%d,%s", &currentPosition, &currentDirectionTemp, direction) != 3)
+            DeserializationError ERROR = deserializeJson(globalConfig, file);
+            file.close();
+            if (ERROR)
             {
-                Serial.println("ERROR: Unable to parse configuration file.");
                 saveConfiguration(true);
             }
-            currentDirection = (currentDirectionTemp == 1); // 1 for left, 0 for right
-            if (DEBUG)
+            else
             {
-                Serial.printf("DEBUG: Configuration file content: %s\n", content.c_str());
-                Serial.printf("DEBUG: Configuration loaded, currentPosition=%d, currentDirection=%d, direction=%s\n", currentPosition, (int)currentDirection, direction);
+                currentPosition = globalConfig["currentPosition"].as<int>();
+                currentDirection = globalConfig["currentDirection"].as<bool>();
+                String direction = currentDirection ? "Left" : "Right";
+                pulsePin = globalConfig["pulsePin"].as<int>();
+                directionPin = globalConfig["directionPin"].as<int>();
+                enablePin = globalConfig["enablePin"].as<int>();
+                minPosition = globalConfig["minPosition"].as<int>();
+                maxPosition = globalConfig["maxPosition"].as<int>();
+                DEBUG = globalConfig["debug"].as<bool>();
+                HOLDING = globalConfig["holding"].as<bool>();
+                if (DEBUG)
+                {
+                    Serial.printf("DEBUG: Configuration json loaded: ");
+                    serializeJson(globalConfig, Serial);
+                    Serial.println();
+                }
             }
         }
         else
@@ -167,18 +214,14 @@ private:
             slotsConfig["waste"] = 0;
             slotsConfig["fail-safe"] = 0;
             slotsConfig["0"] = 0;
-            // save the default configuration
-            serializeJsonPretty(slotsConfig, file);
-            file.close();
         }
-        else
+        serializeJsonPretty(slotsConfig, file);
+        file.close();
+        if (DEBUG)
         {
-            serializeJsonPretty(slotsConfig, file);
-            file.close();
-            if (DEBUG)
-            {
-                Serial.printf("DEBUG: Slots configuration saved: ");
-            }
+            Serial.printf("DEBUG: Slots configuration saved: ");
+            serializeJson(slotsConfig, Serial);
+            Serial.println();
         }
     }
     void loadSlotsConfig()
@@ -209,27 +252,24 @@ private:
     }
 
 public:
-    Autosampler(uint8_t pulse, uint8_t direction, uint8_t enable)
-        : pulsePin(pulse),
-          directionPin(direction),
-          enablePin(enable),
-          isPoweredOn(false),
-          currentPosition(-1),
-          failSafePosition(0),
-          currentDirection(true) {}
+    Autosampler() {}
+    Autosampler(int pulsePin, int directionPin, int enablePin)
+        : pulsePin(pulsePin),
+          directionPin(directionPin),
+          enablePin(enablePin) {}
 
     void begin()
     {
+        loadConfiguration();
+        loadSlotsConfig();
+        failSafePosition = slotsConfig["fail-safe"].as<int>();
+
         pinMode(pulsePin, OUTPUT);
         pinMode(directionPin, OUTPUT);
         pinMode(enablePin, OUTPUT);
         digitalWrite(pulsePin, LOW);
         digitalWrite(directionPin, LOW);
-        digitalWrite(enablePin, LOW); // disable motor initially
-
-        loadConfiguration();
-        loadSlotsConfig();
-        failSafePosition = slotsConfig["fail-safe"].as<int>();
+        digitalWrite(enablePin, HOLDING ? LOW : HIGH); // LOW enables driver
     }
 
     void moveToPosition(int position)
@@ -239,7 +279,7 @@ public:
             Serial.println("INFO: Movement already in progress, interrupting current movement...");
             stopMovementWrapUp();
         }
-        position = constrain(position, 0, MAX_POSITION);
+        position = constrain(position, minPosition, maxPosition);
         int steps = position - currentPosition;
         if (DEBUG)
         {
@@ -315,7 +355,7 @@ public:
     }
     int setCurrentPosition(int position)
     {
-        currentPosition = constrain(position, 0, MAX_POSITION);
+        currentPosition = constrain(position, minPosition, maxPosition);
         saveConfiguration();
         return currentPosition;
     }
@@ -334,7 +374,7 @@ public:
     }
     void setFailSafePosition(int position)
     {
-        failSafePosition = constrain(position, 0, MAX_POSITION);
+        failSafePosition = constrain(position, minPosition, maxPosition);
         slotsConfig["fail-safe"] = failSafePosition;
         saveSlotsConfig();
     }
@@ -359,7 +399,7 @@ public:
         {
             Serial.printf("SUCCESS: Slot %s position set to %d\n", slot.c_str(), position);
         }
-        slotsConfig[slot] = constrain(position, 0, MAX_POSITION);
+        slotsConfig[slot] = constrain(position, minPosition, maxPosition);
         saveSlotsConfig();
     }
     void deleteSlot(String slot)
@@ -380,11 +420,11 @@ public:
     }
     void moveToLeftMost()
     {
-        moveToPosition(MAX_POSITION);
+        moveToPosition(maxPosition);
     }
     void moveToRightMost()
     {
-        moveToPosition(MIN_POSITION);
+        moveToPosition(minPosition);
     }
     void dumpSlotsConfig()
     {
@@ -392,9 +432,29 @@ public:
         serializeJson(slotsConfig, Serial);
         Serial.println();
     }
+    datetime_t getDateTime()
+    {
+        datetime_t t = {
+            .year = globalConfig["Year"],
+            .month = globalConfig["Month"],
+            .day = globalConfig["Day"],
+            .dotw = globalConfig["Dotw"],
+            .hour = globalConfig["Hour"],
+            .min = globalConfig["Minute"],
+            .sec = globalConfig["Second"]};
+        return t;
+    }
+    void saveConfig()
+    {
+        saveConfiguration();
+    }
+    void assertHolding()
+    {
+        enableStepper(HOLDING);
+    }
 };
 
-Autosampler autosampler(PULSE_PIN, DIRECTION_PIN, ENABLE_PIN);
+Autosampler autosampler;
 
 // parse the input string, the format is <command>:<value1>:<value2>...
 void parseInputString()
@@ -476,6 +536,8 @@ void parseInputString()
         Serial.println("    setRampSteepness:<value> - Set the steepness of the ramp profile (default is 3.0).");
         Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile (default is 1).");
         Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
+        Serial.println("    debug - Enable or disable debug mode.");
+        Serial.println("    holding - Enable or disable holding mode.");
         Serial.println("    reset - Reset the device.");
     }
     else if (command.equalsIgnoreCase("stop"))
@@ -519,6 +581,7 @@ void parseInputString()
             int minute = values[6].toInt();
             int second = values[7].toInt();
             setDateTime(year, month, day, dotw, hour, minute, second);
+            autosampler.saveConfig();
         }
         else
         {
@@ -531,6 +594,7 @@ void parseInputString()
     }
     else if (command.equalsIgnoreCase("reset"))
     {
+        autosampler.saveConfig();
         hardwareReset();
     }
     else if (command.equalsIgnoreCase("setPosition"))
@@ -714,6 +778,19 @@ void parseInputString()
     {
         autosampler.moveToRightMost();
     }
+    else if (command.equalsIgnoreCase("debug"))
+    {
+        DEBUG = !DEBUG;
+        autosampler.saveConfig();
+        Serial.println("INFO: Debug mode " + String(DEBUG ? "enabled" : "disabled"));
+    }
+    else if (command.equalsIgnoreCase("holding"))
+    {
+        HOLDING = !HOLDING;
+        autosampler.assertHolding();
+        autosampler.saveConfig();
+        Serial.println("INFO: Holding mode " + String(HOLDING ? "enabled" : "disabled"));
+    }
     else
     {
         Serial.println("ERROR: Unknown command, type 'help' for a list of commands.");
@@ -723,25 +800,12 @@ void parseInputString()
 void setup()
 {
     delay(1000);
-    rtc_init();
-    datetime_t t = {
-        .year = 2020,
-        .month = 06,
-        .day = 05,
-        .dotw = 5, // 0 is Sunday, so 5 is Friday
-        .hour = 15,
-        .min = 45,
-        .sec = 00};
-    rtc_set_datetime(&t);
-
-    pinMode(LED_PIN, OUTPUT); // Set the LED pin as output
-    digitalWrite(LED_PIN, HIGH);
-
     inputString.reserve(MAX_BUFFER_SIZE); // reserve memory for input
     Serial.begin(BAUD_RATE);
     while (!Serial)
         ; // Wait until the serial connection is open
 
+    delay(1000);
     LittleFSConfig cfg;
     cfg.setAutoFormat(true);
     LittleFS.setConfig(cfg);
@@ -750,9 +814,15 @@ void setup()
         Serial.printf("ERROR: Unable to start LittleFS. Did you select a filesystem size in the menus?, Exiting...\n");
         return;
     }
-
-    generateRampProfile(); // Initialize the ramp profile
     autosampler.begin();   // Initialize the autosampler
+    generateRampProfile(); // Initialize the ramp profile
+
+    rtc_init();
+    datetime_t t = autosampler.getDateTime();
+    rtc_set_datetime(&t);
+
+    pinMode(LED_PIN, OUTPUT); // Set the LED pin as output
+    digitalWrite(LED_PIN, HIGH);
 }
 
 void generateRampProfile()

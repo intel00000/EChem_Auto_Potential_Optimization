@@ -37,6 +37,7 @@ void setDateTime(int year, int month, int day, int dotw, int hour, int minute, i
 void hardwareReset()
 {
     Serial.println("SUCCESS: Resetting the device.");
+    Serial.end();
     // use watchdog to reset the device
     watchdog_enable(1, true);
     while (1)
