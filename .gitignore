@@ -3,7 +3,6 @@ Source Code/
 build/
 dist/
 logs/
-DOE_graphing/
 
 # ignore python virtual environment
 .venv/
