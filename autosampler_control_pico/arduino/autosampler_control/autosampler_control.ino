@@ -1,37 +1,38 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
+#include <math.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
 
 #include "helpers.h"
 
 #define LED_PIN LED_BUILTIN
+#define RAMP_SIZE 200
 
 const bool DEBUG = false; // Set to true to enable debug messages
 
 String inputString = "";              // a string to hold incoming data
 volatile bool stringComplete = false; // whether the string is complete
 
-const float version = 1.0;      // Version of the autosampler control software
+const float version = 1.1;      // Version of the autosampler control software
 const int MIN_POSITION = 0;     // Minimum position of the stepper motor
 const int MAX_POSITION = 16000; // Maximum position of the stepper motor
 
-const int PULSE_PIN = 12;
-const int DIRECTION_PIN = 14;
-const int ENABLE_PIN = 15;
+const int PULSE_PIN = 22;
+const int DIRECTION_PIN = 7;
+const int ENABLE_PIN = 2;
 
 const char STANDARD_DELIMITER = ':';
 const int MAX_BUFFER_SIZE = 300; // Maximum buffer size for input string
 const int BAUD_RATE = 115200;    // Baud rate for serial communication
 
-// Ramp profile in microseconds
-const int rampProfile[] = {
-    10'000, 10'000, 10'000, 10'000, 10'000,
-    9'000, 9'000, 9'000, 9'000, 8'000, 8'000, 8'000, 8'000, 7'000, 7'000, 7'000, 7'000, 6'000, 6'000, 6'000, 6'000,
-    5'000, 5'000, 5'000};
-;
-const int rampProfileLength = sizeof(rampProfile) / sizeof(rampProfile[0]);
+// Ramp profile
+int rampProfile[RAMP_SIZE] = {};
+int ramp_max_interval = 3000;
+int ramp_min_interval = 1000;
+float ramp_curve_scale = 3.0f; // Controls steepness of the transition
+float ratio = 1;
 
 const float dutyCycle = 0.5; // Duty cycle for the PWM signal
 
@@ -66,7 +67,7 @@ private:
             lastUpdateTime = 0;
 
             saveConfiguration();
-            enableStepper(false);
+            enableStepper(true);
             double timeTaken = (micros() - moveStartTime) / 1e6;
             Serial.printf("INFO: Movement completed, total time taken: %fs, currentPosition=%d\n", timeTaken, currentPosition);
         }
@@ -80,12 +81,12 @@ private:
     {
         int interval;
 
-        if (stepsTaken < rampProfileLength)
+        if (stepsTaken < RAMP_SIZE)
         {
             // Ramp-up phase
             interval = rampProfile[stepsTaken];
         }
-        else if (stepsRemaining <= rampProfileLength)
+        else if (stepsRemaining <= RAMP_SIZE)
         {
             // Ramp-down phase
             interval = rampProfile[stepsRemaining - 1];
@@ -93,10 +94,10 @@ private:
         else
         {
             // Constant (steady) speed
-            interval = rampProfile[rampProfileLength - 1];
+            interval = rampProfile[RAMP_SIZE - 1];
         }
 
-        return interval;
+        return int(interval * ratio);
     }
     void saveConfiguration(bool initialValues = false)
     {
@@ -224,7 +225,7 @@ public:
         pinMode(enablePin, OUTPUT);
         digitalWrite(pulsePin, LOW);
         digitalWrite(directionPin, LOW);
-        digitalWrite(enablePin, HIGH); // disable motor initially
+        digitalWrite(enablePin, LOW); // disable motor initially
 
         loadConfiguration();
         loadSlotsConfig();
@@ -469,6 +470,12 @@ void parseInputString()
         Serial.println("    dumpSlotsConfig - Dump the slots configuration.");
         Serial.println("    stime:<year>:<month>:<day>:<hour>:<minute>:<second> - Set the RTC time on the device.");
         Serial.println("    gtime - Get the RTC time on the device.");
+        Serial.println("    setRatio:<value> - Set the ratio for the stepper motor speed (default is 1).");
+        Serial.println("    getRatio - Get the current ratio for the stepper motor speed.");
+        Serial.println("    generateRampProfile - Regenerate the ramp profile for the stepper motor.");
+        Serial.println("    setRampSteepness:<value> - Set the steepness of the ramp profile (default is 3.0).");
+        Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile (default is 1).");
+        Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
         Serial.println("    reset - Reset the device.");
     }
     else if (command.equalsIgnoreCase("stop"))
@@ -619,6 +626,82 @@ void parseInputString()
             Serial.println("ERROR: Invalid command format, expected format is deleteSlot:<slot>");
         }
     }
+    else if (command.equalsIgnoreCase("setRatio"))
+    {
+        if (valueCount == 2)
+        {
+            ratio = values[1].toFloat();
+            if (ratio <= 0)
+            {
+                Serial.println("ERROR: Invalid ratio value, must be greater than 0.");
+                ratio = 1.0; // reset to default
+            }
+            Serial.println("INFO: Ratio set to: " + String(ratio));
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setRatio:<value>");
+        }
+    }
+    else if (command.equalsIgnoreCase("getRatio"))
+    {
+        Serial.println("INFO: Current ratio: " + String(ratio));
+    }
+    else if (command.equalsIgnoreCase("generateRampProfile"))
+    {
+        generateRampProfile();
+    }
+    else if (command.equalsIgnoreCase("setRampSteepness"))
+    {
+        if (valueCount == 2)
+        {
+            ramp_curve_scale = values[1].toFloat();
+            if (ramp_curve_scale <= 0)
+            {
+                Serial.println("ERROR: Invalid steepness value, must be greater than 0.");
+            }
+            generateRampProfile(); // regenerate the ramp profile
+            Serial.println("INFO: Ramp steepness set to: " + String(ramp_curve_scale));
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setRampSteepness:<value>");
+        }
+    }
+    else if (command.equalsIgnoreCase("setRampMinInterval"))
+    {
+        if (valueCount == 2)
+        {
+            ramp_min_interval = values[1].toInt();
+            if (ramp_min_interval <= 0)
+            {
+                Serial.println("ERROR: Invalid minimum interval value, must be greater than 0.");
+            }
+            generateRampProfile(); // regenerate the ramp profile
+            Serial.println("INFO: Ramp minimum interval set to: " + String(ramp_min_interval));
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setRampMinInterval:<value>");
+        }
+    }
+    else if (command.equalsIgnoreCase("setRampMaxInterval"))
+    {
+        if (valueCount == 2)
+        {
+            ramp_max_interval = values[1].toInt();
+            if (ramp_max_interval <= 0)
+            {
+                Serial.println("ERROR: Invalid maximum interval value, must be greater than 0.");
+            }
+            generateRampProfile(); // regenerate the ramp profile
+            Serial.println("INFO: Ramp maximum interval set to: " + String(ramp_max_interval));
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setRampMaxInterval:<value>");
+        }
+    }
     else if (command.equalsIgnoreCase("dumpSlotsConfig"))
     {
         autosampler.dumpSlotsConfig();
@@ -668,7 +751,32 @@ void setup()
         return;
     }
 
-    autosampler.begin(); // Initialize the autosampler
+    generateRampProfile(); // Initialize the ramp profile
+    autosampler.begin();   // Initialize the autosampler
+}
+
+void generateRampProfile()
+{
+    // fill the ramp profile array
+    for (int i = 0; i < RAMP_SIZE; ++i)
+    {
+        float x = (ramp_curve_scale * i) / (RAMP_SIZE - 1); // x in [0, ramp_curve_scale]
+        float tanh_val = tanhf(x);                          // range [0, ~1)
+        float ramp_val = ramp_min_interval + (1.0f - tanh_val) * (ramp_max_interval - ramp_min_interval);
+        rampProfile[i] = (int)(ramp_val + 0.5f); // round to nearest int
+    }
+
+    // debug output
+    if (DEBUG)
+    {
+        Serial.printf("DEBUG: Ramp profile generated with min interval %d, max interval %d, curve scale %.2f\n", ramp_min_interval, ramp_max_interval, ramp_curve_scale);
+        Serial.println("DEBUG: Ramp profile initialized:");
+        for (int i = 0; i < RAMP_SIZE; ++i)
+        {
+            Serial.printf("%d ", rampProfile[i]);
+        }
+        Serial.println();
+    }
 }
 
 void loop()
