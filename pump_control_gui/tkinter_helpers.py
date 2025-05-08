@@ -5,8 +5,161 @@ from helper_functions import resource_path
 
 import tkinter as tk
 from tkinter import ttk
+import customtkinter as ctk
 
 default_icon_path = resource_path(os.path.join("icons", "icons-red.ico"))
+
+
+global_pad_x = 2
+global_pad_y = 2
+
+global_pad_N = 3
+global_pad_S = 3
+global_pad_W = 3
+global_pad_E = 3
+
+global_height = 24
+
+
+def combobox(
+    parent,
+    row,
+    column,
+    values=[],
+    command=None,
+    state="normal",
+    width=200,
+    height=global_height,
+    rowspan=1,
+    columnspan=1,
+    padx=global_pad_x,
+    pady=global_pad_y,
+    sticky="NSEW",
+) -> ctk.CTkComboBox:
+    """
+    Create a combobox with specified parameters.
+
+    @param parent: The parent widget.
+    @param row: The row in the grid where the combobox will be placed.
+    @param column: The column in the grid where the combobox will be placed.
+    @param values: The list of values for the combobox (default is empty).
+    @param command: The function to call when the selection changes.
+    @param state: The state of the combobox (default is "normal").
+    @param width: The width of the combobox (default is 200).
+    @param height: The height of the combobox (default is 20).
+    @param rowspan: The number of rows the combobox will span (default is 1).
+    @param columnspan: The number of columns the combobox will span (default is 1).
+    @param padx: The horizontal padding around the combobox (default is global_pad_x).
+    @param pady: The vertical padding around the combobox (default is global_pad_y).
+    @param sticky: The sticky option for the combobox (default is "NSEW").
+
+    @return: The created combobox widget.
+    """
+    combo = ctk.CTkComboBox(
+        parent,
+        values=values,
+        command=command,
+        state=state,
+        width=width,
+        height=height,
+    )
+    combo.grid(
+        row=row,
+        rowspan=rowspan,
+        column=column,
+        columnspan=columnspan,
+        padx=padx,
+        pady=pady,
+        sticky=sticky,
+    )
+    return combo
+
+
+def button(
+    parent,
+    text,
+    row,
+    column,
+    command,
+    state="normal",
+    width=120,
+    height=global_height,
+    rowspan=1,
+    columnspan=1,
+    padx=global_pad_x,
+    pady=global_pad_y,
+    sticky="NSEW",
+) -> ctk.CTkButton:
+    """
+    Create a button with specified parameters.
+
+    @param parent: The parent widget.
+    @param text: The text to display on the button.
+    @param row: The row in the grid where the button will be placed.
+    @param column: The column in the grid where the button will be placed.
+    @param command: The function to call when the button is clicked.
+    @param rowspan: The number of rows the button will span (default is 1).
+    @param columnspan: The number of columns the button will span (default is 1).
+    @param padx: The horizontal padding around the button (default is global_pad_x).
+    @param pady: The vertical padding around the button (default is global_pad_y).
+    @param sticky: The sticky option for the button (default is "NSEW").
+
+    @return: The created button widget.
+    """
+    button = ctk.CTkButton(
+        parent, text=text, command=command, width=width, height=height, state=state
+    )
+    button.grid(
+        row=row,
+        rowspan=rowspan,
+        column=column,
+        columnspan=columnspan,
+        padx=padx,
+        pady=pady,
+        sticky=sticky,
+    )
+    return button
+
+
+def label(
+    parent,
+    text,
+    row,
+    column,
+    rowspan=1,
+    columnspan=1,
+    width=0,
+    height=global_height,
+    padx=global_pad_x,
+    pady=global_pad_y,
+    sticky="NSEW",
+) -> ctk.CTkLabel:
+    """
+    Create a label with specified parameters.
+
+    @param parent: The parent widget.
+    @param text: The text to display on the label.
+    @param row: The row in the grid where the label will be placed.
+    @param column: The column in the grid where the label will be placed.
+    @param rowspan: The number of rows the label will span (default is 1).
+    @param columnspan: The number of columns the label will span (default is 1).
+    @param padx: The horizontal padding around the label (default is global_pad_x).
+    @param pady: The vertical padding around the label (default is global_pad_y).
+    @param sticky: The sticky option for the label (default is "NSEW").
+
+    @return: The created label widget.
+    """
+    label = ctk.CTkLabel(parent, text=text, width=width, height=height)
+    label.grid(
+        row=row,
+        rowspan=rowspan,
+        column=column,
+        columnspan=columnspan,
+        padx=padx,
+        pady=pady,
+        sticky=sticky,
+    )
+    return label
 
 
 def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path):
