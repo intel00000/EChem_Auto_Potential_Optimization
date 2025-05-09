@@ -9,9 +9,6 @@ from tkinterdnd2 import DND_FILES, TkinterDnD
 
 # Constants
 UF2_INFO_FILENAME = "INFO_UF2.TXT"
-MICROPYTHON_UF2_URL = (
-    "https://micropython.org/resources/firmware/rp2-pico-20250415-v1.25.0.uf2"
-)
 
 
 def list_volumes():
@@ -68,33 +65,50 @@ class PicoFlasherApp:
         self.variants = []
         self.selected_variant = None
 
-        self.label = tk.Label(master, text="Detected Pico Devices:")
-        self.label.pack()
+        self.label_frame = tk.Frame(master)
+        self.label_frame.pack(padx=10, pady=10)
 
-        self.device_listbox = tk.Listbox(master, width=50)
-        self.device_listbox.pack()
+        label = tk.Label(self.label_frame, text="Pico Devices:")
+        label.pack(padx=10, pady=10, side=tk.LEFT)
 
-        self.refresh_button = tk.Button(
-            master, text="Refresh Devices", command=self.refresh_devices
+        self.device_var = tk.StringVar()
+        self.device_combobox = ttk.Combobox(
+            self.label_frame, textvariable=self.device_var, state="readonly", width=50
         )
-        self.refresh_button.pack(pady=5)
+        self.device_combobox.pack(padx=10, pady=10, side=tk.LEFT)
+        self.refresh_button = tk.Button(
+            self.label_frame, text="Refresh Devices", command=self.refresh_devices
+        )
+        self.refresh_button.pack(padx=10, pady=10, side=tk.LEFT)
 
-        self.variant_label = tk.Label(master, text="Select Variant:")
-        self.variant_label.pack()
+        self.variant_frame = tk.Frame(master)
+        self.variant_frame.pack(padx=10, pady=10)
+        variant_label = tk.Label(self.variant_frame, text="Select Variant:")
+        variant_label.pack(padx=10, pady=10, side=tk.LEFT)
         self.variant_var = tk.StringVar()
         self.variant_dropdown = ttk.Combobox(
-            master, textvariable=self.variant_var, state="readonly"
+            self.variant_frame,
+            textvariable=self.variant_var,
+            state="readonly",
+            width=50,
         )
-        self.variant_dropdown.pack()
+        self.variant_dropdown.pack(padx=10, pady=10, side=tk.LEFT)
         self.variant_dropdown.bind("<<ComboboxSelected>>", self.on_variant_selected)
 
-        self.version_label = tk.Label(master, text="Select Firmware Version:")
-        self.version_label.pack()
+        self.version_frame = tk.Frame(master)
+        self.version_frame.pack(padx=10, pady=10)
+        self.version_label = tk.Label(
+            self.version_frame, text="Select Firmware Version:"
+        )
+        self.version_label.pack(padx=10, pady=10, side=tk.LEFT)
         self.version_var = tk.StringVar()
         self.version_dropdown = ttk.Combobox(
-            master, textvariable=self.version_var, state="readonly"
+            self.version_frame,
+            textvariable=self.version_var,
+            state="readonly",
+            width=50,
         )
-        self.version_dropdown.pack()
+        self.version_dropdown.pack(padx=10, pady=10, side=tk.LEFT)
 
         self.dnd_label = tk.Label(
             master,
@@ -103,7 +117,7 @@ class PicoFlasherApp:
             width=50,
             height=5,
         )
-        self.dnd_label.pack(pady=10)
+        self.dnd_label.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
         self.dnd_label.drop_target_register(DND_FILES)
         self.dnd_label.dnd_bind("<<Drop>>", self.drop)
 
@@ -121,16 +135,16 @@ class PicoFlasherApp:
         self.load_variants()
 
     def refresh_devices(self):
-        self.device_listbox.delete(0, tk.END)
         self.devices = list_volumes()
-        for device in self.devices:
-            self.device_listbox.insert(tk.END, device)
-        if not self.devices:
+        self.device_combobox["values"] = self.devices
+        if self.devices:
+            self.device_var.set(self.devices[0])
+            self.status_label.config(text="")
+        else:
+            self.device_var.set("")
             self.status_label.config(
                 text="No Pico devices detected in bootloader mode."
             )
-        else:
-            self.status_label.config(text="")
 
     def load_variants(self):
         url = "https://raw.githubusercontent.com/thonny/thonny/master/data/micropython-variants-uf2.json"
@@ -181,13 +195,12 @@ class PicoFlasherApp:
             messagebox.showwarning("Invalid file", "Please drop a valid .uf2 file.")
 
     def flash_selected_device(self, uf2_path):
-        selection = self.device_listbox.curselection()
-        if not selection:
+        target_volume = self.device_var.get()
+        if not target_volume:
             messagebox.showwarning(
                 "No Device Selected", "Please select a device to flash."
             )
             return
-        target_volume = self.device_listbox.get(selection[0])
         self.status_label.config(text="Flashing...")
         success = flash_uf2(uf2_path, target_volume)
         if success:
@@ -214,13 +227,12 @@ class PicoFlasherApp:
         url = download["url"]
         temp_path = os.path.join(os.getcwd(), "temp.uf2")
 
-        selection = self.device_listbox.curselection()
-        if not selection:
+        target_volume = self.device_var.get()
+        if not target_volume:
             messagebox.showwarning(
                 "No Device Selected", "Please select a device to flash."
             )
             return
-        target_volume = self.device_listbox.get(selection[0])
 
         if not messagebox.askyesno(
             "Confirm Flash",
