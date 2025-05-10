@@ -5,7 +5,7 @@ import serial.tools.list_ports
 # gui imports
 import tkinter as tk
 import customtkinter as ctk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, filedialog
 import pystray
 from PIL import Image
 
@@ -70,6 +70,7 @@ class PicoController:
         # port refresh timer
         self.port_refresh_interval_ns = 2 * NANOSECONDS_PER_SECOND
         self.port_refresh_last_ns = -1
+        self.serial_wait_time = 0.1  # Serial port wait time in seconds
         self.timeout = 1  # Serial port timeout in seconds
 
         # instance fields for the serial port and queue
@@ -141,9 +142,7 @@ class PicoController:
 
         def main_tabview_changed():
             current_tab = self.Tabview.get()
-            if current_tab == "Hardware Control":
-                self.refresh_ports()
-            elif current_tab == "Firmware Update":
+            if current_tab == "Advanced Settings" or current_tab == "Connect":
                 self.refresh_ports()
 
         # a notebook widget to hold the tabs
@@ -155,12 +154,13 @@ class PicoController:
         )
 
         # frame for different tabs
-        self.Tabview.add("Hardware Control")
-        self.Tabview.add("Experiment Scheduler")
-        self.Tabview.add("Firmware Update")
-        self.create_manual_control_page(self.Tabview.tab("Hardware Control"))
-        self.create_experiment_scheduler_page(self.Tabview.tab("Experiment Scheduler"))
-        self.create_flash_firmware_page(self.Tabview.tab("Firmware Update"))
+        self.Tabview.add("Connect")
+        self.Tabview.add("Schedule")
+        self.Tabview.add("Advanced Settings")
+        self.Tabview.add("Testing Page")
+        self.create_experiment_scheduler_page(self.Tabview.tab("Schedule"))
+        self.create_advanced_settings_page(self.Tabview.tab("Advanced Settings"))
+        self.create_testing_page(self.Tabview.tab("Testing Page"))
         for b in self.Tabview._segmented_button._buttons_dict.values():
             b.configure(
                 font=(
@@ -194,59 +194,30 @@ class PicoController:
         )
         style.configure(
             "TLabelframe",
-            background=self.Tabview.tab("Hardware Control").cget("fg_color"),
+            background=self.Tabview.tab("Advanced Settings").cget("fg_color"),
         )
         self.refresh_ports()
         self.root.after(self.main_loop_interval_ms, self.main_loop)
 
-    def create_rtc_time_frame(self, root_frame):
-        current_row, current_column = 0, 0
-        # Pump Controller Time
-        self.current_time_label = label(
-            root_frame, "Pump Controllers: ", current_row, current_column
-        )
-        current_column += 1
-        self.current_time_value = label(
-            root_frame, "--:--:--", current_row, current_column
-        )
-        current_column += 1
-        # Autosampler Time
-        self.current_time_label_as = label(
-            root_frame, "Autosampler: ", current_row, current_column
-        )
-        current_column += 1
-        self.current_time_value_as = label(
-            root_frame, self.autosamplers_rtc_time, current_row, current_column
-        )
-        current_column += 1
-        # Potentiostat Time
-        self.current_time_label_po = label(
-            root_frame, "Potentiostat: ", current_row, current_column
-        )
-        current_column += 1
-        self.current_time_value_po = label(
-            root_frame, self.potentiostat_rtc_time, current_row, current_column
-        )
-
-    def create_manual_control_page(self, root_frame):
+    def create_connect_page(self, root_frame):
+        """create a striped down version of the create_advanced_settings_page"""
         current_row = 0
 
-        def mc_tabview_changed():
+        def c_tabview_changed():
             """Callback for the manual control tabview change."""
-            selected_tab = self.mc_view.get()
-            if selected_tab == "Port Selection":
-                # call refresh_ports to update the port comboboxes
+            selected_tab = self.c_view.get()
+            if selected_tab == "Connect":
                 self.refresh_ports()
 
-        self.mc_view = ctk.CTkTabview(
-            root_frame, fg_color="darkgray", command=mc_tabview_changed
+        self.c_view = ctk.CTkTabview(
+            root_frame, fg_color="darkgray", command=c_tabview_changed
         )
-        self.mc_view.pack(
+        self.c_view.pack(
             anchor="center",
             padx=global_pad_x,
             pady=global_pad_y,
         )
-        port_select_frame = self.mc_view.add("Port Selection")
+        port_select_frame = self.ac_view.add("Connect")
 
         # first in the port_select_frame
         # Create a row for each potential pump controller
@@ -303,7 +274,124 @@ class PicoController:
         )
         self.reset_button_po.configure(state="disabled", hover=True)
 
-        pumps_mc_frame = self.mc_view.add("Pump Manual Control")
+    def create_testing_page(self, root_frame):
+        # a button to test the non-blocking messagebox
+        self.test_button = button(
+            root_frame,
+            "Test Non-blocking Messagebox",
+            0,
+            0,
+            lambda: non_blocking_messagebox(
+                parent=self.root,
+                title="Test Non-blocking Messagebox",
+                message="This is a test message.",
+            ),
+        )
+
+    def create_rtc_time_frame(self, root_frame):
+        current_row, current_column = 0, 0
+        # Pump Controller Time
+        self.current_time_label = label(
+            root_frame, "Pump Controllers: ", current_row, current_column
+        )
+        current_column += 1
+        self.current_time_value = label(
+            root_frame, "--:--:--", current_row, current_column
+        )
+        current_column += 1
+        # Autosampler Time
+        self.current_time_label_as = label(
+            root_frame, "Autosampler: ", current_row, current_column
+        )
+        current_column += 1
+        self.current_time_value_as = label(
+            root_frame, self.autosamplers_rtc_time, current_row, current_column
+        )
+        current_column += 1
+        # Potentiostat Time
+        self.current_time_label_po = label(
+            root_frame, "Potentiostat: ", current_row, current_column
+        )
+        current_column += 1
+        self.current_time_value_po = label(
+            root_frame, self.potentiostat_rtc_time, current_row, current_column
+        )
+
+    def create_advanced_settings_page(self, root_frame):
+        current_row = 0
+
+        def ac_tabview_changed():
+            """Callback for the manual control tabview change."""
+            selected_tab = self.ac_view.get()
+            if selected_tab == "Connect" or selected_tab == "Firmware Update":
+                self.refresh_ports()
+
+        self.ac_view = ctk.CTkTabview(
+            root_frame, fg_color="darkgray", command=ac_tabview_changed
+        )
+        self.ac_view.pack(
+            anchor="center",
+            padx=global_pad_x,
+            pady=global_pad_y,
+        )
+        port_select_frame = self.ac_view.add("Connect")
+
+        # first in the port_select_frame
+        # Create a row for each potential pump controller
+        for controller_id in range(1, self.num_pump_controllers + 1):
+            self.add_pump_controller_widgets(
+                root_frame=port_select_frame,
+                port_label="Pump Controller",
+                controller_id=controller_id,
+            )
+        current_row = port_select_frame.grid_size()[1]
+        # second in the port_select_frame
+        self.port_label_as = label(
+            port_select_frame, "Autosampler:", current_row, 0, sticky="W"
+        )
+        self.port_combobox_as = combobox(
+            port_select_frame, current_row, 1, state="readonly", width=240
+        )
+        self.status_label_as = label(
+            port_select_frame, "Status: Not connected", current_row, 2, sticky="W"
+        )
+        self.connect_button_as = button(
+            port_select_frame, "Connect", current_row, 3, self.connect_as
+        )
+        self.disconnect_button_as = button(
+            port_select_frame, "Disconnect", current_row, 4, self.disconnect_as
+        )
+        self.disconnect_button_as.configure(state="disabled", hover=True)
+        self.reset_button_as = button(
+            port_select_frame, "Reset", current_row, 5, self.reset_as
+        )
+        self.reset_button_as.configure(state="disabled", hover=True)
+
+        # update the current row
+        current_row = port_select_frame.grid_size()[1]
+        # third in the port_select_frame
+        self.port_label_po = label(
+            port_select_frame, "Potentiostat:", current_row, 0, sticky="W"
+        )
+        self.port_combobox_po = combobox(
+            port_select_frame, current_row, 1, state="readonly", width=240
+        )
+        self.status_label_po = label(
+            port_select_frame, "Status: Not connected", current_row, 2, sticky="W"
+        )
+        self.connect_button_po = button(
+            port_select_frame, "Connect", current_row, 3, self.connect_po
+        )
+        self.disconnect_button_po = button(
+            port_select_frame, "Disconnect", current_row, 4, self.disconnect_po
+        )
+        self.disconnect_button_po.configure(state="disabled", hover=True)
+        self.reset_button_po = button(
+            port_select_frame, "Reset", current_row, 5, self.reset_po
+        )
+        self.reset_button_po.configure(state="disabled", hover=True)
+
+        pumps_mc_frame = self.ac_view.add("Pumps Manual Control")
         # first row in the manual control frame, containing all the buttons
         self.manual_control_frame_buttons = ctk.CTkFrame(
             pumps_mc_frame, bg_color="transparent", fg_color="transparent"
@@ -333,7 +421,7 @@ class PicoController:
             "Shutdown All Pumps",
             0,
             3,
-            lambda: self.pumps_shutdown(confirmation=True),
+            lambda: self.pumps_shutdown(messageboxConfirmationNeeded=True),
         )
         # second row in the manual control frame, containing the pumps widgets
         self.pumps_frame = ctk.CTkFrame(pumps_mc_frame)
@@ -347,7 +435,7 @@ class PicoController:
 
         # Potentiostat Manual Control frame
         po_mc_frame = ctk.CTkFrame(
-            self.mc_view.add("Potentiostat Manual Control"),
+            self.ac_view.add("Potentiostat Manual Control"),
             bg_color="transparent",
             fg_color="transparent",
         )
@@ -372,7 +460,7 @@ class PicoController:
         )
 
         # Autosampler Manual Control frame
-        as_mc_frame = self.mc_view.add("Autosampler Manual Control")
+        as_mc_frame = self.ac_view.add("Autosampler Manual Control")
         # Text Entry for Position
         self.position_entry_label_as = label(
             as_mc_frame, "Target Position:", 0, 0, sticky="W"
@@ -477,15 +565,17 @@ class PicoController:
             3,
             self.update_slot_as,
         )
-        for b in self.mc_view._segmented_button._buttons_dict.values():
+
+        self.create_firmware_update_page(self.ac_view.add("Firmware Update"))
+        for b in self.ac_view._segmented_button._buttons_dict.values():
             b.configure(
                 font=(
                     FONT_FAMILY,
                     int(b.cget("font").cget("size") * 1.5),
                 )
             )
-        self.set_manual_control_buttons_state("disabled")
-        self.set_autosampler_buttons_state("disabled")
+        self.set_mc_buttons_state("disabled")
+        self.set_as_buttons_state("disabled")
 
     def add_pump_controller_widgets(self, root_frame, port_label, controller_id):
         # update the pump_controllers dictionary
@@ -623,7 +713,10 @@ class PicoController:
 
         # second row in the recipe_frame_buttons, containing the gSequence and generate button
         self.gSquence_save_frame = ctk.CTkFrame(
-            self.recipe_frame_buttons, bg_color="transparent", fg_color="transparent"
+            self.recipe_frame_buttons,
+            bg_color="transparent",
+            fg_color="transparent",
+            height=24,
         )
         self.gSquence_save_frame.grid(
             row=1,
@@ -781,7 +874,7 @@ class PicoController:
         self.eChem_sequence_table.configure(yscrollcommand=self.scrollbar_EC.set)
 
     # the flash firmware page
-    def create_flash_firmware_page(self, root_frame):
+    def create_firmware_update_page(self, root_frame):
         self.create_flash_serial_obj = serial.Serial()
         columnspan = 6
 
@@ -822,7 +915,7 @@ class PicoController:
             "Reset",
             local_row,
             local_column,
-            lambda: self.reset_board_ff(self.create_flash_serial_obj),
+            lambda: self.reset_ff(self.create_flash_serial_obj),
             state="disabled",
         )
         local_column += 1
@@ -864,7 +957,7 @@ class PicoController:
         local_column = 0
         self.switch_controller_mode_label_ff = label(
             root_frame,
-            "Switch to Controller Mode:",
+            "Controller Mode Switching:",
             local_row,
             local_column,
             columnspan=2,
@@ -979,7 +1072,7 @@ class PicoController:
                 return
         else:
             current_tab = self.Tabview.get()
-            if current_tab != "Hardware Control" and current_tab != "Firmware Update":
+            if current_tab != "Advanced Settings" and current_tab != "Connect":
                 return
 
         self.port_refresh_last_ns = time.time_ns()
@@ -1045,21 +1138,29 @@ class PicoController:
         if parsed_port:
             parsed_port = parsed_port.group(1)
             if serial_port_obj.is_open:
-                if (
-                    messagebox.askyesno(
-                        "Disconnect",
-                        f"Disconnect from current port {serial_port_obj.port}?",
-                    )
-                    == tk.YES
-                ):
-                    self.disconnect_ff(serial_port_obj)
-                else:
-                    return
+
+                def callback(choice):
+                    if choice == "Yes":
+                        self.disconnect_ff(serial_port_obj)
+                        self.connect_ff(serial_port_obj, COM_port)
+
+                non_blocking_custom_messagebox(
+                    parent=self.root,
+                    title="Already Connected",
+                    message=f"Already connected to {serial_port_obj.port}. Disconnect?",
+                    buttons=["Yes", "No"],
+                    callback=callback,
+                )
+                return
             try:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
-                time.sleep(0.1)
+                t = time.time_ns()
+                while (
+                    time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
+                ):
+                    pass
                 serial_port_obj.reset_input_buffer()
                 serial_port_obj.reset_output_buffer()
                 # we have to distinguish between the firmware update mode and the controller mode
@@ -1227,13 +1328,17 @@ class PicoController:
                 self.refresh_ports()
                 for value in self.port_combobox_ff.cget("values"):
                     if self.create_flash_serial_obj.port in value:
-                        time.sleep(1)
+                        t = time.time_ns()
+                        while time.time_ns() - t < 3 * NANOSECONDS_PER_SECOND:
+                            pass
                         self.connect_ff(
                             self.create_flash_serial_obj,
                             self.create_flash_serial_obj.port,
                         )
                         return
-                time.sleep(0.5)
+                t = time.time_ns()
+                while time.time_ns() - t < 0.5 * NANOSECONDS_PER_SECOND:
+                    pass
         except Exception as e:
             logging.error(f"Error: {e}")
 
@@ -1302,23 +1407,30 @@ class PicoController:
                 message=f"An error occurred while uploading the file: {e}",
             )
 
-    def reset_board_ff(self, serial_port_obj: serial.Serial):
-        if not serial_port_obj.is_open:
-            return
-        """Reset the board by sending a soft reset command over serial. ONLY WORKS with MicroPython."""
-        pythonInject = [
-            "import machine",
-            "machine.reset()",
-        ]
-        # interrupt the currently running code
-        serial_port_obj.write(b"\x03")  # Ctrl+C
-        serial_port_obj.write(b"\x03")  # Ctrl+C
-        serial_port_obj.write(b"\x01")  # switch to raw REPL mode & inject code
-        for code in pythonInject:
-            serial_port_obj.write(bytes(code + "\n", "utf-8"))
-        serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
-        self.disconnect_ff(serial_port_obj)
-        self.root.after(3 * 1000, self.refresh_ports)
+    def reset_ff(self, serial_port_obj: serial.Serial):
+        try:
+            if not serial_port_obj.is_open:
+                return
+            """Reset the board by sending a soft reset command over serial. ONLY WORKS with MicroPython."""
+            pythonInject = [
+                "import machine",
+                "machine.reset()",
+            ]
+            # interrupt the currently running code
+            serial_port_obj.write(b"\x03")  # Ctrl+C
+            serial_port_obj.write(b"\x03")  # Ctrl+C
+            serial_port_obj.write(b"\x01")  # switch to raw REPL mode & inject code
+            for code in pythonInject:
+                serial_port_obj.write(bytes(code + "\n", "utf-8"))
+            serial_port_obj.write(b"\x04")  # exit raw REPL and run injected code
+            self.disconnect_ff(serial_port_obj)
+        except Exception as e:
+            logging.error(f"Error resetting board: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred while resetting the board: {e}",
+            )
 
     def switch_controller_mode_ff(self, serial_port_obj: serial.Serial, mode: str):
         # switch the controller mode by sending a command to the serial port
@@ -1341,8 +1453,23 @@ class PicoController:
                 title="Controller Mode Switch",
                 message=response,
             )
+            self.reset_ff(serial_port_obj)
+            for _ in range(15):
+                self.refresh_ports()
+                for value in self.port_combobox_ff.cget("values"):
+                    if self.create_flash_serial_obj.port in value:
+                        t = time.time_ns()
+                        while time.time_ns() - t < 3 * NANOSECONDS_PER_SECOND:
+                            pass
+                        self.connect_ff(
+                            self.create_flash_serial_obj,
+                            self.create_flash_serial_obj.port,
+                        )
+                        return
+                t = time.time_ns()
+                while time.time_ns() - t < 0.5 * NANOSECONDS_PER_SECOND:
+                    pass
             logging.info(f"Device -> PC: {response}")
-
         except Exception as e:
             logging.error(f"Error switching controller mode: {e}")
             non_blocking_messagebox(
@@ -1359,17 +1486,23 @@ class PicoController:
         if parsed_port:
             parsed_port = parsed_port.group(1)
             if self.pump_controllers[controller_id].is_open:
-                if (  # if already connected, pop a confirmation message before disconnecting
-                    messagebox.askyesno(
-                        "Disconnect",
-                        f"Disconnect from current port {self.pump_controllers[controller_id].port}?",
-                    )
-                    == tk.YES
-                ):
-                    # suppress the message for the disconnect
-                    self.disconnect_pc(controller_id=controller_id, show_message=False)
-                else:
-                    return
+
+                def callback(choice):
+                    if choice == "Yes":
+                        self.disconnect_pc(
+                            controller_id=controller_id, show_message=False
+                        )
+                        self.connect_pc(controller_id=controller_id)
+
+                non_blocking_custom_messagebox(
+                    parent=self.root,
+                    title="Already Connected",
+                    message=f"Already connected to {self.pump_controllers[controller_id].port}. Disconnect?",
+                    buttons=["Yes", "No"],
+                    callback=callback,
+                )
+                return
+
             try:  # Attempt to connect to the selected port
                 serial_port_obj = self.pump_controllers[controller_id]
                 serial_port_widget = self.pump_controllers_id_to_widget_map.get(
@@ -1378,6 +1511,11 @@ class PicoController:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
+                t = time.time_ns()
+                while (
+                    time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
+                ):
+                    pass
                 serial_port_obj.reset_input_buffer()
                 serial_port_obj.reset_output_buffer()
                 serial_port_obj.write("0:ping\n".encode())  # identify Pico type
@@ -1406,7 +1544,7 @@ class PicoController:
                     state="normal", hover=True
                 )
                 serial_port_widget["reset_button"].configure(state="normal", hover=True)
-                self.set_manual_control_buttons_state("normal")
+                self.set_mc_buttons_state("normal")
             except Exception as e:
                 serial_port_widget = self.pump_controllers_id_to_widget_map.get(
                     controller_id, {}
@@ -1422,7 +1560,7 @@ class PicoController:
                     message=f"An error occurred in function connect: {e}",
                 )
 
-    def set_manual_control_buttons_state(self, state) -> None:
+    def set_mc_buttons_state(self, state) -> None:
         self.add_pump_button.configure(state=state)
         self.clear_pumps_button.configure(state=state)
         self.save_pumps_button.configure(state=state)
@@ -1434,19 +1572,28 @@ class PicoController:
         if parsed_port:
             parsed_port = parsed_port.group(1)
             if self.autosamplers.is_open:
-                if (
-                    messagebox.askyesno(
-                        "Disconnect",
-                        f"Disconnect from current port {self.autosamplers.port}?",
-                    )
-                    == tk.YES
-                ):
-                    self.disconnect_as(show_message=False)
-                else:
-                    return
+
+                def callback(choice):
+                    if choice == "Yes":
+                        self.disconnect_as(show_message=False)
+                        self.connect_as()
+
+                non_blocking_custom_messagebox(
+                    parent=self.root,
+                    title="Already Connected",
+                    message=f"Already connected to {self.autosamplers.port}. Disconnect?",
+                    buttons=["Yes", "No"],
+                    callback=callback,
+                )
+                return
             try:
                 self.autosamplers.port = parsed_port
                 self.autosamplers.open()
+                t = time.time_ns()
+                while (
+                    time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
+                ):
+                    pass
                 self.autosamplers.reset_input_buffer()
                 self.autosamplers.reset_output_buffer()
                 self.autosamplers.write("ping\n".encode())  # identify Pico type
@@ -1467,7 +1614,7 @@ class PicoController:
                 self.status_label_as.configure(text="Status: Connected")
                 logging.info(f"Connected to Autosampler at {selected_port}")
                 self.refresh_ports()
-                self.set_autosampler_buttons_state("normal")
+                self.set_as_buttons_state("normal")
                 self.autosamplers_send_queue.put("dumpSlotsConfig")
             except Exception as e:
                 self.status_label_as.configure(text="Status: Not connected")
@@ -1478,7 +1625,7 @@ class PicoController:
                     message=f"An error occurred in function connect_as: {e}",
                 )
 
-    def set_autosampler_buttons_state(self, state) -> None:
+    def set_as_buttons_state(self, state) -> None:
         self.disconnect_button_as.configure(state=state)
         self.reset_button_as.configure(state=state)
 
@@ -1501,19 +1648,28 @@ class PicoController:
         if parsed_port:
             parsed_port = parsed_port.group(1)
             if self.potentiostat.is_open:
-                if (
-                    messagebox.askyesno(
-                        "Disconnect",
-                        f"Disconnect from current port {self.potentiostat.port}?",
-                    )
-                    == tk.YES
-                ):
-                    self.disconnect_po(show_message=False)
-                else:
-                    return
+
+                def callback(choice):
+                    if choice == "Yes":
+                        self.disconnect_po(show_message=False)
+                        self.connect_po()
+
+                non_blocking_custom_messagebox(
+                    parent=self.root,
+                    title="Already Connected",
+                    message=f"Already connected to {self.potentiostat.port}. Disconnect?",
+                    buttons=["Yes", "No"],
+                    callback=callback,
+                )
+                return
             try:
                 self.potentiostat.port = parsed_port
                 self.potentiostat.open()
+                t = time.time_ns()
+                while (
+                    time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
+                ):
+                    pass
                 self.potentiostat.reset_input_buffer()
                 self.potentiostat.reset_output_buffer()
                 self.potentiostat.write("0:ping\n".encode())  # identify Pico type
@@ -1704,7 +1860,7 @@ class PicoController:
                     if all(
                         [not port.is_open for port in self.pump_controllers.values()]
                     ):
-                        self.set_manual_control_buttons_state("disabled")
+                        self.set_mc_buttons_state("disabled")
                         self.clear_recipe()  # clear the recipe table
                         self.stop_procedure(False)  # also stop any running procedure
 
@@ -1742,7 +1898,7 @@ class PicoController:
                 self.current_position_value_as.configure(text="N/A")
                 self.autosamplers_rtc_time = "--:--:--"
                 self.slot_combobox_as.set("")
-                self.set_autosampler_buttons_state("disabled")
+                self.set_as_buttons_state("disabled")
                 while not self.autosamplers_send_queue.empty():  # empty the queue
                     self.autosamplers_send_queue.get()
                 logging.info("Disconnected from Autosampler")
@@ -1785,15 +1941,29 @@ class PicoController:
                     message=f"An error occurred: {e}",
                 )
 
-    def reset_pc(self, controller_id):
+    def reset_pc(self, controller_id, confirmation=False):
         try:
             if self.pump_controllers[controller_id].is_open:
-                if messagebox.askyesno(
-                    "Reset", "Are you sure you want to reset the Pico?"
-                ):
+                if not confirmation:
+
+                    def callback(choice):
+                        if choice == "Yes":
+                            self.reset_pc(
+                                controller_id=controller_id, confirmation=True
+                            )
+
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Reset",
+                        message=f"Are you sure you want to reset the controller {controller_id}?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                else:
                     self.pump_controllers_send_queue.put(f"{controller_id}:0:reset")
+                    self.disconnect_pc(controller_id=controller_id, show_message=False)
                     logging.info(f"Signal sent for controller {controller_id} reset.")
-                    self.root.after(3 * 1000, self.refresh_ports)
         except Exception as e:
             logging.error(f"Error: {e}")
             non_blocking_messagebox(
@@ -1802,39 +1972,63 @@ class PicoController:
                 message=f"An error occurred in function reset: {e}",
             )
 
-    def reset_as(self):
-        if self.autosamplers.is_open:
-            try:
-                if messagebox.askyesno(
-                    "Reset", "Are you sure you want to reset the Autosampler?"
-                ):
-                    self.autosamplers_send_queue.put("reset")
-                    logging.info("Signal sent for Autosampler reset.")
-                    self.root.after(3 * 1000, self.refresh_ports)
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.root,
-                    title="Error",
-                    message=f"An error occurred in function reset_as: {e}",
-                )
+    def reset_as(self, confirmation=False):
+        try:
+            if self.autosamplers.is_open:
+                if not confirmation:
 
-    def reset_po(self):
-        if self.potentiostat.is_open:
-            try:
-                if messagebox.askyesno(
-                    "Reset", "Are you sure you want to reset the Autosampler?"
-                ):
-                    self.potentiostat_send_queue.put("0:reset")
+                    def callback(choice):
+                        if choice == "Yes":
+                            self.reset_as(confirmation=True)
+
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Reset",
+                        message="Are you sure you want to reset the Autosampler?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                else:
+                    self.autosamplers_send_queue.put("reset")
+                    self.disconnect_as(show_message=False)
                     logging.info("Signal sent for Autosampler reset.")
-                    self.root.after(3 * 1000, self.refresh_ports)
-            except Exception as e:
-                logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.root,
-                    title="Error",
-                    message=f"An error occurred in function reset_po: {e}",
-                )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred in function reset_as: {e}",
+            )
+
+    def reset_po(self, confirmation=False):
+        try:
+            if self.potentiostat.is_open:
+                if not confirmation:
+
+                    def callback(choice):
+                        if choice == "Yes":
+                            self.reset_po(confirmation=True)
+
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Reset",
+                        message="Are you sure you want to reset the Potentiostat?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                else:
+                    self.potentiostat_send_queue.put("0:reset")
+                    self.disconnect_po(show_message=False)
+                    logging.info("Signal sent for Autosampler reset.")
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            non_blocking_messagebox(
+                parent=self.root,
+                title="Error",
+                message=f"An error occurred in function reset_po: {e}",
+            )
 
     def toggle_trigger_po(self):
         self.potentiostat_send_queue.put("0:tr")
@@ -1903,10 +2097,26 @@ class PicoController:
                 message=f"An error occurred in function register_pump: {e}",
             )
 
-    def remove_pump(self, remove_all=False, pump_id=None):
+    def remove_pump(self, remove_all=False, pump_id=None, confirmation=False):
         try:
+
+            def callback(choice):
+                if choice == "Yes":
+                    self.remove_pump(
+                        remove_all=remove_all, pump_id=pump_id, confirmation=True
+                    )
+
             if remove_all:
-                if messagebox.askyesno("Clear Pumps", "Clear all pumps?") == tk.YES:
+                if not confirmation:
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Clear Pumps",
+                        message="Are you sure you want to clear all pumps?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                else:
                     # query the pump info for all the controllers
                     for (
                         id,
@@ -1919,11 +2129,19 @@ class PicoController:
                             self.pump_controllers_send_queue.put(f"{id}:0:clr")
                             self.query_pump_info(controller_id=id)
             else:
-                if (
-                    messagebox.askyesno("Clear Pump", f"Clear pump {pump_id}?")
-                    == tk.YES
-                    and pump_id
-                ):
+                if not confirmation:
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Clear Pump",
+                        message=f"Are you sure you want to clear pump {pump_id}?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                else:
+                    if pump_id is None:
+                        logging.error("Pump ID is None")
+                        return
                     # find the controller id of the pump
                     controller_id = self.pump_ids_to_controller_ids.get(pump_id, None)
                     if controller_id:
@@ -1992,13 +2210,35 @@ class PicoController:
                     message=f"An error occurred in function save_pump_config: {e}",
                 )
 
-    def pumps_shutdown(self, confirmation=False, all=True, controller_id=None):
+    def pumps_shutdown(
+        self,
+        all=True,
+        controller_id=None,
+        messageboxConfirmationNeeded=False,
+        Confirmation=False,
+    ):
         if any(self.pump_controllers_connected.values()):
             try:
-                if not confirmation or messagebox.askyesno(
-                    "Shutdown All",
-                    "Are you sure you want to shutdown pumps on all controllers?",
-                ):
+                if messageboxConfirmationNeeded:
+
+                    def callback(choice):
+                        if choice == "Yes":
+                            self.pumps_shutdown(
+                                all=all,
+                                controller_id=controller_id,
+                                messageboxConfirmationNeeded=True,
+                                Confirmation=True,
+                            )
+
+                    non_blocking_custom_messagebox(
+                        parent=self.root,
+                        title="Shutdown All",
+                        message="Are you sure you want to shutdown all pumps?",
+                        buttons=["Yes", "No"],
+                        callback=callback,
+                    )
+                    return
+                if Confirmation or not messageboxConfirmationNeeded:
                     if all:
                         for (
                             id,
@@ -2040,7 +2280,7 @@ class PicoController:
             self.current_index = -1
             self.pause_timepoint_ns = -1
             self.pause_duration_ns = 0
-            self.pumps_shutdown()  # call a emergency shutdown in case the power is still on
+            self.pumps_shutdown(messageboxConfirmationNeeded=False)
             # update the status
             for id, connection_status in self.pump_controllers_connected.items():
                 if connection_status:
@@ -2894,7 +3134,7 @@ class PicoController:
                 message=f"An error occurred in function clear_recipe: {e}",
             )
 
-    def start_procedure(self):
+    def start_procedure(self, confirmation=False):
         if self.recipe_df is None or self.recipe_df.empty:
             logging.error("No recipe data to execute.")
             return
@@ -2910,14 +3150,25 @@ class PicoController:
                 message="No controller connection. Please connect to at least one controller to continue.",
             )
             return
-        # display warning if only one MCU is connected
+        # warning if only one MCU is connected
         if (
             not self.autosamplers.is_open
             or not self.potentiostat.is_open
             or not any(self.pump_controllers_connected.values())
         ):
-            message = "Only one type of controller connected. Continue?"
-            if not messagebox.askyesno("Warning", message):
+            if not confirmation:
+
+                def callback(choice):
+                    if choice == "Yes":
+                        self.start_procedure(confirmation=True)
+
+                non_blocking_custom_messagebox(
+                    parent=self.root,
+                    title="Warning",
+                    message="Only one type of controller connected. Continue?",
+                    buttons=["Yes", "No"],
+                    callback=callback,
+                )
                 return
         logging.info("Starting procedure...")
         try:
@@ -3229,11 +3480,6 @@ class PicoController:
                     controller_id=controller_id,
                     response=f"Pump{pump_id} Info: Power Pin: -1, Direction Pin: -1, Initial Power Pin Value: 0, Initial Direction Pin Value: 0, Current Power Status: OFF, Current Direction Status: CCW",
                 )
-                non_blocking_messagebox(
-                    parent=self.root,
-                    title="Success",
-                    message=f"Pump {pump_id} added to {selected_controller}.",
-                )
                 result_var.trace_remove("write", trace_id)  # Untrace
 
             trace_id = result_var.trace_add("write", on_selection)  # trace the variable
@@ -3516,6 +3762,7 @@ class PicoController:
 
 # set dpi awareness to avoid scaling issues
 ctk.set_default_color_theme("dark-blue")
+
 ctk.set_appearance_mode("light")
 setProcessDpiAwareness()
 root = ctk.CTk()

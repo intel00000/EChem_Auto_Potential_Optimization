@@ -165,19 +165,33 @@ def label(
 def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path):
     """Create a non-blocking message box."""
     try:
-        top = tk.Toplevel(parent)
+        top = ctk.CTkToplevel(parent)
         top.title(title)
         if icon_path:
             top.iconbitmap(icon_path)
-        label = ttk.Label(top, text=message)
-        label.grid(row=0, column=0, padx=10, pady=10)
-
-        button = ttk.Button(top, text="OK", command=top.destroy)
-        button.grid(row=1, column=0, padx=10, pady=10)
+        frame = ctk.CTkFrame(top)
+        frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
+        label(
+            frame,
+            text=message,
+            row=0,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
+        )
+        button(
+            frame,
+            text="OK",
+            row=1,
+            column=0,
+            command=top.destroy,
+            width=60,
+            height=global_height,
+            sticky="NS",
+        )
+        # center it on the screen
         top.attributes("-topmost", True)
-        top.grab_release()
-        top.update_idletasks()
-        top.wait_visibility()
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
@@ -190,28 +204,43 @@ def non_blocking_custom_messagebox(
 ):
     """Create a non-blocking custom message box with multiple buttons."""
     try:
-        top = tk.Toplevel(parent)
+        top = ctk.CTkToplevel(parent)
         top.title(title)
         if icon_path:
             top.iconbitmap(icon_path)
-        label = ttk.Label(top, text=message)
-        label.grid(row=0, column=0, columnspan=len(buttons), padx=10, pady=10)
+        frame = ctk.CTkFrame(top)
+        frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
+        label(
+            frame,
+            text=message,
+            row=0,
+            column=0,
+            columnspan=len(buttons),
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
+        )
 
+        # Button handlers
         def handle_click(response):
             top.destroy()
             callback(response)
 
         for i, button_text in enumerate(buttons):
-            ttk.Button(
-                top,
+            button(
+                frame,
                 text=button_text,
                 command=lambda response=button_text: handle_click(response),
-            ).grid(row=1, column=i, padx=10, pady=10)
+                row=1,
+                column=i,
+                width=60,
+                height=global_height,
+                padx=global_pad_x,
+                pady=global_pad_y,
+                sticky="NS",
+            )
 
         top.attributes("-topmost", True)
-        top.grab_release()
-        top.update_idletasks()
-        top.wait_visibility()
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
@@ -224,45 +253,77 @@ def non_blocking_checklist(
 ):
     """Create a non-blocking checklist dialog without a scroll bar."""
     try:
-        top = tk.Toplevel(parent)
+        top = ctk.CTkToplevel(parent)
         top.title(title)
         if icon_path:
             top.iconbitmap(icon_path)
+        frame = ctk.CTkFrame(top)
+        frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
 
         # Label for the checklist
-        label = ttk.Label(top, text=message)
-        label.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
-
-        # Frame to hold the checklist items
-        checklist_frame = ttk.Frame(top)
-        checklist_frame.grid(
-            row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew"
+        label(
+            frame,
+            text=message,
+            row=0,
+            column=0,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
         )
-
+        # Frame to hold the checklist items
+        checklist_frame = ctk.CTkFrame(frame)
+        checklist_frame.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
         # Add checkboxes for each item
         check_vars = []
         for item in items:
             var = tk.BooleanVar()
-            cb = ttk.Checkbutton(checklist_frame, text=item, variable=var)
-            cb.pack(anchor="center", padx=5, pady=2)
+            cb = ctk.CTkCheckBox(checklist_frame, text=item, variable=var)
+            cb.pack(anchor="center", padx=global_pad_x, pady=global_pad_y)
             check_vars.append((item, var))
 
         # OK and Cancel Buttons
         def on_ok():
             selected = [item for item, var in check_vars if var.get()]
-            result_var.set(
-                ",".join(selected)
-            )  # Update the shared variable with the selected items
+            # Update the shared variable with the selected items
+            result_var.set(",".join(selected))
             top.destroy()
 
         def on_cancel():
             result_var.set("")  # Set an empty value if canceled
             top.destroy()
 
-        ok_button = ttk.Button(top, text="OK", command=on_ok)
-        ok_button.grid(row=2, column=0, padx=10, pady=10, sticky="e")
-        cancel_button = ttk.Button(top, text="Cancel", command=on_cancel)
-        cancel_button.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        button(
+            frame,
+            text="OK",
+            command=on_ok,
+            width=60,
+            height=global_height,
+            row=2,
+            column=0,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
+        )
+        button(
+            frame,
+            text="Cancel",
+            command=on_cancel,
+            width=60,
+            height=global_height,
+            row=2,
+            column=1,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
+        )
 
         top.protocol("WM_DELETE_WINDOW", on_cancel)
         top.attributes("-topmost", True)
@@ -281,25 +342,47 @@ def non_blocking_single_select(
 ):
     """Create a non-blocking single selection dialog using radio buttons."""
     try:
-        top = tk.Toplevel(parent)
+        top = ctk.CTkToplevel(parent)
         top.title(title)
         if icon_path:
             top.iconbitmap(icon_path)
-
+        frame = ctk.CTkFrame(top)
+        frame.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
         # Label for the selection
-        label = ttk.Label(top, text="Select a controller:")
-        label.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+        label(
+            frame,
+            text="Select a controller:",
+            row=0,
+            column=0,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NS",
+        )
 
         # Frame to hold the radio buttons
-        radio_frame = ttk.Frame(top)
-        radio_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
-
+        radio_frame = ctk.CTkFrame(frame)
+        radio_frame.grid(
+            row=1,
+            column=0,
+            columnspan=2,
+            padx=global_pad_x,
+            pady=global_pad_y,
+            sticky="NSEW",
+        )
         # Create a StringVar to hold the selection internally
-        selection_var = tk.StringVar()
+        selection_var = ctk.StringVar()
 
         # Add radio buttons for each item
         for item in items:
-            rb = ttk.Radiobutton(
+            rb = ctk.CTkRadioButton(
                 radio_frame, text=item, value=item, variable=selection_var
             )
             rb.pack(anchor="center", padx=5, pady=2)
@@ -313,12 +396,26 @@ def non_blocking_single_select(
             result_var.set("")  # Set an empty value if canceled
             top.destroy()
 
-        top.protocol("WM_DELETE_WINDOW", on_cancel)
-        ok_button = ttk.Button(top, text="OK", command=on_ok)
-        ok_button.grid(row=2, column=0, padx=10, pady=10, sticky="e")
-        cancel_button = ttk.Button(top, text="Cancel", command=on_cancel)
-        cancel_button.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        button(
+            frame,
+            "OK",
+            2,
+            0,
+            on_ok,
+            width=60,
+            sticky="NS",
+        )
+        button(
+            frame,
+            "Cancel",
+            2,
+            1,
+            on_cancel,
+            width=60,
+            sticky="NS",
+        )
 
+        top.protocol("WM_DELETE_WINDOW", on_cancel)
         top.attributes("-topmost", True)
         top.grab_release()
         top.update_idletasks()
