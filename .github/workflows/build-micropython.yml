@@ -1,0 +1,80 @@
+name: Build MicroPython RP2040 Firmware
+
+on:
+  push:
+    paths:
+      - "mpy_fw_included/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git \
+            gcc-arm-none-eabi \
+            libnewlib-arm-none-eabi \
+            build-essential \
+            libffi-dev \
+            pkg-config \
+            cmake \
+            python3
+
+      - name: Clone MicroPython
+        run: |
+          mkdir -p mpy_fw_build
+          cd mpy_fw_build
+          git clone https://github.com/intel00000/micropython.git
+          cd micropython
+          git submodule update --init lib/pico-sdk lib/tinyusb
+
+      - name: Build mp-cross
+        run: |
+          cd mpy_fw_build/micropython
+          make -C mpy-cross
+
+      - name: Bundle all files into MicroPython source
+        run: |
+          mkdir -p mpy_fw_build/micropython/ports/rp2/modules
+          cp -r mpy_fw_included/* mpy_fw_build/micropython/ports/rp2/modules/
+
+      - name: Build firmware
+        run: |
+          cd mpy_fw_build/micropython/ports/rp2
+          make clean
+          make -j$(nproc)
+
+      - name: Copy UF2 to repo root
+        run: |
+          mkdir -p mpy_fw_published
+          cp mpy_fw_build/micropython/ports/rp2/build-PICO/firmware.uf2 mpy_fw_published/firmware.uf2
+
+      - name: Clean up build files
+        run: |
+          rm -rf mpy_fw_build
+
+      - name: Check for Changes
+        id: check_changes
+        run: |
+          git add mpy_fw_published/firmware.uf2
+          if git diff --cached --quiet; then
+            echo "No changes to commit" && echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and Push Firmware
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Auto-build MicroPython firmware from mpy_fw_included changes"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
