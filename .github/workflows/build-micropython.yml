@@ -47,6 +47,7 @@ jobs:
       - name: Build firmware
         run: |
           cd mpy_fw_build/micropython/ports/rp2
+          make submodules
           make clean
           make -j$(nproc)
 
