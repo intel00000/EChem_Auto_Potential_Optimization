@@ -159,11 +159,7 @@ def update_firmware():
 
 
 def create_default_config() -> dict:
-    default_config = {
-        "enter_bootloader_setting": False,
-        "mode": "pump",
-        "mode_before": "pump",
-    }
+    default_config = {"mode": "pump", "mode_before": "pump"}
     with open(CONFIG_FILE, "w") as f:
         f.write(json.dumps(default_config))
     return default_config
@@ -185,26 +181,25 @@ def bootloader():
         config = create_default_config()
 
     # Check if the bootloader is active
-    if not config.get("enter_bootloader_setting", False):
-        mode = config.get("mode", "pump")
-        if mode == "pump":
-            import pump_control_pico
+    mode = config.get("mode", "pump")
+    if mode == "pump":
+        import pump_control_pico
 
-            pump_control_pico.main()
-        elif mode == "autosampler":
-            import autosampler_control_pico
+        pump_control_pico.main()
+    elif mode == "autosampler":
+        import autosampler_control_pico
 
-            autosampler_control_pico.main()
-        elif mode == "update_firmware":
-            update_firmware()
-        elif mode == "potentiostat":
-            import potentiostat_control_pico
+        autosampler_control_pico.main()
+    elif mode == "update_firmware":
+        update_firmware()
+    elif mode == "potentiostat":
+        import potentiostat_control_pico
 
-            potentiostat_control_pico.main()
-        else:
-            import pump_control_pico
+        potentiostat_control_pico.main()
+    else:
+        import pump_control_pico
 
-            pump_control_pico.main()
+        pump_control_pico.main()
 
 
 if __name__ == "__main__":
