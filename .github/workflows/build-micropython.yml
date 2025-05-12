@@ -54,7 +54,7 @@ jobs:
       - name: Copy UF2 to repo root
         run: |
           mkdir -p mpy_fw_published
-          cp mpy_fw_build/micropython/ports/rp2/build-PICO/firmware.uf2 mpy_fw_published/firmware.uf2
+          cp mpy_fw_build/micropython/ports/rp2/build-RPI_PICO/firmware.uf2 mpy_fw_published/firmware.uf2
 
       - name: Clean up build files
         run: |
