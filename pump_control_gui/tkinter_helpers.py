@@ -1,13 +1,13 @@
 import os
 import json
 import logging
-from helper_functions import resource_path
+import helper_functions as helper
 
 import tkinter as tk
 from tkinter import ttk
 import customtkinter as ctk
 
-default_icon_path = resource_path(os.path.join("icons", "icons-red.ico"))
+default_icon_path = helper.resource_path(os.path.join("icons", "icons-red.ico"))
 
 
 global_pad_x = 2

@@ -1,5 +1,6 @@
 # gui imports
-from tkinter import messagebox
+import customtkinter as ctk
+import tkinter_helpers as tk_helpers
 
 # other library
 import os
@@ -29,7 +30,7 @@ NANOSECONDS_PER_MILLISECOND = 1_000_000
 NANOSECONDS_PER_MICROSECOND = 1_000
 
 
-def check_lock_file() -> None:
+def check_lock_file(parent: ctk.CTk) -> None:
     # check if the folder exists first
     if not os.path.exists(os.path.dirname(LOCK_FILE)):
         os.makedirs(os.path.dirname(LOCK_FILE))
@@ -39,7 +40,8 @@ def check_lock_file() -> None:
             pid = int(f.read().strip())
         if psutil.pid_exists(pid):
             # If the process exists, show a message box and exit
-            messagebox.showwarning(
+            tk_helpers.non_blocking_messagebox(
+                parent,
                 "Already Running",
                 "Another instance of this program is already running, check your taskbar!",
             )

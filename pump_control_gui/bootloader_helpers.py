@@ -6,13 +6,7 @@ import base64
 import serial
 import hashlib
 import logging
-from tkinter_helpers import (
-    non_blocking_messagebox,
-    non_blocking_custom_messagebox,
-    non_blocking_checklist,
-    non_blocking_single_select,
-    non_blocking_input_dialog,
-)
+import tkinter_helpers as tk_helpers
 
 
 # enter the bootloader by sending a json with set_mode as update_firmware and later rebooting the device
@@ -172,14 +166,14 @@ def remove_file(serial_port: serial.Serial, filename: str, messagebox_parent) ->
             response = serial_port.readline().decode().strip()
             logging.debug(f"Device -> PC: {response}")
             if "Success: Removed file" in response:
-                non_blocking_messagebox(
+                tk_helpers.non_blocking_messagebox(
                     parent=messagebox_parent,
                     title="Success",
                     message=f"File {filename} removed successfully.",
                 )
                 return True
             if "Error: " in response:
-                non_blocking_messagebox(
+                tk_helpers.non_blocking_messagebox(
                     parent=messagebox_parent,
                     title="Error",
                     message=f"Error removing file {filename}: {response}",
@@ -229,7 +223,7 @@ def upload_file(serial_port: serial.Serial, file_path, message_parent) -> bool:
     file_size = len(file_content)
     if file_size > available_space:
         message = f"Error: Not enough space on the device to transfer {file_path}"
-        non_blocking_messagebox(
+        tk_helpers.non_blocking_messagebox(
             parent=message_parent,
             title="Error",
             message=message,
@@ -278,7 +272,7 @@ def upload_file(serial_port: serial.Serial, file_path, message_parent) -> bool:
                     message = (
                         f"File {os.path.basename(file_path)} uploaded successfully."
                     )
-                    non_blocking_messagebox(
+                    tk_helpers.non_blocking_messagebox(
                         parent=message_parent,
                         title="Success",
                         message=message,
@@ -289,7 +283,7 @@ def upload_file(serial_port: serial.Serial, file_path, message_parent) -> bool:
                     break
                 if "Error: " in response:
                     message = f"Error: {response}"
-                    non_blocking_messagebox(
+                    tk_helpers.non_blocking_messagebox(
                         parent=message_parent,
                         title="Error",
                         message=message,
@@ -298,7 +292,7 @@ def upload_file(serial_port: serial.Serial, file_path, message_parent) -> bool:
                     return False
             except Exception as e:
                 message = f"Error: {e}"
-                non_blocking_messagebox(
+                tk_helpers.non_blocking_messagebox(
                     parent=message_parent,
                     title="Error",
                     message=message,
