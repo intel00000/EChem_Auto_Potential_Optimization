@@ -11,7 +11,7 @@
 
 #include "pico/util/datetime.h"
 
-void getCurrentTime();
+uint64_t getCurrentTime();
 void printDateTime();
 void setDateTime(int year, int month, int day, int dotw, int hour, int minute, int second);
 void hardwareReset();

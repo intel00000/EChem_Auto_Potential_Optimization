@@ -1,11 +1,9 @@
 #include <Arduino.h>
 #include "helpers.h"
 
-void getCurrentTime()
+uint64_t getCurrentTime()
 {
-    uint64_t us = to_us_since_boot(get_absolute_time());
-    time_t seconds = us / 1000000;
-    Serial.printf("INFO: Current time since boot: %llu us, %ld s\n", us, seconds);
+    return to_us_since_boot(get_absolute_time());
 }
 
 void printDateTime()

@@ -14,8 +14,10 @@ from bootloader_util import set_bootloader_mode
 # a dictionary to store the pumps, the key is the pump number and the value is the pump instance
 rtc = RTC()
 pumps = {}
+config = {}
 version = "0.01"
 SAVE_FILE = "pumps_config.json"
+CONFIG_FILE = "pump_control_config.json"
 
 
 # Each pump class will have a power and direction pin, defined at initialization
@@ -256,6 +258,63 @@ def load_pumps():
         write_message(f"Error: Could not load pumps, {e}")
 
 
+def load_config():
+    global config, CONFIG_FILE
+    try:
+        # Check if the file exists using os.listdir() and os.getcwd()
+        files = os.listdir(os.getcwd())
+        if CONFIG_FILE in files:
+            with open(CONFIG_FILE, "r") as file:
+                data = json.load(file)
+                config = data
+                # set the RTC time to the config time
+                rtc.datetime(
+                    (
+                        config["year"],
+                        config["month"],
+                        config["day"],
+                        0,
+                        config["hour"],
+                        config["minute"],
+                        config["second"],
+                        0,
+                    )
+                )
+        else:
+            config = {
+                "name": "Not Set",
+                "year": 2025,
+                "month": 1,
+                "day": 1,
+                "hour": 0,
+                "minute": 0,
+                "second": 0,
+            }
+            save_config()
+            write_message(
+                f"No config file found ({CONFIG_FILE}). Starting with default config."
+            )
+    except Exception as e:
+        write_message(f"Error: Could not load config, {e}")
+
+
+def save_config():
+    global config, CONFIG_FILE
+    try:
+        with open(CONFIG_FILE, "w") as file:
+            year, month, day, _, hour, minute, second, _ = rtc.datetime()
+            config["year"] = year
+            config["month"] = month
+            config["day"] = day
+            config["hour"] = hour
+            config["minute"] = minute
+            config["second"] = second
+            json.dump(config, file)
+        write_message(f"Success: Config saved to {CONFIG_FILE}.")
+    except Exception as e:
+        write_message(f"Error: Could not save config, {e}")
+
+
 # function to get the current RTC time
 def get_time():
     try:
@@ -274,6 +333,23 @@ def set_time(year, month, day, hour, minute, second):
         )
     except Exception as e:
         write_message(f"Error: Could not set RTC time, {e}")
+
+
+def get_name():
+    try:
+        name = config.get("name", "Not Set")
+        write_message(f"Name: {name}")
+    except Exception as e:
+        write_message(f"Error: Could not get name, {e}")
+
+
+def set_name(name):
+    try:
+        config["name"] = name
+        save_config()
+        write_message(f"Info: Name set to {name}")
+    except Exception as e:
+        write_message(f"Error: Could not set name, {e}")
 
 
 # Define a dictionary for the commands
@@ -339,6 +415,7 @@ def main():
             pass
 
     # Load the pumps at startup
+    load_config()
     load_pumps()
     while True:
         try:

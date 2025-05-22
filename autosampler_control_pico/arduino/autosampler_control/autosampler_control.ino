@@ -1,6 +1,7 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
+#include <Wire.h>
 #include <math.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
@@ -23,6 +24,17 @@ volatile bool stringComplete = false; // whether the string is complete
 const int PULSE_PIN = 22;
 const int DIRECTION_PIN = 7;
 const int ENABLE_PIN = 2;
+// Pin definitions for the AS5600 magnetic encoder
+const int ENCODER_SDA_PIN = 10;
+const int ENCODER_SCL_PIN = 11;
+const int ENCODER_PGO_PIN = 12;
+const int ENCODER_DIR_PIN = 13;
+const int ENCODER_ADDR = 0x36;
+uint8_t encoderReadBuffer[2]; // Enough for max 2-byte read
+uint16_t lastAngle = 0;
+uint8_t lastAGC, lastStatus = 0;
+uint8_t encoderWriteBuffer = 0x0E; // Register to read the angle
+
 bool HOLDING = true; // Flag to indicate if the motor is holding
 // Position limit
 const int MIN_POSITION = 0;
@@ -258,6 +270,9 @@ private:
     }
 
 public:
+    uint64_t currentTimestamp = 0;
+    uint64_t lastTimestamp = 0;
+
     Autosampler() {}
     Autosampler(int pulsePin, int directionPin, int enablePin)
         : pulsePin(pulsePin),
@@ -330,11 +345,20 @@ public:
         }
         if (currentTime - lastUpdateTime >= interval)
         {
+            if (Wire1.finishedAsync())
+            {
+                encoderWriteBuffer = 0x0E; // Register to read the angle
+                Wire1.writeReadAsync(ENCODER_ADDR, &encoderWriteBuffer, 1, encoderReadBuffer, 2, true);
+            }
             if (DEBUG)
             {
-                getCurrentTime();
-                Serial.printf("DEBUG: One step taken, stepsTaken=%d, stepsRemaining=%d, currentPosition=%d, interval=%luμs\n", stepsTaken, stepsRemaining, currentPosition, interval);
+                currentTimestamp = getCurrentTime();
+                uint64_t elapsedTime = currentTimestamp - lastTimestamp;
+                lastTimestamp = currentTimestamp;
+                Serial.printf("DEBUG: One step taken, stepsTaken=%d, stepsRemaining=%d, currentPosition=%d, target interval=%luμs, actual elapsedTime=%luμs\n",
+                              stepsTaken, stepsRemaining, currentPosition, interval, elapsedTime);
             }
+
             noInterrupts();
             digitalWrite(pulsePin, HIGH);
             lastUpdateTime = currentTime;
@@ -345,6 +369,23 @@ public:
             stepsRemaining--;
             stepsTaken++;
             currentPosition += currentDirection ? 1 : -1;
+
+            if (Wire1.finishedAsync())
+            {
+                uint16_t currentAngle = ((encoderReadBuffer[0] << 8) | encoderReadBuffer[1]) & 0x0FFF;
+                // shortest angular distance
+                uint16_t diff1 = (currentAngle - lastAngle + 4096) % 4096;
+                uint16_t diff2 = (lastAngle - currentAngle + 4096) % 4096;
+                uint16_t angleDiff = diff1 < diff2 ? diff1 : diff2;
+
+                if (DEBUG)
+                {
+                    Serial.printf("DEBUG: Encoder angle=%d, angleDiff=%d", currentAngle, angleDiff);
+                    Serial.println();
+                }
+                lastAngle = currentAngle;
+            }
+
             if (stepsRemaining <= 0)
             {
                 stopMovementWrapUp();
@@ -477,6 +518,64 @@ public:
     {
         return name;
     }
+    // read from a memory location in the I2C device
+    void readI2C(int address, int reg, uint8_t *data, int length)
+    {
+        // Write the memory pointer
+        Wire1.beginTransmission(address); // Send START + 7-bit address + Write bit (0)
+        Wire1.write(reg);                 // Write the register address
+        Wire1.endTransmission(false);     // Send repeated START
+
+        // Read the data
+        int bytesRead = Wire1.requestFrom(address, length, true);
+        if (bytesRead != length)
+        {
+            Serial.printf("WARNING: Requested %d bytes but received %d bytes.\n", length, bytesRead);
+        }
+
+        for (int i = 0; i < bytesRead; i++)
+        {
+            data[i] = Wire1.read();
+        }
+        if (DEBUG)
+        {
+            Serial.printf("DEBUG: Read %d bytes from I2C address 0x%02X, register 0x%02X: ", bytesRead, address, reg);
+            for (int i = 0; i < bytesRead; i++)
+            {
+                Serial.printf("0x%02X ", data[i]);
+            }
+            Serial.println();
+        }
+    }
+    // Asynchronous read for a memory location in the I2C device
+    bool readI2CAsync(uint8_t address, uint8_t reg, uint8_t *data, size_t length)
+    {
+        if (!Wire1.finishedAsync()) // Ensure no async op is in progress
+            return false;
+        return Wire1.writeReadAsync(address, &reg, 1, data, length, true);
+    }
+    // read the values from the encoder and print it
+    void readEncoder()
+    {
+        // make sure there no async operation in progress, then issue a regular read
+        if (!Wire1.finishedAsync())
+        {
+            Serial.println("ERROR: Encoder read in progress, please wait.");
+            return;
+        }
+        readI2C(ENCODER_ADDR, 0x0E, encoderReadBuffer, 2);
+        lastAngle = (((uint16_t)encoderReadBuffer[0] << 8) | (uint16_t)encoderReadBuffer[1]) & 0x0FFF;
+        readI2C(ENCODER_ADDR, 0x1A, encoderReadBuffer, 1);
+        lastAGC = encoderReadBuffer[0];
+        readI2C(ENCODER_ADDR, 0x0B, encoderReadBuffer, 1);
+        lastStatus = encoderReadBuffer[0];
+        Serial.printf("INFO: Encoder angle=%d, AGC=%d, status=0b", lastAngle, lastAGC);
+        for (int i = 7; i >= 0; i--)
+        {
+            Serial.print((lastStatus >> i) & 1);
+        }
+        Serial.println();
+    }
 };
 
 Autosampler autosampler;
@@ -563,6 +662,7 @@ void parseInputString()
         Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
         Serial.println("    setName:<name> - Set the name of the autosampler.");
         Serial.println("    getName - Get the name of the autosampler.");
+        Serial.println("    readEncoder - Read the encoder value.");
         Serial.println("    debug - Enable or disable debug mode.");
         Serial.println("    holding - Enable or disable holding mode.");
         Serial.println("    bootsel - Enter BOOTSEL mode.");
@@ -649,6 +749,10 @@ void parseInputString()
     else if (command.equalsIgnoreCase("getName"))
     {
         Serial.println("INFO: Current name: " + autosampler.getName());
+    }
+    else if (command.equalsIgnoreCase("readEncoder"))
+    {
+        autosampler.readEncoder();
     }
     else if (command.equalsIgnoreCase("setPosition"))
     {
@@ -876,6 +980,18 @@ void setup()
 
     pinMode(LED_PIN, OUTPUT); // Set the LED pin as output
     digitalWrite(LED_PIN, HIGH);
+
+    Wire1.setSDA(ENCODER_SDA_PIN); // Set the SDA pin for the encoder
+    Wire1.setSCL(ENCODER_SCL_PIN); // Set the SCL pin for the encoder
+    // init the direction pin for the encoder
+    pinMode(ENCODER_DIR_PIN, OUTPUT);
+    digitalWrite(ENCODER_DIR_PIN, LOW); // Set the direction pin to LOW
+    // init the PGO pin for the encoder
+    pinMode(ENCODER_PGO_PIN, OUTPUT);
+    digitalWrite(ENCODER_PGO_PIN, HIGH); // Set the PGO pin to HIGH
+    // init the encoder
+    Wire1.begin();
+    autosampler.readEncoder();
 }
 
 void generateRampProfile()

@@ -1,4 +1,4 @@
 {
-    "mode": "update_firmware",
+    "mode": "pump",
     "mode_before": "pump"
 }
