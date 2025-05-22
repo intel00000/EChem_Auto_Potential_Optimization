@@ -1,12 +1,13 @@
-from calendar import c
 import os
 import re
 import sys
+import json
 import shutil
+import logging
 import requests
+import requests.exceptions
 
 # gui imports
-import tkinter as tk
 import tkinter_helpers
 import customtkinter as ctk
 from tkinter import filedialog
@@ -63,7 +64,7 @@ def flash_uf2(uf2_path, target_volume):
         shutil.copy(uf2_path, os.path.join(target_volume, os.path.basename(uf2_path)))
         return True
     except Exception as e:
-        print(f"Error flashing UF2: {e}")
+        logging.error(f"Error flashing UF2: {e}")
         return False
 
 
@@ -75,18 +76,16 @@ def download_uf2(url, destination):
             shutil.copyfileobj(response.raw, f)
         return True
     except Exception as e:
-        print(f"Error downloading UF2: {e}")
+        logging.error(f"Error downloading UF2: {e}")
         return False
-
-
-class TkDnD(ctk.CTk, TkinterDnD.DnDWrapper):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.TkdndVersion = TkinterDnD._require(self)
 
 
 class PicoFlasherApp:
     def __init__(self, master):
+        try:
+            TkinterDnD._require(master)
+        except Exception as _:
+            pass
         self.master = master
         self.master.title(
             "Raspberry Pi Pico Flasher (Drag and drop a UF2 file into the window)"
@@ -240,9 +239,28 @@ class PicoFlasherApp:
 
     def load_variants(self):
         try:
-            resp = requests.get(VARIANT_URL)
-            resp.raise_for_status()
-            self.variants = [v for v in resp.json() if v.get("family") == "rp2"]
+            try:
+                resp = requests.get(VARIANT_URL)
+                resp.raise_for_status()
+                payload = resp.json()
+                logging.info("Loaded variants from URL.")
+            # if fail, we load the local file in data/micropython-variants-uf2.json
+            except Exception:
+                with open(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "data",
+                        "micropython-variants-uf2.json",
+                    ),
+                    "r",
+                ) as f:
+                    resp = f.read()
+                    payload = json.loads(resp)
+                    logging.warning(
+                        "Failed to load variants from URL, using local file instead."
+                    )
+
+            self.variants = [v for v in payload if v.get("family") == "rp2"]
             titles = [
                 v.get("title") or f"{v['vendor']} {v['model']}" for v in self.variants
             ]
@@ -427,6 +445,6 @@ class PicoFlasherApp:
 
 
 if __name__ == "__main__":
-    root = TkDnD()
+    root = ctk.CTk()
     app = PicoFlasherApp(root)
     root.mainloop()

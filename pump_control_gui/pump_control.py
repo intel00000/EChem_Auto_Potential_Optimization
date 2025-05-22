@@ -19,6 +19,7 @@ import pandas as pd
 from queue import Queue
 from datetime import datetime, timedelta
 import bootloader_helpers
+from fw_update import PicoFlasherApp
 from tkinter_helpers import (
     non_blocking_messagebox,
     non_blocking_custom_messagebox,
@@ -163,9 +164,6 @@ class PicoController:
         self.create_setup_page(self.Tabview.tab("Setup"))
         self.create_scheduler_page(self.Tabview.tab("Schedule"))
         self.create_advanced_settings_page(self.Tabview.tab("Advanced Settings"))
-
-        self.Tabview.add("Testing Page")
-        self.create_testing_page(self.Tabview.tab("Testing Page"))
         for b in self.Tabview._segmented_button._buttons_dict.values():
             b.configure(
                 font=(
@@ -250,20 +248,6 @@ class PicoController:
                     int(b.cget("font").cget("size") * 1.5),
                 )
             )
-
-    def create_testing_page(self, root_frame):
-        # a button to test the non-blocking messagebox
-        self.test_button = button(
-            root_frame,
-            "Test Non-blocking Messagebox",
-            0,
-            0,
-            lambda: non_blocking_messagebox(
-                parent=self.root,
-                title="Test Non-blocking Messagebox",
-                message="This is a test message.",
-            ),
-        )
 
     def create_rtc_time_frame(self, root_frame):
         current_row, current_column = 0, 0
@@ -1013,6 +997,14 @@ class PicoController:
             self.remove_file_ff,
             state="disabled",
         )
+        local_column += 1
+        self.launch_fw_update_button = button(
+            root_frame,
+            "Launch Updater",
+            local_row,
+            local_column,
+            self.open_fw_updater,  # method you’ll define below
+        )
 
         local_row += 1
         local_column = 0
@@ -1039,6 +1031,16 @@ class PicoController:
         self.file_table_ff.pack(side="left", fill="both", expand=True)
         self.scrollbar_ff.pack(side="right", fill="y")
         self.file_table_ff.configure(yscrollcommand=self.scrollbar_ff.set)
+
+    def open_fw_updater(self):
+        # Create a new top-level window (so you don’t clobber your main root)
+        top = tk.Toplevel(self.root)
+        top.title("Firmware Updater")
+        # Instantiate the existing PicoFlasherApp into that Toplevel
+        updater = PicoFlasherApp(top)
+
+        # Optional: when you close that window, it just destroys itself
+        top.protocol("WM_DELETE_WINDOW", top.destroy)
 
     def main_loop(self):
         self.refresh_ports(instant=False)
@@ -1095,19 +1097,43 @@ class PicoController:
             ]
             # create a dict of serial objects with serial object as key and the corresponding comboboxs as list
             serial_to_comboboxs = {}
+
+            def set_combobox_values(comboboxs, port):
+                if port is None:
+                    port = ""
+                for c in comboboxs:
+                    c.configure(values=[port])
+                    c.set(port)
+
             for id, widgets in self.pc_id_to_widget_map.items():
                 serial_port_obj = self.pc[id]
                 if serial_port_obj and not serial_port_obj.is_open:
                     serial_to_comboboxs[serial_port_obj] = widgets["comboboxs"]
-            if not self.autosampler.is_open:
+                if serial_port_obj and serial_port_obj.is_open:
+                    set_combobox_values(widgets["comboboxs"], serial_port_obj.port)
+            if self.autosampler.is_open:
+                set_combobox_values(
+                    self.autosampler_widget_map["comboboxs"],
+                    self.autosampler.port,
+                )
+            else:
                 serial_to_comboboxs[self.autosampler] = self.autosampler_widget_map[
                     "comboboxs"
                 ]
-            if not self.potentiostat.is_open:
+            if self.potentiostat.is_open:
+                set_combobox_values(
+                    self.potentiostat_widget_map["comboboxs"],
+                    self.potentiostat.port,
+                )
+            else:
                 serial_to_comboboxs[self.potentiostat] = self.potentiostat_widget_map[
                     "comboboxs"
                 ]
-            if not self.create_flash_serial_obj.is_open:
+            if self.create_flash_serial_obj.is_open:
+                set_combobox_values(
+                    [self.port_combobox_ff], self.create_flash_serial_obj.port
+                )
+            else:
                 serial_to_comboboxs[self.create_flash_serial_obj] = [
                     self.port_combobox_ff
                 ]
@@ -1115,14 +1141,15 @@ class PicoController:
             for serial_port_obj, comboboxs in serial_to_comboboxs.items():
                 for combobox in comboboxs:
                     # update the combobox with the list of ports
+                    current_value = combobox.get()
                     combobox.configure(values=ports)
-                    if serial_port_obj.name not in ports:
+                    if current_value in ports:
+                        combobox.set(current_value)
+                    else:
                         if len(ports) > 0:
                             combobox.set(ports[0])
                         else:
                             combobox.set("")
-                    else:
-                        combobox.set(serial_port_obj.name)
 
     # connection to the selected port for firmware update
     def connect_ff(self, serial_port_obj, COM_port):
@@ -2823,7 +2850,7 @@ class PicoController:
                         "initial_direction_pin_value": initial_direction_pin_value,
                         "power_status": power_status,
                         "direction_status": direction_status,
-                        "frame": pump_frame,
+                        "pump_frame": pump_frame,
                         "power_label": power_label,
                         "direction_label": direction_label,
                         "power_button": power_button,
@@ -2840,7 +2867,7 @@ class PicoController:
                             "direction_status": direction_status,
                         }
                     )
-                    pump_frame = self.pumps[pump_id]["frame"]
+                    pump_frame = self.pumps[pump_id]["pump_frame"]
                     pump_frame.grid(
                         row=(pump_id - 1) // self.pumps_per_row,
                         column=(pump_id - 1) % self.pumps_per_row,
@@ -2860,7 +2887,7 @@ class PicoController:
                     self.pumps[pump_id]["direction_button"].configure(
                         state="normal" if direction_pin != "-1" else "disabled"
                     )
-                    self.pumps[pump_id]["frame"].configure(
+                    self.pumps[pump_id]["pump_frame"].configure(
                         text=f"Pump {pump_id}, Power pin: {power_pin}, Direction pin: {direction_pin}"
                     )
                 else:  # we have a pump with the same id but different controller
@@ -2888,14 +2915,14 @@ class PicoController:
         else:
             if pump_id:  # we now remove a specific pump
                 if pump_id in self.pumps:
-                    self.pumps[pump_id]["frame"].destroy()
+                    self.pumps[pump_id]["pump_frame"].destroy()
                     self.pumps.pop(pump_id)
                     controller_id = self.pump_ids_to_controller_ids.pop(pump_id)
                     self.controller_ids_to_pump_ids[controller_id].remove(pump_id)
             elif controller_id:  # we now remove all pumps under a specific controller
                 if controller_id in self.controller_ids_to_pump_ids:
                     for pump_id in self.controller_ids_to_pump_ids[controller_id]:
-                        self.pumps[pump_id]["frame"].destroy()
+                        self.pumps[pump_id]["pump_frame"].destroy()
                         self.pumps.pop(pump_id)
                         self.pump_ids_to_controller_ids.pop(pump_id)
                     self.controller_ids_to_pump_ids.pop(controller_id)

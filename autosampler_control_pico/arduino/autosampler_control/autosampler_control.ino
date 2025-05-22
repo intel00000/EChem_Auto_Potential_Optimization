@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/bootrom.h"
 
 #include "helpers.h"
 
@@ -12,7 +13,7 @@
 
 // const are default values
 const float version = 1.1; // Version of the autosampler control software
-bool DEBUG = true;         // Set to true to enable debug messages
+bool DEBUG = false;        // Set to true to enable debug messages
 const char STANDARD_DELIMITER = ':';
 const int MAX_BUFFER_SIZE = 300;      // Maximum buffer size for input string
 const int BAUD_RATE = 115200;         // Baud rate for serial communication
@@ -22,7 +23,7 @@ volatile bool stringComplete = false; // whether the string is complete
 const int PULSE_PIN = 22;
 const int DIRECTION_PIN = 7;
 const int ENABLE_PIN = 2;
-bool HOLDING = false; // Flag to indicate if the motor is holding
+bool HOLDING = true; // Flag to indicate if the motor is holding
 // Position limit
 const int MIN_POSITION = 0;
 const int MAX_POSITION = 16000;
@@ -55,6 +56,8 @@ private:
     volatile int stepsRemaining = 0;
     unsigned long moveStartTime = 0;
     unsigned long lastUpdateTime = 0;
+
+    String name = "Not Set"; // Name of the autosampler
 
     JsonDocument slotsConfig;  // JSON object to store slot positions
     JsonDocument globalConfig; // JSON object to store global configuration
@@ -131,6 +134,7 @@ private:
             globalConfig["Dotw"] = (int8_t)3;
             globalConfig["debug"] = DEBUG;
             globalConfig["holding"] = HOLDING;
+            globalConfig["name"] = "Not Set";
         }
         else
         {
@@ -152,6 +156,7 @@ private:
             globalConfig["Dotw"] = datetime.dotw;
             globalConfig["debug"] = DEBUG;
             globalConfig["holding"] = HOLDING;
+            globalConfig["name"] = name;
         }
         serializeJsonPretty(globalConfig, configFile);
         configFile.close();
@@ -185,6 +190,7 @@ private:
                 maxPosition = globalConfig["maxPosition"].as<int>();
                 DEBUG = globalConfig["debug"].as<bool>();
                 HOLDING = globalConfig["holding"].as<bool>();
+                name = globalConfig["name"].as<String>();
                 if (DEBUG)
                 {
                     Serial.printf("DEBUG: Configuration json loaded: ");
@@ -452,6 +458,25 @@ public:
     {
         enableStepper(HOLDING);
     }
+    bool setName(String newName)
+    {
+        if (newName.length() > 0 && newName.length() < 20)
+        {
+            name = newName;
+            globalConfig["name"] = name;
+            saveConfiguration();
+            return true;
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid name, must be between 1 and 20 characters.");
+            return false;
+        }
+    }
+    String getName()
+    {
+        return name;
+    }
 };
 
 Autosampler autosampler;
@@ -536,8 +561,11 @@ void parseInputString()
         Serial.println("    setRampSteepness:<value> - Set the steepness of the ramp profile (default is 3.0).");
         Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile (default is 1).");
         Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
+        Serial.println("    setName:<name> - Set the name of the autosampler.");
+        Serial.println("    getName - Get the name of the autosampler.");
         Serial.println("    debug - Enable or disable debug mode.");
         Serial.println("    holding - Enable or disable holding mode.");
+        Serial.println("    bootsel - Enter BOOTSEL mode.");
         Serial.println("    reset - Reset the device.");
     }
     else if (command.equalsIgnoreCase("stop"))
@@ -596,6 +624,31 @@ void parseInputString()
     {
         autosampler.saveConfig();
         hardwareReset();
+    }
+    else if (command.equalsIgnoreCase("bootsel"))
+    {
+        Serial.println("INFO: Entering BOOTSEL mode...");
+        sleep_ms(1000);
+        rom_reset_usb_boot(LED_PIN, 0);
+    }
+    else if (command.equalsIgnoreCase("setName"))
+    {
+        if (valueCount == 2)
+        {
+            String newName = values[1];
+            if (autosampler.setName(newName))
+            {
+                Serial.println("INFO: Name set to: " + newName);
+            }
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setName:<name>");
+        }
+    }
+    else if (command.equalsIgnoreCase("getName"))
+    {
+        Serial.println("INFO: Current name: " + autosampler.getName());
     }
     else if (command.equalsIgnoreCase("setPosition"))
     {
