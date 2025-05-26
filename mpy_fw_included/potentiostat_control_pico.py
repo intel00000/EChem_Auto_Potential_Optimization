@@ -8,7 +8,8 @@ from bootloader_util import set_bootloader_mode
 # a dictionary to store the potentiostat config
 rtc = machine.RTC()
 potentiostats = {}
-version = "0.01"
+config = {}
+version = "1.00"
 SAVE_FILE = "potentiostat_config.json"
 CONFIG_FILE = "potentiostat_control_config.json"
 
@@ -34,7 +35,9 @@ class Potentiostat:
         )
         self.trigger_pin_id = trigger_pin_id
         self.initial_trigger_pin_value = initial_trigger_pin_value
-        self.trigger_status = initial_trigger_status
+
+        self.initial_trigger_status = initial_trigger_status.upper()
+        self.trigger_status = self.initial_trigger_status
 
     def toggle_trigger(self):
         # flip the trigger pin value and update the trigger status
@@ -44,6 +47,21 @@ class Potentiostat:
             self.trigger_status = "HIGH"
         else:
             self.trigger_status = "LOW"
+
+    def set_trigger(self, status: str):
+        status = status.upper()
+        if status not in ["HIGH", "LOW"]:
+            write_message("Error: Invalid power status, expected 'ON' or 'OFF'")
+            return
+        if status == self.initial_trigger_status:
+            self.trigger_pin.value(self.initial_trigger_pin_value)
+        else:
+            self.trigger_pin.value(not self.initial_trigger_pin_value)
+        self.trigger_status = status
+
+    def hard_reset(self):
+        write_message("Info: Performing hard reset.")
+        machine.reset()
 
     def get_status(self):
         return f"Trigger: {self.trigger_status}"
@@ -68,7 +86,7 @@ class Potentiostat:
 
 
 # functions to assemble and send status, when potentiostat_name is 0, it will send status/info for all potentiostats
-def send_status(potentiostat_name):
+def potentiostat_status(potentiostat_name):
     global potentiostats
     if potentiostat_name == 0:
         status = ", ".join(
@@ -85,7 +103,7 @@ def send_status(potentiostat_name):
 
 
 # functions to assemble and send info, when potentiostat_name is 0, it will send status/info for all potentiostats
-def send_info(potentiostat_name):
+def potentiostat_info(potentiostat_name):
     global potentiostats
     if potentiostat_name == 0:
         info = ", ".join(
@@ -152,12 +170,12 @@ def clear_potentiostats(potentiostat_num):
 
 
 # function to perform an shutdown
-def shutdown():
+def global_shutdown():
     global potentiostats
     for _, potentiostat in potentiostats.items():
         if potentiostat.trigger_status != "LOW":
             potentiostat.toggle_trigger()
-    write_message("Success: Emergency Shutdown, all potentiostats are set to LOW.")
+    write_message("Success: Shutdown, all potentiostats are set to LOW.")
 
 
 # function to return the version of the script
@@ -223,7 +241,7 @@ def load_potentiostats():
             write_message(f"Success: Loaded potentiostats data from {SAVE_FILE}.")
         else:
             write_message(
-                f"No save file found ({SAVE_FILE}). Starting with default potentiostats."
+                f"Info: No save file found ({SAVE_FILE}). Starting with default potentiostats."
             )
             potentiostats[1] = Potentiostat(
                 trigger_pin_id=0,
@@ -255,21 +273,131 @@ def set_time(year, month, day, hour, minute, second):
         write_message(f"Error: Could not set RTC time, {e}")
 
 
+# function to load the configuration from a JSON file
+def load_config():
+    global config, CONFIG_FILE
+    try:
+        # Check if the file exists using os.listdir() and os.getcwd()
+        files = os.listdir(os.getcwd())
+        if CONFIG_FILE in files:
+            with open(CONFIG_FILE, "r") as file:
+                data = json.load(file)
+                config = data
+                # set the RTC time to the config time
+                rtc.datetime(
+                    (
+                        config["year"],
+                        config["month"],
+                        config["day"],
+                        0,
+                        config["hour"],
+                        config["minute"],
+                        config["second"],
+                        0,
+                    )
+                )
+        else:
+            config = {
+                "name": "Not Set",
+                "year": 2025,
+                "month": 1,
+                "day": 1,
+                "hour": 0,
+                "minute": 0,
+                "second": 0,
+            }
+            save_config()
+            write_message(
+                f"Info: No config file found ({CONFIG_FILE}). Starting with default config."
+            )
+    except Exception as e:
+        write_message(f"Error: Could not load config, {e}")
+
+
+# function to save the current configuration to a JSON file
+def save_config():
+    global config, CONFIG_FILE
+    try:
+        with open(CONFIG_FILE, "w") as file:
+            year, month, day, _, hour, minute, second, _ = rtc.datetime()
+            config["year"] = year
+            config["month"] = month
+            config["day"] = day
+            config["hour"] = hour
+            config["minute"] = minute
+            config["second"] = second
+            json.dump(config, file)
+        write_message("Info: Config saved.")
+    except Exception as e:
+        write_message(f"Error: Could not save config, {e}")
+
+
+def get_name():
+    try:
+        name = config.get("name", "Not Set")
+        write_message(f"Name: {name}")
+    except Exception as e:
+        write_message(f"Error: Could not get name, {e}")
+
+
+def set_name(name):
+    try:
+        config["name"] = name
+        save_config()
+        write_message(f"Success: Name set to {name}")
+    except Exception as e:
+        write_message(f"Error: Could not set name, {e}")
+
+
 # Define a dictionary for the commands
 commands = {
-    "tr": "toggle_trigger",
-    "st": "status",
-    "info": "info",
-    "reg": "register",
-    "clr": "clear_potentiostats",
-    "shutdown": "shutdown",
+    "toggle_trigger": "toggle_trigger",
+    "set_trigger": "set_trigger",
     "reset": "hard_reset",
-    "ping": "ping",
-    "save": "save_potentiostats",
-    "time": "get_time",
-    "stime": "set_time",
-    "set_mode": "set_bootloader_mode",
 }
+
+
+def help(simple=True):
+    # assemble commands help text
+    help_text_simple = (
+        "Info: General format for commands:\n"
+        "  - [potentiostat_number]:[command]:[additional_parameters]\n"
+    )
+    help_text = (
+        "Available commands:\n"
+        "  - ping: Check if the controller is responsive.\n"
+        "  - reg: Register a potentiostat with the specified parameters.\n"
+        "  - time: Get the current RTC time.\n"
+        "  - stime: Set the RTC time in the format 'year:month:day:hour:minute:second'.\n"
+        "  - set_mode: Set the bootloader mode.\n"
+        "  - bootsel: Enter BOOTSEL mode for firmware updates.\n"
+        "  - blink_en: Enable LED blinking mode.\n"
+        "  - blink_dis: Disable LED blinking mode.\n"
+        "  - get_name: Get the current name of the controller.\n"
+        "  - set_name:name: Set the name of the controller.\n"
+        "  - status: Get the status of a specific potentiostat or all potentiostats (potentiostat_number:0 for all).\n"
+        "  - info: Get the info of a specific potentiostat or all potentiostats (potentiostat_number:0 for all).\n"
+        "  - clear_po: Clear all potentiostats or a specific potentiostat (potentiostat_number:0 for all).\n"
+        "  - save_po: Save the current state of all potentiostats or a specific potentiostat (potentiostat_number:0 for all).\n"
+        "  - shutdown: Shutdown all potentiostats or a specific potentiostat (potentiostat_number:0 for all).\n"
+        "  - toggle_trigger: Toggle the trigger pin of a specific potentiostat.\n"
+        "  - set_trigger: Set the trigger pin of a specific potentiostat to either 'HIGH' or 'LOW'.\n"
+        "  - reset: Perform a hard reset of the controller.\n"
+        "  - help: Show this help message.\n"
+        "Example usage:\n"
+        "  - To register a potentiostat 1: '1:reg:0:0:LOW'\n"
+        "    (potentiostat_number: 1, trigger_pin_id: 0, initial_trigger_pin_value: 0, initial_trigger_status: LOW)\n"
+        "  - To toggle the trigger pin of potentiostat 1: '1:toggle_trigger'\n"
+        "  - To set the trigger pin of potentiostat 1 to HIGH: '1:set_trigger:HIGH'\n"
+        "Note:\n"
+        "  - global commands for potentiostat 0: 'status', 'info', 'clear_po', 'save_po', 'shutdown'.\n"
+        "  - potentiostat specific commands for potentiostat 0: 'toggle_power', 'set_power', 'toggle_direction', 'set_direction', 'reset'.\n"
+    )
+    if simple:
+        write_message(help_text_simple)
+    else:
+        write_message(help_text_simple + help_text)
+
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
 poll_obj = select.poll()
@@ -309,7 +437,7 @@ def main():
                 if not data or data == "":
                     write_message("Error: Empty input.")
                     continue
-                parts = data.split(":")  # Split the data into pump id and command
+                parts = data.split(":")
                 if parts[0].isdigit():
                     potentiostat_num = int(parts[0])
                     command = parts[1].strip().lower()
@@ -321,7 +449,10 @@ def main():
 
                 # check the input and call the appropriate function
                 try:
-                    if command == "ping":
+                    # general global commands
+                    if command == "help":
+                        help(simple=False)
+                    elif command == "ping":
                         ping()
                     elif command == "reg":
                         if len(parts) == 5:
@@ -393,28 +524,35 @@ def main():
                             timer.deinit()
                             led.value(1)
                             write_message("Info: LED blinking mode disabled.")
+                    elif command == "get_name":
+                        get_name()
+                    elif command == "set_name":
+                        if len(parts) == 3:
+                            name = parts[2].strip()
+                            set_name(name)
+                        else:
+                            write_message(
+                                "Error: Invalid input, expected format '0:set_name:name'"
+                            )
+                    # start of global commands for potentiostats
+                    elif command == "status":
+                        potentiostat_status(potentiostat_num)
+                    elif command == "info":
+                        potentiostat_info(potentiostat_num)
+                    elif command == "clear_potentiostats":
+                        clear_potentiostats(potentiostat_num)
+                    elif command == "save_potentiostats":
+                        save_potentiostats(potentiostat_num)
                     elif potentiostat_num == 0:
-                        if command == "st":
-                            send_status(0)
-                        elif command == "info":
-                            send_info(0)
-                        elif command == "clr":
-                            clear_potentiostats(0)
-                        elif command == "shutdown":
-                            shutdown()
-                        elif command == "save":
-                            save_potentiostats()
+                        if command == "shutdown":
+                            global_shutdown()
                         elif command in commands:
-                            if command == "ping":
-                                ping()
-                            elif command == "reset":
-                                hard_reset()
-                            else:
-                                for potentiostat in potentiostats.values():
-                                    method = getattr(
-                                        potentiostat, commands[command], None
-                                    )
-                                    if method:
+                            for potentiostat in potentiostats.values():
+                                method = getattr(potentiostat, commands[command], None)
+                                if method:
+                                    if len(parts) > 2:
+                                        method(*parts[2:])
+                                    else:
                                         method()
                         else:
                             write_message(
@@ -423,43 +561,37 @@ def main():
                             )
 
                     elif potentiostat_num in potentiostats:
-                        # get the pump instance
+                        # get the potentiostat instance
                         potentiostat = potentiostats[potentiostat_num]
 
                         # check if the command is valid
                         if command in commands:
-                            if command == "st":
-                                send_status(potentiostat_num)
-                            elif command == "info":
-                                send_info(potentiostat_num)
-                            elif command == "clr":
-                                clear_potentiostats(potentiostat_num)
-                            elif command == "save":
-                                save_potentiostats(potentiostat_num)
-                            else:
-                                method = getattr(potentiostat, commands[command], None)
-                                if method:
-                                    method()
+                            method = getattr(potentiostat, commands[command], None)
+                            if method:
+                                if len(parts) > 2:
+                                    method(*parts[2:])
                                 else:
-                                    write_message(
-                                        f"Error: No corresponding method for command '{command}'"
-                                    )
+                                    method()
+                            else:
+                                write_message(
+                                    f"Error: Invalid instance specific command '{command}'"
+                                )
                         else:
                             write_message(
-                                f"Error: Invalid command for potentiostat '{potentiostat_num}', available commands are: "
+                                f"Error: Invalid global command for potentiostat '{potentiostat_num}', available commands are: "
                                 + commands_mapping_string
                             )
                     else:
                         write_message(
-                            f"Error: Invalid potentiostat number '{potentiostat_num}', available pumps are: "
+                            f"Error: Invalid potentiostat number '{potentiostat_num}', available potentiostats are: "
                             + ", ".join(map(str, potentiostats.keys()))
                         )
                 except Exception as cmd_error:
                     write_message(f"Error: {cmd_error}")
         except Exception as e:
-            shutdown()
+            global_shutdown()
             write_message(f"Error: {e}")
-            write_message("Error: critical error, emergency shutdown.")
+            write_message("Error: critical error, perform shutdown.")
 
 
 # Run the main loop

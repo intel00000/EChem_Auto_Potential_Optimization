@@ -1,11 +1,11 @@
 import os
 import re
 import sys
+import time
 import json
 import shutil
 import logging
 import requests
-import requests.exceptions
 
 # gui imports
 import tkinter_helpers
@@ -351,6 +351,7 @@ class PicoFlasherApp:
                 "Error",
                 "Flashing failed.",
             )
+        time.sleep(1)
         self.refresh_devices()
 
     def download_and_flash_selected(self, confirm=False):
@@ -423,6 +424,7 @@ class PicoFlasherApp:
                 "Failed to download the firmware, check your internet connection.",
             )
 
+        time.sleep(1)
         self.refresh_devices()
 
     def flash_custom_uf2(self):

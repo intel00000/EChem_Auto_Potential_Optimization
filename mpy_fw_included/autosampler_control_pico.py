@@ -1,18 +1,15 @@
+import os
 import sys
 import time
 import json
-import array
 import select
 import machine
-import pwm_dma_fade_onetime
-from uctypes import addressof
-from neopixel import NeoPixel
 from bootloader_util import set_bootloader_mode
 
 # this is a program to control a stepper motor
 MAX_POSITION = 16000
-CONFIG_FILE = "autosampler_config.json"
-STATUS_FILE = "autosampler_status.txt"
+SLOTS_CONFIG_FILE = "autosampler_slot_config.json"
+STATUS_FILE = "autosampler_status.json"
 PULSE_PIN = 12
 DIRECTION_PIN = 14
 ENABLE_PIN = 15
@@ -52,6 +49,7 @@ class Autosampler:
 
         self.rtc = machine.RTC()  # RTC setup
 
+        self.name = "Not Set"  # name of the autosampler
         self.version = "0.01"  # version of the autosampler control program
 
         # Load configuration and status
@@ -78,38 +76,42 @@ class Autosampler:
         self.write_message("Success: Performing hard reset.")
         machine.reset()
 
-    def save_status(self, write_message=True) -> None:
+    def save_status(self) -> None:
         try:
             with open(STATUS_FILE, "w") as f:
-                output = f"{self.current_position}, {self.current_direction}, {self.direction_map[self.current_direction]}"
-                f.write(output)
+                save_data = {
+                    "current_position": self.current_position,
+                    "current_direction": self.current_direction,
+                    "name": self.name,
+                }
+                json.dump(save_data, f)
         except Exception as e:
             self.write_message(f"Error: Could not save status, {e}")
 
     def load_status(self) -> None:
+        global STATUS_FILE
         try:
-            with open(STATUS_FILE, "r") as f:
-                first_line = f.readline().strip().split(",")
-                self.current_position = int(first_line[0])
-                self.current_direction = int(first_line[1])
-            self.write_message(
-                f"Success: Status loaded: {self.current_position}, {self.current_direction}"
-            )
-        except OSError:
-            # create a new status file
-            with open(STATUS_FILE, "w") as f:
-                f.write("")
-            self.current_position = -1
-            self.current_direction = 1
-            self.write_message(
-                "Warning: Status file not found. Initialized with defaults."
-            )
+            files = os.listdir(os.getcwd())
+            if STATUS_FILE in files:
+                with open(STATUS_FILE, "r") as f:
+                    data = json.load(f)
+                    self.current_position = data.get("current_position", -1)
+                    self.current_direction = data.get("current_direction", 1)
+                    self.name = data.get("name", "Not Set")
+                self.write_message(
+                    f"Success: Status loaded: {self.current_position}, {self.current_direction}"
+                )
+            else:
+                self.write_message(
+                    "Warning: Status file not found. Initialized with defaults."
+                )
+                self.save_status()
         except Exception as e:
             self.write_message(f"Error: Could not load status, {e}")
 
     def save_config(self) -> None:
         try:
-            with open(CONFIG_FILE, "w") as f:
+            with open(SLOTS_CONFIG_FILE, "w") as f:
                 json.dump(self.autosampler_config, f)
             self.write_message(
                 f"Success: Configuration saved: {self.autosampler_config}"
@@ -119,20 +121,25 @@ class Autosampler:
 
     def load_config(self) -> None:
         try:
-            with open(CONFIG_FILE, "r") as f:
-                self.autosampler_config = json.load(f)
-                self.fail_safe_position = self.autosampler_config.get("fail_safe", 0)
-            self.write_message(
-                f"Success: Configuration loaded: {self.autosampler_config}"
-            )
-        except OSError:
-            with open(CONFIG_FILE, "w") as f:
-                json.dump({}, f)
-            self.autosampler_config = {}
-            self.fail_safe_position = 0
-            self.write_message(
-                "Warning: Config file not found. Initialized with defaults."
-            )
+            files = os.listdir(os.getcwd())
+            if SLOTS_CONFIG_FILE in files:
+                with open(SLOTS_CONFIG_FILE, "r") as f:
+                    self.autosampler_config = json.load(f)
+                    self.fail_safe_position = self.autosampler_config.get(
+                        "fail_safe", 0
+                    )
+                self.write_message(
+                    f"Success: Configuration loaded: {self.autosampler_config}"
+                )
+            else:
+                data = {"waste": 0, "fail_safe": 0, "0": 0}
+                with open(SLOTS_CONFIG_FILE, "w") as f:
+                    json.dump(data, f)
+                self.autosampler_config = data
+                self.fail_safe_position = 0
+                self.write_message(
+                    "Warning: Config file not found. Initialized with defaults."
+                )
         except Exception as e:
             self.write_message(f"Error: Could not load configuration, {e}")
 
@@ -295,8 +302,20 @@ class Autosampler:
         else:
             self.write_message(f"Error: Slot {slot} not found.")
 
+    def get_name(self) -> None:
+        self.write_message(f"Name: {self.name}")
 
-def print_help_message():
+    def set_name(self, name: str) -> None:
+        try:
+            if name:
+                self.name = name
+                self.write_message(f"SUCCESS: Name set to: {self.name}")
+                self.save_status()
+        except Exception as e:
+            self.write_message(f"Error: Could not set name, {e}")
+
+
+def help():
     print(
         "Available commands:\n"
         "help - Show this help message\n"
@@ -327,48 +346,23 @@ def print_help_message():
     )
 
 
+# Create a poll object to monitor stdin, which will block until there is input for reading
+poll_obj = select.poll()
+poll_obj.register(sys.stdin, select.POLLIN)
+
+
 def main():
     autosampler = Autosampler(
         pulse_pin=PULSE_PIN, direction_pin=DIRECTION_PIN, enable_pin=ENABLE_PIN
     )
 
-    led_mode = -1
-    try:  # first method, DMA fade, only avilable on regular Pico
-        fade_buffer = array.array(
-            "I",
-            [(i * i) << 16 for i in range(0, 256, 1)],
-        )
-        secondary_config_data = bytearray(16)
-        (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
-            fade_buffer_addr=addressof(fade_buffer),
-            fade_buffer_len=len(fade_buffer),
-            secondary_config_data_addr=addressof(secondary_config_data),
-            frequency=10240,
-        )
-        led_mode = 0
-    except Exception as _:
-        pass
-    if led_mode == -1:  # second method is for the led with NeoPixel
-        try:
-            led = machine.Pin("LED", machine.Pin.OUT)
-            np = NeoPixel(led, 1)
-            # set to red
-            np[0] = (0, 10, 0)
-            np.write()
-            led_mode = 1
-        except Exception as _:
-            pass
-    if led_mode == -1:  # third method is for the led on single GPIO pin
-        try:
-            led = machine.Pin("LED", machine.Pin.OUT)
-            led.value(1)
-            led_mode = 2
-        except Exception as _:
-            pass
+    led = machine.Pin("LED", machine.Pin.OUT, value=1)  # Initialize the LED Pin
 
-    # Create a poll object to monitor stdin, which will block until there is input for reading
-    poll_obj = select.poll()
-    poll_obj.register(sys.stdin, select.POLLIN)
+    def blink_led():
+        led.toggle()
+
+    timer = machine.Timer()  # Timer for blinking the LED
+    led_blinking_mode = False
 
     commands = {
         "ping": "ping",
@@ -396,29 +390,18 @@ def main():
         "save_status": "save_status",
         "shutdown": "shutdown",
     }
-    commands_mapping_string = ", ".join(
-        [f"{key} - {value}" for key, value in commands.items()]
-    )
 
     while True:
         try:
+            if not led_blinking_mode:
+                led.value(1)
             # Wait for input on stdin
             poll_results = poll_obj.poll()
 
             if poll_results:
                 data = sys.stdin.readline().strip()
-                if led_mode == 0:
-                    dma_secondary.active(1)
-                elif led_mode == 1:
-                    np[0] = (0, 0, 0)
-                    np.write()
-                    time.sleep_ms(25)
-                    np[0] = (0, 10, 0)
-                    np.write()
-                elif led_mode == 2:
+                if not led_blinking_mode:
                     led.value(0)
-                    time.sleep_ms(25)
-                    led.value(1)
 
                 if not data or data == "":
                     autosampler.write_message("Error: Empty input.")
@@ -430,7 +413,9 @@ def main():
                     parts = parts[1:]
                 command = parts[0].strip()
 
-                if command == "stime":
+                if command == "help":
+                    help()
+                elif command == "stime":
                     if len(parts) == 8:  # Adjusted length
                         year = int(parts[1])
                         month = int(parts[2])
@@ -455,8 +440,41 @@ def main():
                         )
                     except Exception as e:
                         autosampler.write_message(f"Error: {e}")
-                elif command == "help":
-                    print_help_message()
+                elif command == "bootsel":
+                    try:
+                        autosampler.write_message("Success: Entering BOOTSEL mode")
+                        machine.bootloader()
+                    except Exception as e:
+                        autosampler.write_message(f"Error: {e}")
+                elif command == "blink_en":
+                    if not led_blinking_mode:
+                        led_blinking_mode = True
+                        timer.init(
+                            period=200,
+                            mode=machine.Timer.PERIODIC,
+                            callback=lambda t: blink_led(),
+                        )
+                        autosampler.write_message("Info: LED blinking mode enabled.")
+                    else:
+                        autosampler.write_message(
+                            "Info: LED blinking mode is already enabled."
+                        )
+                elif command == "blink_dis":
+                    if led_blinking_mode:
+                        led_blinking_mode = False
+                        timer.deinit()
+                        led.value(1)
+                        autosampler.write_message("Info: LED blinking mode disabled.")
+                elif command == "get_name":
+                    autosampler.get_name()
+                elif command == "set_name":
+                    if len(parts) == 3:
+                        name = parts[2].strip()
+                        autosampler.set_name(name)
+                    else:
+                        autosampler.write_message(
+                            "Error: Invalid input, expected format '0:set_name:name'"
+                        )
                 elif command in commands:
                     method = getattr(autosampler, commands[command], None)
                     if method:

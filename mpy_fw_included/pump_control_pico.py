@@ -49,8 +49,10 @@ class Pump:
         self.initial_power_pin_value = initial_power_pin_value
         self.initial_direction_pin_value = initial_direction_pin_value
 
-        self.power_status = initial_power_status
-        self.direction_status = initial_direction_status
+        self.initial_power_status = initial_power_status.upper()
+        self.power_status = self.initial_power_status
+        self.initial_direction_status = initial_direction_status.upper()
+        self.direction_status = self.initial_direction_status
 
     def toggle_power(self):
         # flip the power Pin value and update the power status
@@ -62,11 +64,15 @@ class Pump:
             self.power_status = "ON"
 
     def set_power(self, status: str):
-        if status.upper() not in ["ON", "OFF"]:
+        status = status.upper()
+        if status not in ["ON", "OFF"]:
             write_message("Error: Invalid power status, expected 'ON' or 'OFF'")
             return
-        self.power_pin.value(1 if status.upper() == "ON" else 0)
-        self.power_status = status.upper()
+        if status == self.initial_power_status:
+            self.power_pin.value(self.initial_power_pin_value)
+        else:
+            self.power_pin.value(not self.initial_power_pin_value)
+        self.power_status = status
 
     def toggle_direction(self):
         self.direction_pin.value(not self.direction_pin.value())
@@ -76,11 +82,15 @@ class Pump:
             self.direction_status = "CW"
 
     def set_direction(self, direction: str):
-        if direction.upper() not in ["CW", "CCW"]:
+        direction = direction.upper()
+        if direction not in ["CW", "CCW"]:
             write_message("Error: Invalid direction status, expected 'CW' or 'CCW'")
             return
-        self.direction_pin.value(1 if direction.upper() == "CW" else 0)
-        self.direction_status = direction.upper()
+        if direction == self.initial_direction_status:
+            self.direction_pin.value(self.initial_direction_pin_value)
+        else:
+            self.direction_pin.value(not self.initial_direction_pin_value)
+        self.direction_status = direction
 
     def hard_reset(self):
         write_message("Info: Performing hard reset.")
@@ -261,8 +271,17 @@ def load_pumps():
                     pumps[int(key)] = Pump.from_dict(value)
         else:
             write_message(
-                f"No save file found ({SAVE_FILE}). Starting with default pumps."
+                f"Info: No save file found ({SAVE_FILE}). Starting with default pumps."
             )
+            pumps[1] = Pump(
+                power_pin_id=0,
+                direction_pin_id=1,
+                initial_power_pin_value=0,
+                initial_direction_pin_value=0,
+                initial_power_status="OFF",
+                initial_direction_status="CCW",
+            )
+            save_pumps(1)  # Save the default pump to the file
     except Exception as e:
         write_message(f"Error: Could not load pumps, {e}")
 
@@ -302,7 +321,7 @@ def load_config():
             }
             save_config()
             write_message(
-                f"No config file found ({CONFIG_FILE}). Starting with default config."
+                f"Info: No config file found ({CONFIG_FILE}). Starting with default config."
             )
     except Exception as e:
         write_message(f"Error: Could not load config, {e}")
@@ -374,7 +393,7 @@ commands = {
 }
 
 
-def help(simple=False):
+def help(simple=True):
     # assemble commands help text
     help_text_simple = (
         "Info: General format for commands:\n"
@@ -601,7 +620,7 @@ def main():
                                     method()
                             else:
                                 write_message(
-                                    f"Error: Invalid pump specific command '{command}'"
+                                    f"Error: Invalid instance specific command '{command}'"
                                 )
                         else:
                             write_message(
@@ -618,7 +637,7 @@ def main():
         except Exception as e:
             global_shutdown()
             write_message(f"Error: {e}")
-            write_message("Error: critical error, emergency shutdown.")
+            write_message("Error: critical error, perform shutdown.")
 
 
 # Run the main loop

@@ -31,7 +31,7 @@ def set_bootloader_mode(mode: str):
         json.dump(config, f)
 
 
-def exit_bootloader_settings():
+def exit_bootloader_settings(bootsel: bool = False):
     # Read current config (or use defaults)
     try:
         with open(CONFIG_FILE, "r") as f:
@@ -45,7 +45,11 @@ def exit_bootloader_settings():
         json.dump(config, f)
 
     # Reset the board to start the main application
-    machine.reset()
+    if bootsel:
+        sys.stdout.write("Success: Entering BOOTSEL mode\n")
+        machine.bootloader()
+    else:
+        machine.reset()
 
 
 def update_firmware():
@@ -134,6 +138,10 @@ def update_firmware():
             sys.stdout.write("Info: Firmware update complete. Rebooting...\n")
             reset_fields()
             exit_bootloader_settings()
+        # If the sender indicates the entire update is complete, then reboot.
+        if payload.get("bootsel", False):
+            reset_fields()
+            exit_bootloader_settings(bootsel=True)
 
         # If a new file update is starting, update the filename, reset the buffer.
         if "filename" in payload and payload["filename"] != filename:
