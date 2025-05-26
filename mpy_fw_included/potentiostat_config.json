@@ -1,7 +1,0 @@
-{
-	"1": {
-		"trigger_pin_id": 0,
-		"initial_trigger_pin_value": 0,
-		"trigger_status": "LOW"
-	}
-}

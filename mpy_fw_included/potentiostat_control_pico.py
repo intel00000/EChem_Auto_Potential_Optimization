@@ -1,21 +1,21 @@
 import os
-import gc
 import sys
 import json
-import time
-import array
 import select
-import pwm_dma_fade_onetime
-from neopixel import NeoPixel
-from uctypes import addressof
-from machine import Pin, reset, RTC
+import machine
 from bootloader_util import set_bootloader_mode
 
 # a dictionary to store the potentiostat config
-rtc = RTC()
+rtc = machine.RTC()
 potentiostats = {}
 version = "0.01"
 SAVE_FILE = "potentiostat_config.json"
+CONFIG_FILE = "potentiostat_control_config.json"
+
+
+# generic function to write a message to the console
+def write_message(message):
+    sys.stdout.write(f"{message}\n")
 
 
 # Each Potentiostat class will have only a trigger pin
@@ -26,8 +26,11 @@ class Potentiostat:
         initial_trigger_pin_value=0,
         initial_trigger_status="LOW",
     ):
-        self.trigger_pin = Pin(
-            trigger_pin_id, Pin.OUT, value=initial_trigger_pin_value, pull=Pin.PULL_DOWN
+        self.trigger_pin = machine.Pin(
+            trigger_pin_id,
+            machine.Pin.OUT,
+            value=initial_trigger_pin_value,
+            pull=machine.Pin.PULL_DOWN,
         )
         self.trigger_pin_id = trigger_pin_id
         self.initial_trigger_pin_value = initial_trigger_pin_value
@@ -74,13 +77,10 @@ def send_status(potentiostat_name):
                 for i, potentiostat in potentiostats.items()
             ]
         )
-        free_mem = gc.mem_free()
-        total_mem = gc.mem_alloc() + gc.mem_free()
-        status += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
-        sys.stdout.write(f"{status}\n")
+        write_message(status)
     elif potentiostat_name in potentiostats:
-        sys.stdout.write(
-            f"Potentiostat{potentiostat_name} Status: {potentiostats[potentiostat_name].get_status()}\n"
+        write_message(
+            f"Potentiostat{potentiostat_name} Status: {potentiostats[potentiostat_name].get_status()}"
         )
 
 
@@ -94,19 +94,11 @@ def send_info(potentiostat_name):
                 for i, potentiostat in potentiostats.items()
             ]
         )
-        free_mem = gc.mem_free()
-        total_mem = gc.mem_alloc() + gc.mem_free()
-        info += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
-        sys.stdout.write(f"{info}\n")
+        write_message(info)
     elif potentiostat_name in potentiostats:
-        sys.stdout.write(
-            f"Potentiostat{potentiostat_name} Info: {potentiostats[potentiostat_name].get_info()}\n"
+        write_message(
+            f"Potentiostat{potentiostat_name} Info: {potentiostats[potentiostat_name].get_info()}"
         )
-
-
-# generic function to write a message to the console
-def write_message(message):
-    sys.stdout.write(f"{message}\n")
 
 
 # function to register a potentiostat, if a potentiostat already exists, it will update the pins
@@ -124,11 +116,11 @@ def register_potentiostat(
     try:
         if potentiostat_num in potentiostats:
             # try to reinitialize the pins
-            potentiostats[potentiostat_num].trigger_pin = Pin(
+            potentiostats[potentiostat_num].trigger_pin = machine.Pin(
                 trigger_pin_id,
-                Pin.OUT,
+                machine.Pin.OUT,
                 value=initial_trigger_pin_value,
-                pull=Pin.PULL_DOWN,
+                pull=machine.Pin.PULL_DOWN,
             )
             potentiostats[potentiostat_num].trigger_pin_id = trigger_pin_id
             potentiostats[
@@ -177,7 +169,7 @@ def ping():
 # a function to reset the device, equivalent to a hard reset
 def hard_reset():
     write_message("Success: Performing hard reset.")
-    reset()
+    machine.reset()
 
 
 # function to save the current state of the potentiostats to a JSON file
@@ -199,7 +191,6 @@ def save_potentiostats(potentiostat_num=0):
                 str(potentiostat_num): potentiostats[potentiostat_num].to_dict()
             }
             files = os.listdir(os.getcwd())
-
             if SAVE_FILE in files:
                 with open(SAVE_FILE, "r") as file:
                     existing_data = json.load(file)
@@ -234,6 +225,12 @@ def load_potentiostats():
             write_message(
                 f"No save file found ({SAVE_FILE}). Starting with default potentiostats."
             )
+            potentiostats[1] = Potentiostat(
+                trigger_pin_id=0,
+                initial_trigger_pin_value=0,
+                initial_trigger_status="LOW",
+            )
+            save_potentiostats(1)
     except Exception as e:
         write_message(f"Error: Could not load potentiostats, {e}")
 
@@ -285,80 +282,48 @@ def main():
         [f"'{key}': '{value}'" for key, value in commands.items()]
     )
 
-    led_mode = -1
-    try:  # first method, DMA fade, only avilable on regular Pico
-        fade_buffer = array.array(
-            "I",
-            [(i * i) << 16 for i in range(0, 256, 1)],
-        )
-        secondary_config_data = bytearray(16)
-        (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
-            fade_buffer_addr=addressof(fade_buffer),
-            fade_buffer_len=len(fade_buffer),
-            secondary_config_data_addr=addressof(secondary_config_data),
-            frequency=10240,
-        )
-        led_mode = 0
-    except Exception as _:
-        pass
-    if led_mode == -1:  # second method is for the led with NeoPixel
-        try:
-            led = Pin("LED", Pin.OUT)
-            np = NeoPixel(led, 1)
-            # set to red
-            np[0] = (0, 10, 0)
-            np.write()
-            led_mode = 1
-        except Exception as _:
-            pass
-    if led_mode == -1:  # third method is for the led on single GPIO pin
-        try:
-            led = Pin("LED", Pin.OUT)
-            led.value(1)
-            led_mode = 2
-        except Exception as _:
-            pass
+    led = machine.Pin("LED", machine.Pin.OUT, value=1)  # Initialize the LED machine.Pin
+
+    def blink_led():
+        led.toggle()
+
+    timer = machine.Timer()  # Timer for blinking the LED
+    led_blinking_mode = False
 
     # Load the potentiostats at startup
     load_potentiostats()
     while True:
         try:
+            if not led_blinking_mode:
+                led.value(1)
             # Wait for input on stdin
             poll_results = poll_obj.poll()
 
             if poll_results:
                 # Read the data from stdin (PC console input) and strip the newline character
                 data = sys.stdin.readline().strip()
-                if led_mode == 0:
-                    dma_secondary.active(1)
-                elif led_mode == 1:
-                    np[0] = (0, 0, 0)
-                    np.write()
-                    time.sleep_ms(25)
-                    np[0] = (0, 10, 0)
-                    np.write()
-                elif led_mode == 2:
+                if not led_blinking_mode:
                     led.value(0)
-                    time.sleep_ms(25)
-                    led.value(1)
 
                 # Validate the input data
                 if not data or data == "":
                     write_message("Error: Empty input.")
                     continue
-                # Split the data into potentiostat id and command
-                parts = data.split(":")
-                if len(parts) < 2:
-                    write_message(
-                        "Error: Invalid input, expected basic format 'potentiostat_number:command...'"
-                    )
-                    continue
-                potentiostat_num = int(parts[0])
-                command = parts[1].strip().lower()
+                parts = data.split(":")  # Split the data into pump id and command
+                if parts[0].isdigit():
+                    potentiostat_num = int(parts[0])
+                    command = parts[1].strip().lower()
+                else:
+                    potentiostat_num = 0
+                    command = parts[0].strip().lower()
+                    # insert a 0 to the first position of parts
+                    parts.insert(0, "0")
 
                 # check the input and call the appropriate function
                 try:
-                    if command == "reg":
+                    if command == "ping":
+                        ping()
+                    elif command == "reg":
                         if len(parts) == 5:
                             trigger_pin_id = int(parts[2])
                             initial_trigger_pin_value = int(parts[3])
@@ -405,6 +370,29 @@ def main():
                             write_message(f"Success: bootloader set to {mode} mode")
                         except Exception as e:
                             write_message(f"Error: {e}")
+                    elif command == "bootsel":
+                        try:
+                            write_message("Success: Entering BOOTSEL mode")
+                            machine.bootloader()
+                        except Exception as e:
+                            write_message(f"Error: {e}")
+                    elif command == "blink_en":
+                        if not led_blinking_mode:
+                            led_blinking_mode = True
+                            timer.init(
+                                period=200,
+                                mode=machine.Timer.PERIODIC,
+                                callback=lambda t: blink_led(),
+                            )
+                            write_message("Info: LED blinking mode enabled.")
+                        else:
+                            write_message("Info: LED blinking mode is already enabled.")
+                    elif command == "blink_dis":
+                        if led_blinking_mode:
+                            led_blinking_mode = False
+                            timer.deinit()
+                            led.value(1)
+                            write_message("Info: LED blinking mode disabled.")
                     elif potentiostat_num == 0:
                         if command == "st":
                             send_status(0)

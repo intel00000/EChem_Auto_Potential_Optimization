@@ -1,26 +1,25 @@
 import os
-import gc
 import sys
 import json
-import time
-import array
 import select
-import pwm_dma_fade_onetime
-from neopixel import NeoPixel
-from uctypes import addressof
-from machine import Pin, reset, RTC
+import machine
 from bootloader_util import set_bootloader_mode
 
 # a dictionary to store the pumps, the key is the pump number and the value is the pump instance
-rtc = RTC()
+rtc = machine.RTC()
 pumps = {}
 config = {}
-version = "0.01"
+version = "1.00"
 SAVE_FILE = "pumps_config.json"
 CONFIG_FILE = "pump_control_config.json"
 
 
-# Each pump class will have a power and direction pin, defined at initialization
+# generic function to write a message to the console
+def write_message(message):
+    sys.stdout.write(f"{message}\n")
+
+
+# Each pump class will have a power and direction Pin, defined at initialization
 class Pump:
     def __init__(
         self,
@@ -32,14 +31,17 @@ class Pump:
         initial_direction_status="CCW",
     ):
         # both pins are set to low to prevent current flow
-        self.power_pin = Pin(
-            power_pin_id, Pin.OUT, value=initial_power_pin_value, pull=Pin.PULL_DOWN
+        self.power_pin = machine.Pin(
+            power_pin_id,
+            machine.Pin.OUT,
+            value=initial_power_pin_value,
+            pull=machine.Pin.PULL_DOWN,
         )
-        self.direction_pin = Pin(
+        self.direction_pin = machine.Pin(
             direction_pin_id,
-            Pin.OUT,
+            machine.Pin.OUT,
             value=initial_direction_pin_value,
-            pull=Pin.PULL_DOWN,
+            pull=machine.Pin.PULL_DOWN,
         )
 
         self.power_pin_id = power_pin_id
@@ -51,7 +53,7 @@ class Pump:
         self.direction_status = initial_direction_status
 
     def toggle_power(self):
-        # flip the power pin value and update the power status
+        # flip the power Pin value and update the power status
         self.power_pin.value(not self.power_pin.value())
         # update the power status
         if self.power_status == "ON":
@@ -59,12 +61,34 @@ class Pump:
         else:
             self.power_status = "ON"
 
+    def set_power(self, status: str):
+        if status.upper() not in ["ON", "OFF"]:
+            write_message("Error: Invalid power status, expected 'ON' or 'OFF'")
+            return
+        self.power_pin.value(1 if status.upper() == "ON" else 0)
+        self.power_status = status.upper()
+
     def toggle_direction(self):
         self.direction_pin.value(not self.direction_pin.value())
         if self.direction_status == "CW":
             self.direction_status = "CCW"
         else:
             self.direction_status = "CW"
+
+    def set_direction(self, direction: str):
+        if direction.upper() not in ["CW", "CCW"]:
+            write_message("Error: Invalid direction status, expected 'CW' or 'CCW'")
+            return
+        self.direction_pin.value(1 if direction.upper() == "CW" else 0)
+        self.direction_status = direction.upper()
+
+    def hard_reset(self):
+        write_message("Info: Performing hard reset.")
+        machine.reset()
+
+    # function to perform shutdown
+    def shutdown(self):
+        self.set_power("OFF")
 
     def get_status(self):
         return f"Power: {self.power_status}, Direction: {self.direction_status}"
@@ -95,38 +119,27 @@ class Pump:
 
 
 # functions to assemble and send status, when pump_name is 0, it will send status/info for all pumps
-def send_status(pump_name):
+def pump_status(pump_name=0):
     global pumps
     if pump_name == 0:
         status = ", ".join(
             [f"Pump{i} Status: {pump.get_status()}" for i, pump in pumps.items()]
         )
-        free_mem = gc.mem_free()
-        total_mem = gc.mem_alloc() + gc.mem_free()
-        status += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
-        sys.stdout.write(f"{status}\n")
+        write_message(status)
     elif pump_name in pumps:
-        sys.stdout.write(f"Pump{pump_name} Status: {pumps[pump_name].get_status()}\n")
+        write_message(f"Pump{pump_name} Status: {pumps[pump_name].get_status()}")
 
 
 # functions to assemble and send info, when pump_name is 0, it will send status/info for all pumps
-def send_info(pump_name):
+def pump_info(pump_name=0):
     global pumps
     if pump_name == 0:
         info = ", ".join(
             [f"Pump{i} Info: {pump.get_info()}" for i, pump in pumps.items()]
         )
-        free_mem = gc.mem_free()
-        total_mem = gc.mem_alloc() + gc.mem_free()
-        info += f", Heap status (free/total): {free_mem}/{total_mem} bytes"
-        sys.stdout.write(f"{info}\n")
+        write_message(info)
     elif pump_name in pumps:
-        sys.stdout.write(f"Pump{pump_name} Info: {pumps[pump_name].get_info()}\n")
-
-
-# generic function to write a message to the console
-def write_message(message):
-    sys.stdout.write(f"{message}\n")
+        write_message(f"Pump{pump_name} Info: {pumps[pump_name].get_info()}")
 
 
 # function to register a pump, if the pump already exists, it will update the pins
@@ -147,11 +160,11 @@ def register_pump(
     try:
         if pump_num in pumps:
             # try to reinitialize the pins
-            pumps[pump_num].power_pin = Pin(
-                power_pin, Pin.OUT, value=initial_power_pin_value
+            pumps[pump_num].power_pin = machine.Pin(
+                power_pin, machine.Pin.OUT, value=initial_power_pin_value
             )
-            pumps[pump_num].direction_pin = Pin(
-                direction_pin, Pin.OUT, value=initial_direction_pin_value
+            pumps[pump_num].direction_pin = machine.Pin(
+                direction_pin, machine.Pin.OUT, value=initial_direction_pin_value
             )
 
             pumps[pump_num].power_pin_id = power_pin
@@ -176,7 +189,7 @@ def register_pump(
 
 
 # function to reset the controller, it will remove all pumps
-def clear_pumps(pump_num):
+def clear_pumps(pump_num=0):
     global pumps
     if pump_num == 0:
         pumps.clear()
@@ -187,12 +200,14 @@ def clear_pumps(pump_num):
         write_message(f"Success: Pump {pump_num} removed.")
 
 
-# function to perform an emergency shutdown
-def emergency_shutdown():
+# function to perform global shutdown, it will turn off all pumps
+def global_shutdown():
     global pumps
-    for _, pump in pumps.items():
-        if pump.power_status != "OFF":
-            pump.toggle_power()
+    for pump in pumps.values():
+        try:
+            pump.shutdown()
+        except Exception as e:
+            write_message(f"Error: Could not shutdown pump {pump}, {e}")
     write_message("Info: Shutdown complete, all pumps are off.")
 
 
@@ -200,12 +215,6 @@ def emergency_shutdown():
 def ping():
     global version
     write_message(f"Ping: Pico Pump Control Version {version}")
-
-
-# a function to reset the device, equivalent to a hard reset
-def hard_reset():
-    write_message("Info: Performing hard reset.")
-    reset()
 
 
 # function to save the current state of the pumps to a JSON file
@@ -258,6 +267,7 @@ def load_pumps():
         write_message(f"Error: Could not load pumps, {e}")
 
 
+# function to load the configuration from a JSON file
 def load_config():
     global config, CONFIG_FILE
     try:
@@ -298,6 +308,7 @@ def load_config():
         write_message(f"Error: Could not load config, {e}")
 
 
+# function to save the current configuration to a JSON file
 def save_config():
     global config, CONFIG_FILE
     try:
@@ -310,7 +321,7 @@ def save_config():
             config["minute"] = minute
             config["second"] = second
             json.dump(config, file)
-        write_message(f"Success: Config saved to {CONFIG_FILE}.")
+        write_message("Info: Config saved.")
     except Exception as e:
         write_message(f"Error: Could not save config, {e}")
 
@@ -328,6 +339,7 @@ def get_time():
 def set_time(year, month, day, hour, minute, second):
     try:
         rtc.datetime((year, month, day, 0, hour, minute, second, 0))
+        save_config()
         write_message(
             f"Info: RTC Time set to {year}-{month}-{day} {hour}:{minute}:{second}"
         )
@@ -347,27 +359,62 @@ def set_name(name):
     try:
         config["name"] = name
         save_config()
-        write_message(f"Info: Name set to {name}")
+        write_message(f"Success: Name set to {name}")
     except Exception as e:
         write_message(f"Error: Could not set name, {e}")
 
 
-# Define a dictionary for the commands
+# Define a dictionary for pump specific commands
 commands = {
-    "pw": "toggle_power",
-    "di": "toggle_direction",
-    "st": "status",
-    "info": "info",
-    "reg": "register",
-    "clr": "clear_pumps",
-    "shutdown": "emergency_shutdown",
+    "toggle_power": "toggle_power",
+    "set_power": "set_power",
+    "toggle_direction": "toggle_direction",
+    "set_direction": "set_direction",
     "reset": "hard_reset",
-    "ping": "ping",
-    "save": "save_pumps",
-    "time": "get_time",
-    "stime": "set_time",
-    "set_mode": "set_bootloader_mode",
 }
+
+
+def help(simple=False):
+    # assemble commands help text
+    help_text_simple = (
+        "Info: General format for commands:\n"
+        "  - [pump_number]:[command]:[additional_parameters]\n"
+    )
+    help_text = (
+        "Available commands:\n"
+        "  - ping: Check if the controller is responsive.\n"
+        "  - reg: Register a pump with the specified parameters.\n"
+        "  - time: Get the current RTC time.\n"
+        "  - stime: Set the RTC time in the format 'year:month:day:hour:minute:second'.\n"
+        "  - set_mode: Set the bootloader mode.\n"
+        "  - bootsel: Enter BOOTSEL mode for firmware updates.\n"
+        "  - blink_en: Enable LED blinking mode.\n"
+        "  - blink_dis: Disable LED blinking mode.\n"
+        "  - get_name: Get the current name of the controller.\n"
+        "  - set_name:name: Set the name of the controller.\n"
+        "  - status: Get the status of a specific pump or all pumps (pump_number:0 for all).\n"
+        "  - info: Get the info of a specific pump or all pumps (pump_number:0 for all).\n"
+        "  - clear_pumps: Clear all pumps or a specific pump (pump_number:0 for all).\n"
+        "  - save_pumps: Save the current state of all pumps or a specific pump (pump_number:0 for all).\n"
+        "  - shutdown: Shutdown all pumps or a specific pump (pump_number:0 for all).\n"
+        "  - toggle_power: Toggle the power of a specific pump.\n"
+        "  - set_power: Set the power of a specific pump to 'ON' or 'OFF'.\n"
+        "  - toggle_direction: Toggle the direction of a specific pump.\n"
+        "  - set_direction: Set the direction of a specific pump to 'CW' or 'CCW'.\n"
+        "  - reset: Perform a hard reset of the controller.\n"
+        "  - help: Show this help message.\n"
+        "Example usage:\n"
+        "  - To register a pump: '1:reg:2:3:1:0:ON:CW'\n"
+        "    (pump_number:1, power_pin:2, direction_pin:3, initial_power_pin_value:1, initial_direction_pin_value:0, initial_power_status:ON, initial_direction_status:CW)\n"
+        "Note:\n"
+        "  - global commands for pump 0: 'status', 'info', 'clear_pumps', 'save_pumps', 'shutdown'.\n"
+        "  - pump specific commands for pump 0: 'toggle_power', 'set_power', 'toggle_direction', 'set_direction', 'reset'.\n"
+    )
+    if simple:
+        write_message(help_text_simple)
+    else:
+        write_message(help_text_simple + help_text)
+
 
 # Create a poll object to monitor stdin, which will block until there is input for reading
 poll_obj = select.poll()
@@ -375,86 +422,56 @@ poll_obj.register(sys.stdin, select.POLLIN)
 
 
 def main():
+    led = machine.Pin("LED", machine.Pin.OUT, value=1)  # Initialize the LED Pin
+
+    def blink_led():
+        led.toggle()
+
+    timer = machine.Timer()  # Timer for blinking the LED
+    led_blinking_mode = False
+
     # assemble a mapping from key to value in the commands dictionary
     commands_mapping_string = ", ".join(
         [f"'{key}': '{value}'" for key, value in commands.items()]
     )
 
-    led_mode = -1
-    try:  # first method, DMA fade, only avilable on regular Pico
-        fade_buffer = array.array(
-            "I",
-            [(i * i) << 16 for i in range(0, 256, 1)],
-        )
-        secondary_config_data = bytearray(16)
-        (dma_main, dma_secondary) = pwm_dma_fade_onetime.pwm_dma_led_fade(
-            fade_buffer_addr=addressof(fade_buffer),
-            fade_buffer_len=len(fade_buffer),
-            secondary_config_data_addr=addressof(secondary_config_data),
-            frequency=10240,
-        )
-        led_mode = 0
-    except Exception as _:
-        pass
-    if led_mode == -1:  # second method is for the led with NeoPixel
-        try:
-            led = Pin("LED", Pin.OUT)
-            np = NeoPixel(led, 1)
-            # set to red
-            np[0] = (0, 10, 0)
-            np.write()
-            led_mode = 1
-        except Exception as _:
-            pass
-    if led_mode == -1:  # third method is for the led on single GPIO pin
-        try:
-            led = Pin("LED", Pin.OUT)
-            led.value(1)
-            led_mode = 2
-        except Exception as _:
-            pass
-
-    # Load the pumps at startup
     load_config()
     load_pumps()
     while True:
         try:
+            if not led_blinking_mode:
+                led.value(1)
             # Wait for input on stdin
             poll_results = poll_obj.poll()
 
             if poll_results:
                 # Read the data from stdin (PC console input) and strip the newline character
                 data = sys.stdin.readline().strip()
-                if led_mode == 0:
-                    dma_secondary.active(1)
-                elif led_mode == 1:
-                    np[0] = (0, 0, 0)
-                    np.write()
-                    time.sleep_ms(25)
-                    np[0] = (0, 10, 0)
-                    np.write()
-                elif led_mode == 2:
+                if not led_blinking_mode:
                     led.value(0)
-                    time.sleep_ms(25)
-                    led.value(1)
 
                 # Validate the input data
                 if not data or data == "":
                     write_message("Error: Empty input.")
                     continue
-                # Split the data into pump id and command
-                parts = data.split(":")
-                if len(parts) < 2:
-                    write_message(
-                        "Error: Invalid input, expected basic format 'pump_number:command...'"
-                    )
-                    continue
-                pump_num = int(parts[0])
-                command = parts[1].strip().lower()
+                parts = data.split(":")  # Split the data into pump id and command
+                if parts[0].isdigit():
+                    pump_num = int(parts[0])
+                    command = parts[1].strip().lower()
+                else:
+                    pump_num = 0
+                    command = parts[0].strip().lower()
+                    # insert a 0 to the first position of parts
+                    parts.insert(0, "0")
 
                 # check the input and call the appropriate function
                 try:
-                    if command == "reg":
+                    # general global commands
+                    if command == "help":
+                        help(simple=False)
+                    elif command == "ping":
+                        ping()
+                    elif command == "reg":
                         if len(parts) == 8:
                             power_pin = int(parts[2])
                             direction_pin = int(parts[3])
@@ -514,58 +531,81 @@ def main():
                             write_message(f"Success: bootloader set to {mode} mode")
                         except Exception as e:
                             write_message(f"Error: {e}")
+                    elif command == "bootsel":
+                        try:
+                            write_message("Success: Entering BOOTSEL mode")
+                            machine.bootloader()
+                        except Exception as e:
+                            write_message(f"Error: {e}")
+                    elif command == "blink_en":
+                        if not led_blinking_mode:
+                            led_blinking_mode = True
+                            timer.init(
+                                period=200,
+                                mode=machine.Timer.PERIODIC,
+                                callback=lambda t: blink_led(),
+                            )
+                            write_message("Info: LED blinking mode enabled.")
+                        else:
+                            write_message("Info: LED blinking mode is already enabled.")
+                    elif command == "blink_dis":
+                        if led_blinking_mode:
+                            led_blinking_mode = False
+                            timer.deinit()
+                            led.value(1)
+                            write_message("Info: LED blinking mode disabled.")
+                    elif command == "get_name":
+                        get_name()
+                    elif command == "set_name":
+                        if len(parts) == 3:
+                            name = parts[2].strip()
+                            set_name(name)
+                        else:
+                            write_message(
+                                "Error: Invalid input, expected format '0:set_name:name'"
+                            )
+                    # start of global commands for pumps
+                    elif command == "status":
+                        pump_status(pump_num)
+                    elif command == "info":
+                        pump_info(pump_num)
+                    elif command == "clear_pumps":
+                        clear_pumps(pump_num)
+                    elif command == "save_pumps":
+                        save_pumps(pump_num)
+                    # start of pump specific commands
                     elif pump_num == 0:
-                        if command == "st":
-                            send_status(0)
-                        elif command == "info":
-                            send_info(0)
-                        elif command == "clr":
-                            clear_pumps(0)
-                        elif command == "shutdown":
-                            emergency_shutdown()
-                        elif command == "save":
-                            save_pumps()
+                        if command == "shutdown":
+                            global_shutdown()
                         elif command in commands:
-                            if command == "ping":
-                                ping()
-                            elif command == "reset":
-                                hard_reset()
-                            else:
-                                for pump in pumps.values():
-                                    method = getattr(pump, commands[command], None)
-                                    if method:
+                            for pump in pumps.values():
+                                method = getattr(pump, commands[command], None)
+                                if method:
+                                    if len(parts) > 2:
+                                        method(*parts[2:])
+                                    else:
                                         method()
                         else:
                             write_message(
                                 f"Error: Invalid command for pump '0' '{command}', available commands are: "
                                 + commands_mapping_string
                             )
-
                     elif pump_num in pumps:
-                        # get the pump instance
-                        pump = pumps[pump_num]
-
-                        # check if the command is valid
-                        if command in commands:
-                            if command == "st":
-                                send_status(pump_num)
-                            elif command == "info":
-                                send_info(pump_num)
-                            elif command == "clr":
-                                clear_pumps(pump_num)
-                            elif command == "save":
-                                save_pumps(pump_num)
-                            else:
-                                method = getattr(pump, commands[command], None)
-                                if method:
-                                    method()
+                        pump = pumps[pump_num]  # get the pump instance
+                        if command in commands:  # check if the command is valid
+                            method = getattr(pump, commands[command], None)
+                            if method:
+                                if len(parts) > 2:
+                                    method(*parts[2:])
                                 else:
-                                    write_message(
-                                        f"Error: No corresponding method for command '{command}'"
-                                    )
+                                    method()
+                            else:
+                                write_message(
+                                    f"Error: Invalid pump specific command '{command}'"
+                                )
                         else:
                             write_message(
-                                f"Error: Invalid command for pump '{pump_num}', available commands are: "
+                                f"Error: Invalid global command for pump '{pump_num}', available commands are: "
                                 + commands_mapping_string
                             )
                     else:
@@ -576,7 +616,7 @@ def main():
                 except Exception as cmd_error:
                     write_message(f"Error: {cmd_error}")
         except Exception as e:
-            emergency_shutdown()
+            global_shutdown()
             write_message(f"Error: {e}")
             write_message("Error: critical error, emergency shutdown.")
 

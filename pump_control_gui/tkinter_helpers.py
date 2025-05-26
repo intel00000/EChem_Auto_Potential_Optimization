@@ -2,9 +2,6 @@ import os
 import json
 import logging
 import helper_functions as helper
-
-import tkinter as tk
-from tkinter import ttk
 import customtkinter as ctk
 
 default_icon_path = helper.resource_path(os.path.join("icons", "icons-red.ico"))
@@ -284,7 +281,7 @@ def non_blocking_checklist(
         # Add checkboxes for each item
         check_vars = []
         for item in items:
-            var = tk.BooleanVar()
+            var = ctk.BooleanVar()
             cb = ctk.CTkCheckBox(checklist_frame, text=item, variable=var)
             cb.pack(anchor="center", padx=global_pad_x, pady=global_pad_y)
             check_vars.append((item, var))
@@ -434,7 +431,7 @@ def non_blocking_input_dialog(
     A non-blocking dialog to gather multiple inputs with support for text entry and dropdown.
     """
     try:
-        top = tk.Toplevel(parent)
+        top = ctk.CTkToplevel(parent)
         top.title(title)
         if icon_path:
             top.iconbitmap(icon_path)
@@ -442,30 +439,54 @@ def non_blocking_input_dialog(
         input_vars = {}
 
         # Create a frame for the form
-        form_frame = ttk.Frame(top)
-        form_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+        form_frame = ctk.CTkFrame(top)
+        form_frame.grid(
+            row=0,
+            column=0,
+            columnspan=2,
+            ipadx=global_pad_x,
+            ipady=global_pad_y,
+            sticky="nsew",
+        )
 
         # Generate input fields
         for i, field in enumerate(fields):
-            ttk.Label(form_frame, text=f"{field['label']}:").grid(
-                row=i, column=0, sticky="e", padx=5, pady=5
+            label(
+                form_frame,
+                text=field["label"],
+                row=i,
+                column=0,
+                padx=global_pad_x,
+                pady=global_pad_y,
+                sticky="E",
             )
-            input_var = tk.StringVar()
+            input_var = ctk.StringVar()
             input_var.set(field.get("initial_value", ""))
 
             if field["type"] == "dropdown":
                 # Dropdown box
-                dropdown = ttk.Combobox(
+                dropdown = combobox(
                     form_frame,
-                    textvariable=input_var,
+                    row=i,
+                    column=1,
                     values=field["choices"],
                     state="readonly",
+                    width=200,
+                    sticky="W",
                 )
-                dropdown.grid(row=i, column=1, sticky="w", padx=5, pady=5)
+                dropdown.configure(variable=input_var)
             elif field["type"] == "text":
                 # Text entry
-                entry = ttk.Entry(form_frame, textvariable=input_var)
-                entry.grid(row=i, column=1, sticky="w", padx=5, pady=5)
+                entry = ctk.CTkEntry(
+                    form_frame,
+                    width=200,
+                    height=global_height,
+                    placeholder_text=field.get("placeholder_text", ""),
+                    textvariable=input_var,
+                )
+                entry.grid(
+                    row=i, column=1, sticky="W", padx=global_pad_x, pady=global_pad_y
+                )
             input_vars[field["label"]] = input_var
 
         # OK and Cancel buttons
@@ -478,10 +499,22 @@ def non_blocking_input_dialog(
             result_var.set("")  # Clear the result_var if canceled
             top.destroy()
 
-        ok_button = ttk.Button(top, text="OK", command=on_ok)
-        ok_button.grid(row=1, column=0, padx=10, pady=10, sticky="e")
-        cancel_button = ttk.Button(top, text="Cancel", command=on_cancel)
-        cancel_button.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        button(
+            top,
+            text="OK",
+            command=on_ok,
+            row=1,
+            column=0,
+            sticky="E",
+        )
+        button(
+            top,
+            text="Cancel",
+            command=on_cancel,
+            row=1,
+            column=1,
+            sticky="W",
+        )
 
         top.protocol("WM_DELETE_WINDOW", on_cancel)
         top.attributes("-topmost", True)

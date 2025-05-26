@@ -9,6 +9,23 @@ import logging
 import tkinter_helpers as tk_helpers
 
 
+def enter_bootselect(serial_port_obj: serial.Serial) -> bool:
+    """Enter the bootloader by sending a command to the serial port."""
+    if not serial_port_obj.is_open:
+        return False
+    try:
+        # send a command to enter bootloader mode
+        serial_port_obj.write(b"0:bootsel\n")
+        # get the response from the serial port
+        response = serial_port_obj.readline().decode().strip()
+        logging.debug(f"Device -> PC: {response}")
+        if "Success" in response:
+            return True
+    except Exception as e:
+        logging.error(f"Error: {e}")
+    return False
+
+
 # enter the bootloader by sending a json with set_mode as update_firmware and later rebooting the device
 def enter_bootloader(serial_port_obj: serial.Serial):
     # set a "0:set_mode:update_firmware" command to the serial port
