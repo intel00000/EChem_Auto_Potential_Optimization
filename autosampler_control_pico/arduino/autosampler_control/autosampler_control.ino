@@ -35,7 +35,10 @@ uint16_t lastAngle = 0;
 uint8_t lastAGC, lastStatus = 0;
 uint8_t encoderWriteBuffer = 0x0E; // Register to read the angle
 
-bool HOLDING = true; // Flag to indicate if the motor is holding
+bool HOLDING = true;             // Flag to indicate if the motor is holding
+bool blinkLED = false;           // Flag to indicate if the LED should blink
+unsigned long lastBlinkTime = 0; // Last time the LED was blinked
+const int BLINK_INTERVAL = 200;  // Interval for LED blinking in milliseconds
 // Position limit
 const int MIN_POSITION = 0;
 const int MAX_POSITION = 16000;
@@ -592,6 +595,18 @@ public:
                       magnetTooStrong ? "Yes" : "No");
         Serial.println();
     }
+    void blinkLEDTask()
+    {
+        if (blinkLED)
+        {
+            unsigned long currentMillis = millis();
+            if (currentMillis - lastBlinkTime >= BLINK_INTERVAL)
+            {
+                lastBlinkTime = currentMillis;
+                digitalWrite(LED_PIN, !digitalRead(LED_PIN)); // Toggle LED state
+            }
+        }
+    }
 };
 
 Autosampler autosampler;
@@ -684,6 +699,8 @@ void parseInputString()
         Serial.println("    queryDebug - Query the current debug mode status.");
         Serial.println("    holding - Enable or disable holding mode.");
         Serial.println("    queryHolding - Query the current holding mode status.");
+        Serial.println("    blink_en - Enable or disable LED blinking.");
+        Serial.println("    blink_dis - Disable LED blinking.");
         Serial.println("    bootsel - Enter BOOTSEL mode.");
         Serial.println("    reset - Reset the device.");
     }
@@ -749,6 +766,17 @@ void parseInputString()
         Serial.println("INFO: Entering BOOTSEL mode...");
         sleep_ms(1000);
         rom_reset_usb_boot(LED_PIN, 0);
+    }
+    else if (command.equalsIgnoreCase("blink_en"))
+    {
+        blinkLED = true;
+        Serial.println("INFO: LED blinking enabled.");
+    }
+    else if (command.equalsIgnoreCase("blink_dis"))
+    {
+        blinkLED = false;
+        digitalWrite(LED_PIN, HIGH);
+        Serial.println("INFO: LED blinking disabled.");
     }
     else if (command.equalsIgnoreCase("set_name"))
     {
@@ -1022,7 +1050,7 @@ void setup()
     digitalWrite(ENCODER_PGO_PIN, HIGH); // Set the PGO pin to HIGH
     // init the encoder
     Wire1.begin();
-    autosampler.readEncoder();
+    // autosampler.readEncoder();
 }
 
 void generateRampProfile()
@@ -1052,6 +1080,7 @@ void generateRampProfile()
 void loop()
 {
     autosampler.updateMovement();
+    autosampler.blinkLEDTask();
     if (stringComplete)
     {
         parseInputString();
@@ -1064,14 +1093,20 @@ void serialEvent()
 {
     while (Serial.available())
     {
-        digitalWrite(LED_PIN, LOW);
+        if (!blinkLED)
+        {
+            digitalWrite(LED_PIN, LOW);
+        }
         char inChar = (char)Serial.read();
         inputString += inChar;
 
         if (inChar == '\n')
         {
             stringComplete = true;
-            digitalWrite(LED_PIN, HIGH);
+            if (!blinkLED)
+            {
+                digitalWrite(LED_PIN, HIGH);
+            }
             return;
         }
         else if (inputString.length() >= MAX_BUFFER_SIZE)
@@ -1079,6 +1114,9 @@ void serialEvent()
             Serial.println("ERROR: Input command too long.");
             inputString = "";
         }
-        digitalWrite(LED_PIN, HIGH);
+        if (!blinkLED)
+        {
+            digitalWrite(LED_PIN, HIGH);
+        }
     }
 }
