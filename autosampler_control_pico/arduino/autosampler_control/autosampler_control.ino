@@ -56,7 +56,7 @@ private:
     int enablePin = ENABLE_PIN;
 
     bool isPoweredOn = false;
-    int currentPosition = -1;
+    int currentPosition = 0;
     int failSafePosition = 0;
     bool currentDirection = true; // true: left, false: right
 
@@ -479,6 +479,12 @@ public:
         serializeJson(slotsConfig, Serial);
         Serial.println();
     }
+    void dumpGlobalConfig()
+    {
+        Serial.print("INFO: Global configuration: ");
+        serializeJson(globalConfig, Serial);
+        Serial.println();
+    }
     datetime_t getDateTime()
     {
         datetime_t t = {
@@ -519,7 +525,7 @@ public:
         return name;
     }
     // read from a memory location in the I2C device
-    void readI2C(int address, int reg, uint8_t *data, int length)
+    bool readI2C(int address, int reg, uint8_t *data, int length)
     {
         // Write the memory pointer
         Wire1.beginTransmission(address); // Send START + 7-bit address + Write bit (0)
@@ -531,6 +537,11 @@ public:
         if (bytesRead != length)
         {
             Serial.printf("WARNING: Requested %d bytes but received %d bytes.\n", length, bytesRead);
+            for (int i = 0; i < bytesRead; i++)
+            {
+                data[i] = 0; // Fill the remaining bytes with 0
+            }
+            return false;
         }
 
         for (int i = 0; i < bytesRead; i++)
@@ -546,6 +557,7 @@ public:
             }
             Serial.println();
         }
+        return true;
     }
     // Asynchronous read for a memory location in the I2C device
     bool readI2CAsync(uint8_t address, uint8_t reg, uint8_t *data, size_t length)
@@ -563,17 +575,21 @@ public:
             Serial.println("ERROR: Encoder read in progress, please wait.");
             return;
         }
-        readI2C(ENCODER_ADDR, 0x0E, encoderReadBuffer, 2);
-        lastAngle = (((uint16_t)encoderReadBuffer[0] << 8) | (uint16_t)encoderReadBuffer[1]) & 0x0FFF;
-        readI2C(ENCODER_ADDR, 0x1A, encoderReadBuffer, 1);
-        lastAGC = encoderReadBuffer[0];
-        readI2C(ENCODER_ADDR, 0x0B, encoderReadBuffer, 1);
-        lastStatus = encoderReadBuffer[0];
-        Serial.printf("INFO: Encoder angle=%d, AGC=%d, status=0b", lastAngle, lastAGC);
-        for (int i = 7; i >= 0; i--)
-        {
-            Serial.print((lastStatus >> i) & 1);
-        }
+        uint8_t ReadBuffer[2];
+        readI2C(ENCODER_ADDR, 0x0E, ReadBuffer, 2);
+        lastAngle = (((uint16_t)ReadBuffer[0] << 8) | (uint16_t)ReadBuffer[1]) & 0x0FFF;
+        readI2C(ENCODER_ADDR, 0x1A, ReadBuffer, 1);
+        lastAGC = ReadBuffer[0];
+        readI2C(ENCODER_ADDR, 0x0B, ReadBuffer, 1);
+        lastStatus = ReadBuffer[0];
+        bool magnetDetect = (lastStatus & 0b00100000) != 0;    // Check if magnet is detected
+        bool magnetTooWeak = (lastStatus & 0b00010000) != 0;   // Check if magnet is too weak
+        bool magnetTooStrong = (lastStatus & 0b00001000) != 0; // Check if magnet is too strong
+        Serial.printf("INFO: Encoder angle=%d, AGC=%d, Magnet Detect=%s, Magnet Too Weak=%s, Magnet Too Strong=%s\n",
+                      lastAngle, lastAGC,
+                      magnetDetect ? "Yes" : "No",
+                      magnetTooWeak ? "Yes" : "No",
+                      magnetTooStrong ? "Yes" : "No");
         Serial.println();
     }
 };
@@ -652,19 +668,22 @@ void parseInputString()
         Serial.println("    setSlotPosition:<slot>:<position> - Set the position of a slot.");
         Serial.println("    deleteSlot:<slot> - Delete the position of a slot.");
         Serial.println("    dumpSlotsConfig - Dump the slots configuration.");
+        Serial.println("    dumpGlobalConfig - Dump the global configuration.");
         Serial.println("    stime:<year>:<month>:<day>:<hour>:<minute>:<second> - Set the RTC time on the device.");
-        Serial.println("    gtime - Get the RTC time on the device.");
+        Serial.println("    time - Get the RTC time on the device.");
         Serial.println("    setRatio:<value> - Set the ratio for the stepper motor speed (default is 1).");
         Serial.println("    getRatio - Get the current ratio for the stepper motor speed.");
         Serial.println("    generateRampProfile - Regenerate the ramp profile for the stepper motor.");
         Serial.println("    setRampSteepness:<value> - Set the steepness of the ramp profile (default is 3.0).");
         Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile (default is 1).");
         Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
-        Serial.println("    setName:<name> - Set the name of the autosampler.");
-        Serial.println("    getName - Get the name of the autosampler.");
+        Serial.println("    set_name:<name> - Set the name of the autosampler.");
+        Serial.println("    get_name - Get the name of the autosampler.");
         Serial.println("    readEncoder - Read the encoder value.");
         Serial.println("    debug - Enable or disable debug mode.");
+        Serial.println("    queryDebug - Query the current debug mode status.");
         Serial.println("    holding - Enable or disable holding mode.");
+        Serial.println("    queryHolding - Query the current holding mode status.");
         Serial.println("    bootsel - Enter BOOTSEL mode.");
         Serial.println("    reset - Reset the device.");
     }
@@ -716,7 +735,7 @@ void parseInputString()
             Serial.println("ERROR: Invalid command format, expected format is stime:<year>:<month>:<day>:{now.dotw}:<hour>:<minute>:<second>");
         }
     }
-    else if (command.equalsIgnoreCase("gtime")) // get the RTC time on device
+    else if (command.equalsIgnoreCase("time")) // get the RTC time on device
     {
         printDateTime();
     }
@@ -731,7 +750,7 @@ void parseInputString()
         sleep_ms(1000);
         rom_reset_usb_boot(LED_PIN, 0);
     }
-    else if (command.equalsIgnoreCase("setName"))
+    else if (command.equalsIgnoreCase("set_name"))
     {
         if (valueCount == 2)
         {
@@ -746,9 +765,9 @@ void parseInputString()
             Serial.println("ERROR: Invalid command format, expected format is setName:<name>");
         }
     }
-    else if (command.equalsIgnoreCase("getName"))
+    else if (command.equalsIgnoreCase("get_name"))
     {
-        Serial.println("INFO: Current name: " + autosampler.getName());
+        Serial.println("Name: " + autosampler.getName());
     }
     else if (command.equalsIgnoreCase("readEncoder"))
     {
@@ -927,6 +946,10 @@ void parseInputString()
     {
         autosampler.dumpSlotsConfig();
     }
+    else if (command.equalsIgnoreCase("dumpGlobalConfig"))
+    {
+        autosampler.dumpGlobalConfig();
+    }
     else if (command.equalsIgnoreCase("moveToLeftMost"))
     {
         autosampler.moveToLeftMost();
@@ -947,6 +970,14 @@ void parseInputString()
         autosampler.assertHolding();
         autosampler.saveConfig();
         Serial.println("INFO: Holding mode " + String(HOLDING ? "enabled" : "disabled"));
+    }
+    else if (command.equalsIgnoreCase("queryHolding"))
+    {
+        Serial.println("INFO: Holding " + String(HOLDING ? "enabled" : "disabled"));
+    }
+    else if (command.equalsIgnoreCase("queryDebug"))
+    {
+        Serial.println("INFO: Debug " + String(DEBUG ? "enabled" : "disabled"));
     }
     else
     {

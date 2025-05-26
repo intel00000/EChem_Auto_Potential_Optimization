@@ -1,4 +1,5 @@
 # pyserial imports
+from asyncio import BaseTransport
 import serial
 import serial.tools.list_ports
 
@@ -71,7 +72,7 @@ class PicoController:
         # port refresh timer
         self.port_refresh_interval_ns = 2 * NANOSECONDS_PER_SECOND
         self.port_refresh_last_ns = -1
-        self.serial_wait_time = 0.1  # Serial port wait time in seconds
+        self.serial_wait_time = 0.5  # Serial port wait time in seconds
         self.timeout = 1  # Serial port timeout in seconds
 
         # instance fields for the serial port and queue
@@ -513,6 +514,8 @@ class PicoController:
         reset_cmd,
         *,
         id=None,
+        is_Autosampler=False,
+        is_Potentiostat=False,
     ):
         # 1) build widgets
         label(root_frame, label_text, row, 0, sticky="W")
@@ -526,12 +529,28 @@ class PicoController:
             "Set Name",
             row,
             6,
-            lambda: self.set_controller_name(controller_id=id),
+            lambda: self.set_controller_name(
+                controller_id=id,
+                is_Autosampler=is_Autosampler,
+                is_Potentiostat=is_Potentiostat,
+            ),
+        )
+        btn_blink = button(
+            root_frame,
+            "Blink LED OFF",
+            row,
+            7,
+            lambda: self.blink_controller_led(
+                controller_id=id,
+                is_Autosampler=is_Autosampler,
+                is_Potentiostat=is_Potentiostat,
+            ),
         )
 
         btn_disc.configure(state="disabled", hover=True)
         btn_rst.configure(state="disabled", hover=True)
         btn_set_ctl_name.configure(state="disabled", hover=True)
+        btn_blink.configure(state="disabled", hover=True)
 
         # 2) pick the widget map
         if id is not None:
@@ -548,6 +567,10 @@ class PicoController:
                     "disconnect_buttons": [],
                     "reset_buttons": [],
                     "set_name_buttons": [],
+                    "blink_buttons": [],
+                    "blink_buttons_sv": ctk.StringVar(
+                        master=root_frame, value="Blink OFF"
+                    ),
                     "comboboxs_sv": ctk.StringVar(master=root_frame),
                     "status_label_sv": ctk.StringVar(
                         master=root_frame, value="Status: Not connected"
@@ -561,10 +584,12 @@ class PicoController:
         map["disconnect_buttons"].append(btn_disc)
         map["reset_buttons"].append(btn_rst)
         map["set_name_buttons"].append(btn_set_ctl_name)
+        map["blink_buttons"].append(btn_blink)
 
         # 5) bind them all to the *same* StringVars
         cb.configure(variable=map["comboboxs_sv"])
         st.configure(textvariable=map["status_label_sv"])
+        btn_blink.configure(textvariable=map["blink_buttons_sv"])
 
     def add_pc_connect_widgets(self, root_frame, port_label, controller_id, row):
         # update the pump_controllers dictionary
@@ -592,6 +617,7 @@ class PicoController:
             self.connect_as,
             self.disconnect_as,
             self.reset_as,
+            is_Autosampler=True,
         )
 
     def add_po_connect_widgets(self, root_frame, row):
@@ -603,6 +629,7 @@ class PicoController:
             self.connect_po,
             self.disconnect_po,
             self.reset_po,
+            is_Potentiostat=True,
         )
 
     # add the widgets under the provided root_frame
@@ -1232,7 +1259,7 @@ class PicoController:
                 serial_port_obj.reset_input_buffer()
                 serial_port_obj.reset_output_buffer()
                 # we have to distinguish between the firmware update mode and the controller mode
-                serial_port_obj.write("0:ping\n".encode())  # identify Pico type
+                serial_port_obj.write("ping\n".encode())  # identify Pico type
                 response = serial_port_obj.readline().decode("utf-8").strip()
                 logging.debug(f"Response from {parsed_port}: {response}")
                 # if we have a response, we are in the controller mode
@@ -1241,29 +1268,35 @@ class PicoController:
                         # which mean the firmware won't work
                         non_blocking_messagebox(
                             parent=self.root,
-                            title="Error",
-                            message="The connected device is not running a Micropython firmware, easy firmware upload is not possible.",
+                            title="Warning",
+                            message="The connected device is not running a Micropython firmware, single file upload is not possible.",
                         )
-                    pattern = r"Pico (\S+) Control Version"
+                        self.enter_bootsel_button_ff.configure(
+                            state="normal", hover=True
+                        )
+                    else:
+                        self.enter_bootloader_button_ff.configure(
+                            state="normal", hover=True
+                        )
+                        self.enter_controller_button_ff.configure(
+                            state="disabled", hover=True
+                        )
+                        self.enter_bootsel_button_ff.configure(
+                            state="normal", hover=True
+                        )
+                        self.switch_controller_mode_button_po_ff.configure(
+                            state="normal", hover=True
+                        )
+                        self.switch_controller_mode_button_pc_ff.configure(
+                            state="normal", hover=True
+                        )
+                    pattern = r"\W+(\S+)\W+Control Version"
                     match = re.search(pattern, response, re.IGNORECASE)
                     mode = "Unknown"
                     if match:
                         mode = match.group(1)
                     self.mode_label_ff.configure(
                         text=f"Current Mode: {mode} Controller"
-                    )
-                    self.enter_bootloader_button_ff.configure(
-                        state="normal", hover=True
-                    )
-                    self.enter_controller_button_ff.configure(
-                        state="disabled", hover=True
-                    )
-                    self.enter_bootsel_button_ff.configure(state="normal", hover=True)
-                    self.switch_controller_mode_button_po_ff.configure(
-                        state="normal", hover=True
-                    )
-                    self.switch_controller_mode_button_pc_ff.configure(
-                        state="normal", hover=True
                     )
                 elif "Error: Invalid JSON payload" in response:
                     self.mode_label_ff.configure(text="Current Mode: Firmware Update")
@@ -1284,7 +1317,6 @@ class PicoController:
                     self.space_label_ff.configure(
                         text=f"Available Space: {available_space_mb:.3f} / {total_space_mb:.3f} MB"
                     )
-
                     self.update_ff_file_stats(
                         bootloader_helpers.request_dir_list(serial_port_obj)
                     )
@@ -1546,8 +1578,11 @@ class PicoController:
                 message=f"An error occurred while switching controller mode: {e}",
             )
 
-    def connect_pc(self, controller_id):
-        selected_port = self.pc_id_to_widget_map[controller_id]["comboboxs_sv"].get()
+    def connect_pc(self, controller_id, selected_port=None):
+        if selected_port is None:
+            selected_port = self.pc_id_to_widget_map[controller_id][
+                "comboboxs_sv"
+            ].get()
         parsed_port = re.match(r"^(COM\d+)", selected_port)
         if parsed_port:
             parsed_port = parsed_port.group(1)
@@ -1558,7 +1593,9 @@ class PicoController:
                         self.disconnect_pc(
                             controller_id=controller_id, show_message=False
                         )
-                        self.connect_pc(controller_id=controller_id)
+                        self.connect_pc(
+                            controller_id=controller_id, selected_port=selected_port
+                        )
 
                 non_blocking_custom_messagebox(
                     parent=self.root,
@@ -1613,6 +1650,8 @@ class PicoController:
                     b.configure(state="normal", hover=True)
                 for b in serial_port_widget["set_name_buttons"]:
                     b.configure(state="normal", hover=True)
+                for b in serial_port_widget["blink_buttons"]:
+                    b.configure(state="normal", hover=True)
                 self.set_mc_buttons_state("normal")
             except Exception as e:
                 serial_port_widget = self.pc_id_to_widget_map.get(controller_id, None)
@@ -1632,8 +1671,9 @@ class PicoController:
         self.save_pumps_button.configure(state=state)
         self.emergency_shutdown_button.configure(state=state)
 
-    def connect_as(self):
-        selected_port = self.autosampler_widget_map["comboboxs_sv"].get()
+    def connect_as(self, selected_port=None):
+        if selected_port is None:
+            selected_port = self.autosampler_widget_map["comboboxs_sv"].get()
         parsed_port = re.match(r"^(COM\d+)", selected_port)
         if parsed_port:
             parsed_port = parsed_port.group(1)
@@ -1642,7 +1682,7 @@ class PicoController:
                 def callback(choice):
                     if choice == "Yes":
                         self.disconnect_as(show_message=False)
-                        self.connect_as()
+                        self.connect_as(selected_port)
 
                 non_blocking_custom_messagebox(
                     parent=self.root,
@@ -1682,6 +1722,7 @@ class PicoController:
                 self.refresh_ports()
                 self.set_as_buttons_state("normal")
                 self.autosampler_send_queue.put("dumpSlotsConfig")
+                self.query_controller_name(is_Autosampler=True)
             except Exception as e:
                 self.autosampler_widget_map["status_label_sv"].set(
                     "Status: Not connected"
@@ -1698,6 +1739,10 @@ class PicoController:
             b.configure(state=state)
         for b in self.autosampler_widget_map["reset_buttons"]:
             b.configure(state=state)
+        for b in self.autosampler_widget_map["set_name_buttons"]:
+            b.configure(state=state)
+        for b in self.autosampler_widget_map["blink_buttons"]:
+            b.configure(state=state)
 
         self.position_entry_as.configure(state=state)
         self.goto_position_button_as.configure(state=state)
@@ -1712,8 +1757,9 @@ class PicoController:
         self.update_slot_position_as.configure(state=state)
         self.update_slot_button_as.configure(state=state)
 
-    def connect_po(self):
-        selected_port = self.potentiostat_widget_map["comboboxs_sv"].get()
+    def connect_po(self, selected_port=None):
+        if selected_port is None:
+            selected_port = self.potentiostat_widget_map["comboboxs_sv"].get()
         parsed_port = re.match(r"^(COM\d+)", selected_port)
         if parsed_port:
             parsed_port = parsed_port.group(1)
@@ -1722,7 +1768,7 @@ class PicoController:
                 def callback(choice):
                     if choice == "Yes":
                         self.disconnect_po(show_message=False)
-                        self.connect_po()
+                        self.connect_po(selected_port)
 
                 non_blocking_custom_messagebox(
                     parent=self.root,
@@ -1763,7 +1809,8 @@ class PicoController:
                 self.set_trigger_po(state="low")
                 self.set_potentiostat_buttons_state("normal")
                 self.potentiostat_send_queue.put("0:info")
-                self.potentiostat_send_queue.put("0:st")
+                self.potentiostat_send_queue.put("0:status")
+                self.query_controller_name(is_Potentiostat=True)
             except Exception as e:
                 self.potentiostat_widget_map["status_label_sv"].set(
                     "Status: Not connected"
@@ -1780,6 +1827,10 @@ class PicoController:
             b.configure(state=state)
         for b in self.potentiostat_widget_map["reset_buttons"]:
             b.configure(state=state)
+        for b in self.potentiostat_widget_map["set_name_buttons"]:
+            b.configure(state=state)
+        for b in self.potentiostat_widget_map["blink_buttons"]:
+            b.configure(state=state)
         self.trigger_high_button_po.configure(state=state)
         self.trigger_low_button_po.configure(state=state)
 
@@ -1792,7 +1843,7 @@ class PicoController:
                 if connection_status:
                     self.pc_send_queue.put(f"{id}:0:time")
             if self.autosampler.is_open:
-                self.autosampler_send_queue.put("gtime")
+                self.autosampler_send_queue.put("time")
                 self.autosampler_send_queue.put("getPosition")
             if self.potentiostat.is_open:
                 self.potentiostat_send_queue.put("0:time")
@@ -1841,7 +1892,7 @@ class PicoController:
                 if is_Autosampler:
                     self.autosampler_name = name
                 elif is_Potentiostat:
-                    self.autosampler_name = name
+                    self.potentiostat_name = name
                 else:
                     self.pc_names[controller_id] = name
             self.refresh_ports(instant=True)
@@ -1905,6 +1956,39 @@ class PicoController:
             if serial_obj and serial_obj.is_open:
                 self.pc_send_queue.put(f"{controller_id}:0:set_name:{name}")
                 self.pc_send_queue.put(f"{controller_id}:0:get_name")
+
+    def blink_controller_led(
+        self,
+        controller_id=None,
+        is_Autosampler=False,
+        is_Potentiostat=False,
+    ):
+        suffix = "en"
+        # send 0:blink_en command to the serial port
+        if is_Autosampler:
+            btns_sv = self.autosampler_widget_map.get("blink_buttons_sv", None)
+        elif is_Potentiostat:
+            btns_sv = self.potentiostat_widget_map.get("blink_buttons_sv", None)
+        else:
+            btns_sv = self.pc_id_to_widget_map.get(controller_id, {}).get(
+                "blink_buttons_sv", None
+            )
+        if btns_sv and "ON" in btns_sv.get():
+            suffix = "dis"
+
+        if is_Autosampler:
+            if self.autosampler.is_open:
+                self.autosampler_send_queue.put(f"blink_{suffix}")
+        elif is_Potentiostat:
+            if self.potentiostat.is_open:
+                self.potentiostat_send_queue.put(f"0:blink_{suffix}")
+        else:
+            serial_obj = self.pc.get(controller_id, None)
+            if serial_obj and serial_obj.is_open:
+                self.pc_send_queue.put(f"{controller_id}:0:blink_{suffix}")
+
+        if btns_sv:
+            btns_sv.set("Blink ON" if suffix == "en" else "Blink OFF")
 
     def parse_autosampler_config(self, response) -> None:
         # Extract the JSON part of the response
@@ -2001,6 +2085,8 @@ class PicoController:
             serial_port_widget = self.pc_id_to_widget_map[controller_id]
             if serial_port_obj.is_open:
                 try:
+                    self.pumps_shutdown(all=False, controller_id=controller_id)
+
                     serial_port_obj.close()  # close the serial port connection
                     self.pc_connected[controller_id] = False
 
@@ -2013,6 +2099,8 @@ class PicoController:
                     for b in serial_port_widget["reset_buttons"]:
                         b.configure(state="disabled", hover=True)
                     for b in serial_port_widget["set_name_buttons"]:
+                        b.configure(state="disabled", hover=True)
+                    for b in serial_port_widget["blink_buttons"]:
                         b.configure(state="disabled", hover=True)
                     self.remove_pumps_widgets(
                         remove_all=False, controller_id=controller_id
@@ -2033,7 +2121,6 @@ class PicoController:
                         self.pc_send_queue.put(temp_queue.get())
 
                     self.pc_names[controller_id] = "N/A"  # reset the name
-
                     self.refresh_ports()
                     logging.info(f"Disconnected from Pico {controller_id}")
                     if show_message:
@@ -2064,6 +2151,8 @@ class PicoController:
                 self.set_as_buttons_state("disabled")
                 while not self.autosampler_send_queue.empty():  # empty the queue
                     self.autosampler_send_queue.get()
+                self.autosampler_name = "N/A"  # reset the name
+                self.refresh_ports()
                 logging.info("Disconnected from Autosampler")
                 if show_message:
                     non_blocking_messagebox(
@@ -2082,6 +2171,7 @@ class PicoController:
     def disconnect_po(self, show_message=True):
         if self.potentiostat.is_open:
             try:
+                self.potentiostat.write("0:shutdown\n".encode())
                 self.potentiostat.close()
                 self.potentiostat_widget_map["status_label_sv"].set(
                     "Status: Not connected"
@@ -2091,6 +2181,9 @@ class PicoController:
                 self.set_potentiostat_buttons_state("disabled")
                 while not self.potentiostat_send_queue.empty():  # empty the queue
                     self.potentiostat_send_queue.get()
+
+                self.potentiostat_name = "N/A"  # reset the name
+                self.refresh_ports()
                 logging.info("Disconnected from Potentiostat")
                 if show_message:
                     non_blocking_messagebox(
@@ -2196,12 +2289,12 @@ class PicoController:
             )
 
     def toggle_trigger_po(self):
-        self.potentiostat_send_queue.put("0:tr")
+        self.potentiostat_send_queue.put("0:toggle_trigger")
 
     def set_trigger_po(self, state: str, update_status=True):
         self.potentiostat_send_queue.put(f"0:set_trigger:{state.upper()}")
         if update_status:
-            self.potentiostat_send_queue.put("0:st")
+            self.potentiostat_send_queue.put("0:status")
 
     def query_pump_info(self, controller_id):
         serial_obj = self.pc.get(controller_id, None)
@@ -2378,7 +2471,6 @@ class PicoController:
         all=True,
         controller_id=None,
         messageboxConfirmationNeeded=False,
-        Confirmation=False,
     ):
         if any(self.pc_connected.values()):
             try:
@@ -2389,8 +2481,7 @@ class PicoController:
                             self.pumps_shutdown(
                                 all=all,
                                 controller_id=controller_id,
-                                messageboxConfirmationNeeded=True,
-                                Confirmation=True,
+                                messageboxConfirmationNeeded=False,
                             )
 
                     non_blocking_custom_messagebox(
@@ -2401,25 +2492,23 @@ class PicoController:
                         callback=callback,
                     )
                     return
-                if Confirmation or not messageboxConfirmationNeeded:
+                else:
                     if all:
+                        serial_objs = self.pc_connected
+                    else:
+                        serial_objs = {controller_id: self.pc_connected[controller_id]}
                         for (
                             id,
                             connection_status,
-                        ) in self.pc_connected.items():
+                        ) in serial_objs.items():
                             if connection_status:
-                                self.pc_send_queue.put(f"{id}:0:shutdown")
+                                serial_obj = self.pc.get(id, None)
+                                if serial_obj and serial_obj.is_open:
+                                    serial_obj.write("0:shutdown\n".encode())
                                 self.update_status(controller_id=id)
                                 logging.info(
                                     f"Signal sent for emergency shutdown of pump controller {id}."
                                 )
-                    else:
-                        if controller_id and self.pc_connected[controller_id]:
-                            self.pc_send_queue.put(f"{controller_id}:0:shutdown")
-                            self.update_status(controller_id=controller_id)
-                            logging.info(
-                                f"Signal sent for emergency shutdown of pump controller {controller_id}."
-                            )
             except Exception as e:
                 logging.error(f"Error: {e}")
                 non_blocking_messagebox(
@@ -2546,7 +2635,7 @@ class PicoController:
             if self.autosampler.is_open and not self.autosampler_send_queue.empty():
                 command = self.autosampler_send_queue.get(block=False)
                 self.autosampler.write(f"{command}\n".encode())
-                if "gtime" not in command and "getPosition" not in command:
+                if "time" not in command and "getPosition" not in command:
                     logging.debug(f"PC -> Autosampler: {command}")
         except serial.SerialException as e:
             self.disconnect_as(False)
@@ -2604,7 +2693,7 @@ class PicoController:
                         self.parse_controller_name(controller_id, response)
                     elif "Status:" in response:
                         self.update_pump_status(controller_id, response)
-                    elif "RTC Time" in response:
+                    elif "RTC Time:" in response:
                         self.parse_rtc_time(controller_id, response)
                     elif "Success:" in response:
                         non_blocking_messagebox(
@@ -2682,8 +2771,8 @@ class PicoController:
                     response = self.autosampler.readline().decode("utf-8").strip()
 
                     if (
-                        "RTC Time" not in response
-                        and "Current position" not in response
+                        "RTC Time:" not in response
+                        and "Current position:" not in response
                     ):
                         logging.debug(f"Autosampler -> PC: {response}")
 
@@ -2691,17 +2780,21 @@ class PicoController:
                         self.parse_autosampler_config(response)
                     elif "INFO: Current position: " in response:
                         self.parse_autosampler_position(response)
-                    elif "RTC Time" in response:
+                    elif "RTC Time:" in response:
                         self.parse_rtc_time(
                             controller_id=None, response=response, is_Autosampler=True
                         )
-                    elif "ERROR" in response:
+                    elif "Name:" in response:
+                        self.parse_controller_name(
+                            controller_id=None, response=response, is_Autosampler=True
+                        )
+                    elif "ERROR:" in response:
                         non_blocking_messagebox(
                             parent=self.root,
                             title="Error",
                             message=f"Autosampler: {response}",
                         )
-                    elif "SUCCESS" in response:
+                    elif "SUCCESS:" in response:
                         non_blocking_messagebox(
                             parent=self.root,
                             title="Success",
@@ -2729,26 +2822,30 @@ class PicoController:
             try:
                 if self.potentiostat.in_waiting:
                     response = self.potentiostat.readline().decode("utf-8").strip()
-                    if "RTC Time" not in response:
+                    if "RTC Time:" not in response:
                         logging.debug(f"Potentiostat -> PC: {response}")
 
                     if "Info:" in response:
                         self.parse_potentiostat_config(response)
                     if "Status:" in response:
                         self.parse_potentiostat_status(response)
-                    elif "RTC Time" in response:
+                    elif "RTC Time:" in response:
                         self.parse_rtc_time(
                             controller_id=None,
                             response=response,
                             is_Potentiostat=True,
                         )
-                    elif "ERROR" in response:
+                    elif "Name:" in response:
+                        self.parse_controller_name(
+                            controller_id=None, response=response, is_Potentiostat=True
+                        )
+                    elif "ERROR:" in response:
                         non_blocking_messagebox(
                             parent=self.root,
                             title="Error",
                             message=f"Potentiostat: {response}",
                         )
-                    elif "SUCCESS" in response:
+                    elif "SUCCESS:" in response:
                         non_blocking_messagebox(
                             parent=self.root,
                             title="Success",
@@ -3929,13 +4026,12 @@ class PicoController:
 
 # set dpi awareness to avoid scaling issues
 ctk.set_default_color_theme("dark-blue")
-
 ctk.set_appearance_mode("light")
 setProcessDpiAwareness()
 root = ctk.CTk()
 root.resizable(True, True)
 check_lock_file(root)
-root.iconbitmap(resource_path(os.path.join("icons", "icons-red.ico")))
+root.wm_iconbitmap(resource_path(os.path.join("icons", "icons-red.ico")))
 app = PicoController(root)
 root.deiconify()
 root.geometry(f"+{root.winfo_screenwidth() // 8}+{root.winfo_screenheight() // 8}")

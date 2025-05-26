@@ -15,7 +15,7 @@ def enter_bootselect(serial_port_obj: serial.Serial) -> bool:
         return False
     try:
         # send a command to enter bootloader mode
-        serial_port_obj.write(b"0:bootsel\n")
+        serial_port_obj.write(b"bootsel\n")
         # get the response from the serial port
         response = serial_port_obj.readline().decode().strip()
         logging.debug(f"Device -> PC: {response}")
@@ -32,13 +32,13 @@ def enter_bootloader(serial_port_obj: serial.Serial):
     if not serial_port_obj.is_open:
         return
     try:
-        serial_port_obj.write(b"0:set_mode:update_firmware\n")
+        serial_port_obj.write(b"set_mode:update_firmware\n")
         # get the response from the serial port
         response = serial_port_obj.readline().decode().strip()
         logging.debug(f"Device -> PC: {response}")
         if "Success" in response:
             # set "0:reset" command to the serial port
-            serial_port_obj.write(b"0:reset\n")
+            serial_port_obj.write(b"reset\n")
             # get the response from the serial port
             response = serial_port_obj.readline().decode().strip()
             logging.debug(f"Device -> PC: {response}")

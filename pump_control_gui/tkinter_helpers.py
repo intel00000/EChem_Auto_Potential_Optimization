@@ -164,8 +164,6 @@ def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path)
     try:
         top = ctk.CTkToplevel(parent)
         top.title(title)
-        if icon_path:
-            top.iconbitmap(icon_path)
         frame = ctk.CTkFrame(top)
         frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
         label(
@@ -192,6 +190,7 @@ def non_blocking_messagebox(parent, title, message, icon_path=default_icon_path)
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
+        top.after(250, lambda: top.wm_iconbitmap(icon_path))
     except Exception as e:
         logging.error(f"Error creating non-blocking message box: {e}")
 
@@ -203,8 +202,6 @@ def non_blocking_custom_messagebox(
     try:
         top = ctk.CTkToplevel(parent)
         top.title(title)
-        if icon_path:
-            top.iconbitmap(icon_path)
         frame = ctk.CTkFrame(top)
         frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
         label(
@@ -241,6 +238,7 @@ def non_blocking_custom_messagebox(
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
+        top.after(250, lambda: top.wm_iconbitmap(icon_path))
     except Exception as e:
         logging.error(f"Error creating non-blocking custom message box: {e}")
 
@@ -252,8 +250,6 @@ def non_blocking_checklist(
     try:
         top = ctk.CTkToplevel(parent)
         top.title(title)
-        if icon_path:
-            top.iconbitmap(icon_path)
         frame = ctk.CTkFrame(top)
         frame.grid(row=0, column=0, ipadx=global_pad_x, ipady=global_pad_y)
 
@@ -330,6 +326,7 @@ def non_blocking_checklist(
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
+        top.after(250, lambda: top.wm_iconbitmap(icon_path))
     except Exception as e:
         logging.error(f"Error creating non-blocking checklist: {e}")
 
@@ -341,8 +338,6 @@ def non_blocking_single_select(
     try:
         top = ctk.CTkToplevel(parent)
         top.title(title)
-        if icon_path:
-            top.iconbitmap(icon_path)
         frame = ctk.CTkFrame(top)
         frame.grid(
             row=1,
@@ -420,6 +415,7 @@ def non_blocking_single_select(
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
+        top.after(250, lambda: top.wm_iconbitmap(icon_path))
     except Exception as e:
         logging.error(f"Error creating non-blocking single selection dialog: {e}")
 
@@ -433,9 +429,6 @@ def non_blocking_input_dialog(
     try:
         top = ctk.CTkToplevel(parent)
         top.title(title)
-        if icon_path:
-            top.iconbitmap(icon_path)
-
         input_vars = {}
 
         # Create a frame for the form
@@ -524,5 +517,6 @@ def non_blocking_input_dialog(
         top.geometry(
             f"+{top.winfo_screenwidth() // 2 - top.winfo_width() // 2}+{top.winfo_screenheight() // 2 - top.winfo_height() // 2}"
         )
+        top.after(250, lambda: top.wm_iconbitmap(icon_path))
     except Exception as e:
         logging.error(f"Error creating non-blocking input dialog: {e}")
