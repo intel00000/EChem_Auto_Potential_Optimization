@@ -1,4 +1,5 @@
 openpyxl
+requests
 pandas
 psutil
 pyserial

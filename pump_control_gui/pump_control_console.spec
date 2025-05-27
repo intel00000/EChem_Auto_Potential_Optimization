@@ -9,7 +9,7 @@ a = Analysis(
     ['pump_control.py'],
     pathex=['.'],
     binaries=[],
-    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons'), ('xmls/combined_sequencer_methods.xml', 'xmls'), (ctk_path, 'customtkinter')],
+    datas=[('icons/icons-black.ico', 'icons'), ('icons/icons-white.ico', 'icons'), ('icons/icons-red.ico', 'icons'), ('xmls/combined_sequencer_methods.xml', 'xmls'), ('data/micropython-variants-uf2.json', '.'), (ctk_path, 'customtkinter')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
