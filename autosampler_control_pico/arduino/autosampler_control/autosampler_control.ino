@@ -20,22 +20,22 @@ const int MAX_BUFFER_SIZE = 300;      // Maximum buffer size for input string
 const int BAUD_RATE = 115200;         // Baud rate for serial communication
 String inputString = "";              // a string to hold incoming data
 volatile bool stringComplete = false; // whether the string is complete
-// Pin definitions
-const int PULSE_PIN = 22;
-const int DIRECTION_PIN = 7;
-const int ENABLE_PIN = 2;
+// Default Pin definitions
+const int DEFAULT_PULSE_PIN = 12;
+const int DEFAULT_DIRECTION_PIN = 14;
+const int DEFAULT_ENABLE_PIN = 15;
 // Pin definitions for the AS5600 magnetic encoder
-const int ENCODER_SDA_PIN = 10;
-const int ENCODER_SCL_PIN = 11;
-const int ENCODER_PGO_PIN = 12;
-const int ENCODER_DIR_PIN = 13;
+const int ENCODER_SDA_PIN = 6;
+const int ENCODER_SCL_PIN = 7;
+const int ENCODER_PGO_PIN = 8;
+const int ENCODER_DIR_PIN = 9;
 const int ENCODER_ADDR = 0x36;
 uint8_t encoderReadBuffer[2]; // Enough for max 2-byte read
 uint16_t lastAngle = 0;
 uint8_t lastAGC, lastStatus = 0;
 uint8_t encoderWriteBuffer = 0x0E; // Register to read the angle
 
-bool HOLDING = true;             // Flag to indicate if the motor is holding
+bool HOLDING = false;            // Flag to indicate if the motor is holding
 bool blinkLED = false;           // Flag to indicate if the LED should blink
 unsigned long lastBlinkTime = 0; // Last time the LED was blinked
 const int BLINK_INTERVAL = 200;  // Interval for LED blinking in milliseconds
@@ -54,9 +54,9 @@ float dutyCycle = 0.5;         // Duty cycle for the PWM signal
 class Autosampler
 {
 private:
-    int pulsePin = PULSE_PIN;
-    int directionPin = DIRECTION_PIN;
-    int enablePin = ENABLE_PIN;
+    int pulsePin = DEFAULT_PULSE_PIN;
+    int directionPin = DEFAULT_DIRECTION_PIN;
+    int enablePin = DEFAULT_ENABLE_PIN;
 
     bool isPoweredOn = false;
     int currentPosition = 0;
@@ -135,9 +135,9 @@ private:
             globalConfig.clear();
             globalConfig["currentPosition"] = 0;
             globalConfig["currentDirection"] = true;
-            globalConfig["pulsePin"] = PULSE_PIN;
-            globalConfig["directionPin"] = DIRECTION_PIN;
-            globalConfig["enablePin"] = ENABLE_PIN;
+            globalConfig["pulsePin"] = DEFAULT_PULSE_PIN;
+            globalConfig["directionPin"] = DEFAULT_DIRECTION_PIN;
+            globalConfig["enablePin"] = DEFAULT_ENABLE_PIN;
             globalConfig["minPosition"] = MIN_POSITION;
             globalConfig["maxPosition"] = MAX_POSITION;
             globalConfig["Year"] = (int16_t)2025;
@@ -288,12 +288,7 @@ public:
         loadSlotsConfig();
         failSafePosition = slotsConfig["fail-safe"].as<int>();
 
-        pinMode(pulsePin, OUTPUT);
-        pinMode(directionPin, OUTPUT);
-        pinMode(enablePin, OUTPUT);
-        digitalWrite(pulsePin, LOW);
-        digitalWrite(directionPin, LOW);
-        digitalWrite(enablePin, HOLDING ? LOW : HIGH); // LOW enables driver
+        setPin(pulsePin, directionPin, enablePin);
     }
 
     void moveToPosition(int position)
@@ -607,6 +602,19 @@ public:
             }
         }
     }
+    void setPin(int pulse, int direction, int enable)
+    {
+        pulsePin = pulse;
+        directionPin = direction;
+        enablePin = enable;
+        pinMode(pulsePin, OUTPUT);
+        pinMode(directionPin, OUTPUT);
+        pinMode(enablePin, OUTPUT);
+        digitalWrite(pulsePin, LOW);
+        digitalWrite(directionPin, LOW);
+        digitalWrite(enablePin, HOLDING ? LOW : HIGH); // LOW enables driver
+        saveConfiguration();
+    }
 };
 
 Autosampler autosampler;
@@ -690,8 +698,8 @@ void parseInputString()
         Serial.println("    getRatio - Get the current ratio for the stepper motor speed.");
         Serial.println("    generateRampProfile - Regenerate the ramp profile for the stepper motor.");
         Serial.println("    setRampSteepness:<value> - Set the steepness of the ramp profile (default is 3.0).");
-        Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile (default is 1).");
-        Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile (default is 100).");
+        Serial.println("    setRampMinInterval:<value> - Set the minimum interval for the ramp profile in us (default is 1000).");
+        Serial.println("    setRampMaxInterval:<value> - Set the maximum interval for the ramp profile in us (default is 3000).");
         Serial.println("    set_name:<name> - Set the name of the autosampler.");
         Serial.println("    get_name - Get the name of the autosampler.");
         Serial.println("    readEncoder - Read the encoder value.");
@@ -702,6 +710,7 @@ void parseInputString()
         Serial.println("    blink_en - Enable or disable LED blinking.");
         Serial.println("    blink_dis - Disable LED blinking.");
         Serial.println("    bootsel - Enter BOOTSEL mode.");
+        Serial.println("    setPin:<pulsePin>:<directionPin>:<enablePin> - Set the pins for the stepper motor control.");
         Serial.println("    reset - Reset the device.");
     }
     else if (command.equalsIgnoreCase("stop"))
@@ -796,6 +805,21 @@ void parseInputString()
     else if (command.equalsIgnoreCase("get_name"))
     {
         Serial.println("Name: " + autosampler.getName());
+    }
+    else if (command.equalsIgnoreCase("setPin"))
+    {
+        if (valueCount == 4)
+        {
+            int pulsePin = values[1].toInt();
+            int directionPin = values[2].toInt();
+            int enablePin = values[3].toInt();
+            autosampler.setPin(pulsePin, directionPin, enablePin);
+            Serial.println("INFO: Pins set to: Pulse=" + String(pulsePin) + ", Direction=" + String(directionPin) + ", Enable=" + String(enablePin));
+        }
+        else
+        {
+            Serial.println("ERROR: Invalid command format, expected format is setPin:<pulsePin>:<directionPin>:<enablePin>");
+        }
     }
     else if (command.equalsIgnoreCase("readEncoder"))
     {

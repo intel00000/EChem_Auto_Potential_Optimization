@@ -539,9 +539,9 @@ def main():
                         potentiostat_status(potentiostat_num)
                     elif command == "info":
                         potentiostat_info(potentiostat_num)
-                    elif command == "clear_potentiostats":
+                    elif command == "clear_po":
                         clear_potentiostats(potentiostat_num)
-                    elif command == "save_potentiostats":
+                    elif command == "save_po":
                         save_potentiostats(potentiostat_num)
                     elif potentiostat_num == 0:
                         if command == "shutdown":
