@@ -142,7 +142,7 @@ class PicoController:
             pass
         log_filename = os.path.join("log", f"pump_control_run_{runtime}.log")
         logging.basicConfig(
-            level=logging.DEBUG,
+            level=logging.INFO,
             format="%(asctime)s: %(message)s [%(funcName)s]",
             handlers=[logging.FileHandler(log_filename), logging.StreamHandler()],
         )

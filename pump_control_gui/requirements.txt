@@ -1,5 +1,6 @@
 openpyxl
 requests
+tkinterdnd2
 pandas
 psutil
 pyserial
