@@ -1,5 +1,0 @@
-plotly
-chart_studio
-pandas
-scipy
-scikit-learn

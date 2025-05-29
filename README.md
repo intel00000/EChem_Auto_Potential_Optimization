@@ -1,11 +1,23 @@
 <!-- @format -->
 
-# MasterFlex Pump Controller
+# Electrochemistry Reactor Controller User Interface
 
-This repository contains a MasterFlex Pump Controller implemented in Python, utilizing a Raspberry Pi Pico for hardware control and a PC-side GUI for pumps automation and operations.
+This repository contains a Electrochemistry Reactor Controller User Interface implemented in Python, utilizing multiple microcontrollers for hardware control and a PC-side GUI for experimental automation and operations.
+
+See the [Release Page](https://github.com/intel00000/EChem_Auto_Potential_Optimization/releases) for:
+
+<ol>
+  <li>the latest pre-built executable for Windows</li>
+  <li>the .uf2 firmwares for microcontroller</li>
+  <li>the data post-processing scripts</li>
+</ol>
+
+Screenshots of the GUI are shown below. The GUI is designed to be user-friendly, allowing users to easily set up and control the pumps, valves, and other components of the electrochemistry reactor.
 
 <p align="center">
-  <img src=images/pump_control_gui.png alt="Pump Controller GUI"/>
+  <img src=images/pump_control_gui_new_setup.png alt="New Pump Controller GUI Setup Page"/>
+  <img src=images/pump_control_gui_new_schedule.png alt="New Pump Controller GUI Schedule Page"/>
+  <img src=images/pump_control_gui_new_advanced.png alt="New Pump Controller GUI Advanced Settings Page"/>
 </p>
 
 ## Table of Contents
@@ -35,10 +47,11 @@ This repository contains a MasterFlex Pump Controller implemented in Python, uti
    ```
 2. Install required Python libraries:
    ```sh
-   pip install -r requirements.txt
+   pip install -r requirements.txt -U
    ```
 3. Run the Pump Controller Demo with the following command:
    ```sh
+   cd pump_control_gui
    python pump_control.py
    ```
 
@@ -63,6 +76,7 @@ It is recommended to use a Python virtual environment for better dependency mana
    ```
 4. Install the required packages:
    ```sh
+   cd pump_control_gui
    pip install -r requirements.txt
    ```
 5. To run the Pump Controller Demo, ensure the virtual environment is activated and use the following command:
@@ -88,6 +102,7 @@ It is recommended to use a Python virtual environment for better dependency mana
    ```
 4. Install the required packages:
    ```sh
+   cd pump_control_gui
    pip install -r requirements.txt
    ```
 5. To run the Pump Controller Demo, activated the virtual environment first and use the following command:
@@ -105,6 +120,7 @@ To compile the application to a standalone executable using PyInstaller, it is r
 2. Install PyInstaller if you haven't already:
    ```sh
    pip install pyinstaller
+   cd pump_control_gui
    ```
 3. Run PyInstaller to compile the executable:
 
@@ -183,6 +199,7 @@ Using a PCB enable secure and reliable connection between the pump and the pico,
 
 <p align="center">
   <img src=images/PCB_3D_model.png alt="PCB 3D Model"/>
+  <img src=images/PCB_Actual.png alt="Actual PCB Board"/>
 </p>
 
 ## Contact
