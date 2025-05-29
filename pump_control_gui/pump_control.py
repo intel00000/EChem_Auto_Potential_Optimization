@@ -1,5 +1,4 @@
 # pyserial imports
-from asyncio import BaseTransport
 import serial
 import serial.tools.list_ports
 
@@ -66,11 +65,11 @@ class PicoController:
     def __init__(self, root) -> None:
         self.root = root
         self.root.title("Pump Control & Automation")
-        self.main_loop_interval_ms = 5  # Main loop interval in milliseconds
+        self.main_loop_interval_ms = 10  # Main loop interval in milliseconds
         self.config = get_config()
 
         # port refresh timer
-        self.port_refresh_interval_ns = 2 * NANOSECONDS_PER_SECOND
+        self.port_refresh_interval_ns = 1 * NANOSECONDS_PER_SECOND
         self.port_refresh_last_ns = -1
         self.serial_wait_time = 0.5  # Serial port wait time in seconds
         self.timeout = 1  # Serial port timeout in seconds
@@ -1099,23 +1098,27 @@ class PicoController:
         top = tk.Toplevel(self.root)
         top.title("Firmware Updater")
         # Instantiate the existing PicoFlasherApp into that Toplevel
-        updater = PicoFlasherApp(top)
+        PicoFlasherApp(top)
 
         # Optional: when you close that window, it just destroys itself
         top.protocol("WM_DELETE_WINDOW", top.destroy)
 
     def main_loop(self):
-        self.refresh_ports(instant=False)
-        self.read_serial()
-        self.read_serial_as()
-        self.read_serial_po()
-        self.send_command()
-        self.send_command_as()
-        self.send_command_po()
-        self.update_progress()
-        self.query_rtc_time()
-        self.update_rtc_time_display()
-        self.root.after(self.main_loop_interval_ms, self.main_loop)
+        try:
+            self.refresh_ports(instant=False)
+            self.read_serial()
+            self.read_serial_as()
+            self.read_serial_po()
+            self.send_command()
+            self.send_command_as()
+            self.send_command_po()
+            self.update_progress()
+            self.query_rtc_time()
+            self.update_rtc_time_display()
+            self.root.after(self.main_loop_interval_ms, self.main_loop)
+        except Exception as e:
+            logging.error(f"Error in main loop: {e}")
+            self.root.after(self.main_loop_interval_ms, self.main_loop)
 
     def refresh_ports(self, instant=True):
         if not instant:
@@ -1153,60 +1156,70 @@ class PicoController:
                 connected_ports.append(self.create_flash_serial_obj.name)
 
             ports = [
-                port.device + " (SN:" + str(port.serial_number) + ")"
+                f"{port.device} (SN:{str(port.serial_number)})"
                 for port in serial.tools.list_ports.comports()
                 if port.vid == pico_vid and port.name.strip() not in connected_ports
             ]
             # create a dict of serial objects with serial object as key and the corresponding comboboxs as list
             serial_to_comboboxs = {}
 
-            def set_combobox_values(comboboxs, port):
-                if port is None:
-                    port = ""
+            def set_combobox_value(comboboxs, comboboxs_sv, value):
+                if value is None:
+                    value = ""
+                if comboboxs_sv:
+                    comboboxs_sv.set(value)
                 for c in comboboxs:
-                    c.configure(values=[port])
-                    c.set(port)
+                    c.configure(values=[value])
+                    if not comboboxs_sv:
+                        c.set(value)
+
+            def get_combobox_value(comboboxs_sv) -> str:
+                return comboboxs_sv.get() if comboboxs_sv else ""
 
             for id, widgets in self.pc_id_to_widget_map.items():
                 serial_port_obj = self.pc.get(id)
                 if serial_port_obj:
                     if serial_port_obj.is_open:
-                        set_combobox_values(
-                            widgets["comboboxs"],
-                            str(serial_port_obj.port)
-                            + " (Name:"
-                            + self.pc_names[id]
-                            + ")",
-                        )
+                        value = f"{serial_port_obj.port} (Name:{self.pc_names[id]})"
+                        if get_combobox_value(widgets["comboboxs_sv"]) != value:
+                            set_combobox_value(
+                                widgets["comboboxs"], widgets["comboboxs_sv"], value
+                            )
                     else:
                         serial_to_comboboxs[serial_port_obj] = widgets["comboboxs"]
             if self.autosampler.is_open:
-                set_combobox_values(
-                    self.autosampler_widget_map["comboboxs"],
-                    str(self.autosampler.port)
-                    + " (Name:"
-                    + self.autosampler_name
-                    + ")",
-                )
+                value = f"{self.autosampler.port} (Name:{self.autosampler_name})"
+                if (
+                    get_combobox_value(self.autosampler_widget_map["comboboxs_sv"])
+                    != value
+                ):
+                    set_combobox_value(
+                        self.autosampler_widget_map["comboboxs"],
+                        self.autosampler_widget_map["comboboxs_sv"],
+                        value,
+                    )
             else:
                 serial_to_comboboxs[self.autosampler] = self.autosampler_widget_map[
                     "comboboxs"
                 ]
             if self.potentiostat.is_open:
-                set_combobox_values(
-                    self.potentiostat_widget_map["comboboxs"],
-                    str(self.potentiostat.port)
-                    + " (Name:"
-                    + self.potentiostat_name
-                    + ")",
-                )
+                value = f"{self.potentiostat.port} (Name:{self.potentiostat_name})"
+                if (
+                    get_combobox_value(self.potentiostat_widget_map["comboboxs_sv"])
+                    != value
+                ):
+                    set_combobox_value(
+                        self.potentiostat_widget_map["comboboxs"],
+                        self.potentiostat_widget_map["comboboxs_sv"],
+                        value,
+                    )
             else:
                 serial_to_comboboxs[self.potentiostat] = self.potentiostat_widget_map[
                     "comboboxs"
                 ]
             if self.create_flash_serial_obj.is_open:
-                set_combobox_values(
-                    [self.port_combobox_ff], self.create_flash_serial_obj.port
+                set_combobox_value(
+                    [self.port_combobox_ff], None, self.create_flash_serial_obj.port
                 )
             else:
                 serial_to_comboboxs[self.create_flash_serial_obj] = [
@@ -1216,11 +1229,9 @@ class PicoController:
             for serial_port_obj, comboboxs in serial_to_comboboxs.items():
                 for combobox in comboboxs:
                     # update the combobox with the list of ports
-                    current_value = combobox.get()
-                    combobox.configure(values=ports)
-                    if current_value in ports:
-                        combobox.set(current_value)
-                    else:
+                    current_values = combobox.cget("values")
+                    if current_values != ports:
+                        combobox.configure(values=ports)
                         if len(ports) > 0:
                             combobox.set(ports[0])
                         else:
@@ -1612,6 +1623,7 @@ class PicoController:
                 serial_port_obj.port = parsed_port
                 serial_port_obj.timeout = self.timeout
                 serial_port_obj.open()
+                self.refresh_ports(instant=True)  # refresh the ports immediately
                 t = time.time_ns()
                 while (
                     time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
@@ -1635,7 +1647,6 @@ class PicoController:
                 response = serial_port_obj.readline().decode("utf-8").strip()
 
                 logging.info(f"Connected to {selected_port}")
-                self.refresh_ports()  # refresh the ports immediately
                 serial_port_widget["status_label_sv"].set("Status: Connected")
                 self.pc_connected[controller_id] = True
 
@@ -1695,6 +1706,7 @@ class PicoController:
             try:
                 self.autosampler.port = parsed_port
                 self.autosampler.open()
+                self.refresh_ports(instant=True)
                 t = time.time_ns()
                 while (
                     time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
@@ -1719,7 +1731,6 @@ class PicoController:
 
                 self.autosampler_widget_map["status_label_sv"].set("Status: Connected")
                 logging.info(f"Connected to Autosampler at {selected_port}")
-                self.refresh_ports()
                 self.set_as_buttons_state("normal")
                 self.autosampler_send_queue.put("dumpSlotsConfig")
                 self.query_controller_name(is_Autosampler=True)
@@ -1781,6 +1792,7 @@ class PicoController:
             try:
                 self.potentiostat.port = parsed_port
                 self.potentiostat.open()
+                self.refresh_ports(instant=True)  # refresh the ports immediately
                 t = time.time_ns()
                 while (
                     time.time_ns() - t < self.serial_wait_time * NANOSECONDS_PER_SECOND
@@ -2171,17 +2183,15 @@ class PicoController:
     def disconnect_po(self, show_message=True):
         if self.potentiostat.is_open:
             try:
-                self.potentiostat.write("0:shutdown\n".encode())
                 self.potentiostat.close()
                 self.potentiostat_widget_map["status_label_sv"].set(
                     "Status: Not connected"
                 )
-                self.potentiostat_rtc_time = "--:--:--"
                 self.current_trigger_state_value_po.configure(text="N/A")
+                self.potentiostat_rtc_time = "--:--:--"
                 self.set_potentiostat_buttons_state("disabled")
                 while not self.potentiostat_send_queue.empty():  # empty the queue
                     self.potentiostat_send_queue.get()
-
                 self.potentiostat_name = "N/A"  # reset the name
                 self.refresh_ports()
                 logging.info("Disconnected from Potentiostat")
@@ -2511,11 +2521,6 @@ class PicoController:
                                 )
             except Exception as e:
                 logging.error(f"Error: {e}")
-                non_blocking_messagebox(
-                    parent=self.root,
-                    title="Error",
-                    message=f"An error occurred in function pumps_shutdown: {e}",
-                )
 
     def stop_procedure(self, message=False):
         try:
@@ -2713,7 +2718,7 @@ class PicoController:
             non_blocking_messagebox(
                 parent=self.root,
                 title="Error",
-                message=f"Failed to read from pump controller {controller_id} with error: {e}",  # type: ignore
+                message=f"Failed to read from pump controller {controller_id}",  # type: ignore
             )
         except Exception as e:
             self.disconnect_pc(controller_id, False)  # type: ignore
@@ -2806,7 +2811,7 @@ class PicoController:
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Error",
-                    message=f"Failed to read from Autosampler with error: {e}",
+                    message="Failed to read from Autosampler",
                 )
             except Exception as e:
                 self.disconnect_as(False)
@@ -2857,7 +2862,7 @@ class PicoController:
                 non_blocking_messagebox(
                     parent=self.root,
                     title="Error",
-                    message=f"Failed to read from Potentiostat with error: {e}",
+                    message="Failed to read from Potentiostat",
                 )
             except Exception as e:
                 self.disconnect_po(False)

@@ -45,8 +45,8 @@ const int MAX_POSITION = 16000;
 
 // Ramp profile
 int rampProfile[RAMP_SIZE] = {};
-int ramp_max_interval = 3000;
-int ramp_min_interval = 1000;
+int ramp_max_interval = 2000;
+int ramp_min_interval = 800;
 float ramp_curve_scale = 3.0f; // Controls steepness of the transition
 float ratio = 1.0;             // A global scale factor applied to the ramp profile intervals
 float dutyCycle = 0.5;         // Duty cycle for the PWM signal
